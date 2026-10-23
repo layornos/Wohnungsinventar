@@ -105,7 +105,7 @@ func (s Speicher) vorschauErzeugen(name string) error {
 	}
 	defer original.Close()
 	cfg, _, err := image.DecodeConfig(original)
-	if err != nil || cfg.Width*cfg.Height > maxPixel {
+	if err != nil || int64(cfg.Width)*int64(cfg.Height) > maxPixel {
 		return ErrFalscherTyp
 	}
 	if _, err := original.Seek(0, io.SeekStart); err != nil {

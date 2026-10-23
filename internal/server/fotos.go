@@ -66,7 +66,7 @@ func (s *server) fotosHinzufuegen(w http.ResponseWriter, r *http.Request) {
 }
 
 func fotoFehlt(w http.ResponseWriter) {
-	schreibeFehler(w, http.StatusBadRequest, "foto_fehlt", "Jedes Item braucht mindestens ein Foto")
+	schreibeFehler(w, http.StatusBadRequest, "foto_fehlt", meldungFotoFehlt)
 }
 
 func (s *server) hauptfotoSetzen(w http.ResponseWriter, r *http.Request) {

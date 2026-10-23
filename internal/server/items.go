@@ -159,6 +159,12 @@ func verbleibLesen(w http.ResponseWriter, wert string) (store.Verbleib, bool) {
 	return v, true
 }
 
+const (
+	meldungBesitzerFehlt    = "Jedes Item braucht mindestens einen Besitzer"
+	meldungFotoFehlt        = "Jedes Item braucht mindestens ein Foto"
+	meldungUnbekanntePerson = "Diese Person gibt es nicht"
+)
+
 func nameFehlt(w http.ResponseWriter) {
 	schreibeFehler(w, http.StatusBadRequest, "name_fehlt", "Bitte einen Namen angeben")
 }
@@ -178,13 +184,13 @@ func neuesItemLesen(w http.ResponseWriter, f formular) (store.NeuesItem, bool) {
 	for _, wert := range f.felder["besitzer"] {
 		id, err := strconv.ParseInt(strings.TrimSpace(wert), 10, 64)
 		if err != nil {
-			schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", "Diese Person gibt es nicht")
+			schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", meldungUnbekanntePerson)
 			return neu, false
 		}
 		neu.BesitzerIDs = append(neu.BesitzerIDs, id)
 	}
 	if len(neu.BesitzerIDs) == 0 {
-		schreibeFehler(w, http.StatusBadRequest, "besitzer_fehlt", "Jedes Item braucht mindestens einen Besitzer")
+		schreibeFehler(w, http.StatusBadRequest, "besitzer_fehlt", meldungBesitzerFehlt)
 		return neu, false
 	}
 	if len(neu.Fotos) == 0 {
@@ -252,8 +258,8 @@ func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("verbleib"); v != "" {
 		verbleib := store.Offen
 		if v != "offen" {
-			if verbleib = store.Verbleib(v); !verbleib.Gueltig() {
-				ungueltig("Unbekannter Verbleib")
+			var ok bool
+			if verbleib, ok = verbleibLesen(w, v); !ok {
 				return
 			}
 		}

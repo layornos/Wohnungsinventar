@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"slices"
 	"testing"
+	"time"
+
+	"inventar/internal/server"
 )
 
 // namenInListe ruft die Item-Liste mit der Abfrage ab und liefert die Namen in ihrer Reihenfolge.
@@ -93,5 +96,19 @@ func TestItemListeSeitenweise(t *testing.T) {
 	}
 	if got := c.namenInListe("?proSeite=2&seite=2"); !slices.Equal(got, []string{"A"}) {
 		t.Errorf("zweite Seite: %v", got)
+	}
+}
+
+func TestSortierungStimmtAuchInnerhalbEinerSekunde(t *testing.T) {
+	jetzt := time.Date(2026, 5, 1, 12, 0, 5, 0, time.UTC)
+	e := newTestEnvMit(t, func(d *server.Deps) { d.Jetzt = func() time.Time { return jetzt } })
+	c := e.loggedIn()
+
+	c.itemAnlegen("Volle Sekunde", []int64{c.ich()}, testJPEG(t))
+	jetzt = jetzt.Add(500 * time.Millisecond)
+	c.itemAnlegen("Halbe Sekunde später", []int64{c.ich()}, testJPEG(t))
+
+	if got := c.namenInListe(""); !slices.Equal(got, []string{"Halbe Sekunde später", "Volle Sekunde"}) {
+		t.Fatalf("Reihenfolge %v", got)
 	}
 }

@@ -172,3 +172,27 @@ func TestLetzterBesitzerLaesstSichNichtEntfernen(t *testing.T) {
 		t.Fatalf("Fehlercode %q", res.errorCode())
 	}
 }
+
+func TestOhneSitzungSindItemsUndPersonenGesperrt(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	item := c.itemAnlegen("Lampe", []int64{c.ich()}, testJPEG(t))
+
+	fremd := e.client()
+	for _, req := range []struct{ method, path string }{
+		{"GET", "/api/items"},
+		{"POST", "/api/items"},
+		{"GET", itemPfad(item)},
+		{"PUT", itemPfad(item)},
+		{"DELETE", itemPfad(item)},
+		{"POST", itemPfad(item) + "/fotos"},
+		{"PUT", fmt.Sprintf("%s/besitzer/%d", itemPfad(item), c.ich())},
+		{"GET", "/api/personen"},
+		{"POST", "/api/personen"},
+	} {
+		if res := fremd.do(req.method, req.path, nil); res.Status != http.StatusUnauthorized {
+			t.Errorf("%s %s: Status %d", req.method, req.path, res.Status)
+		}
+	}
+	c.mustStatus(http.StatusOK, "GET", itemPfad(item), nil)
+}

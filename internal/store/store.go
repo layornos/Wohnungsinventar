@@ -97,7 +97,11 @@ func (s *Store) inTransaktion(ctx context.Context, fn func(*sql.Tx) error) error
 	return tx.Commit()
 }
 
-// Zeitpunkte werden als RFC 3339 in UTC gespeichert, damit sie textuell sortierbar sind.
-func zeitText(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+// zeitFormat ist RFC 3339 in UTC mit fester Länge. RFC3339Nano ließe Nullen am Ende weg,
+// dann sortierte „…:05Z“ als Text hinter „…:05.5Z“.
+const zeitFormat = "2006-01-02T15:04:05.000000000Z07:00"
+
+// Zeitpunkte werden als Text gespeichert, damit sie sich textuell vergleichen und sortieren lassen.
+func zeitText(t time.Time) string { return t.UTC().Format(zeitFormat) }
 
 func zeitLesen(s string) (time.Time, error) { return time.Parse(time.RFC3339Nano, s) }

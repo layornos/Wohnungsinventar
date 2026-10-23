@@ -1,6 +1,6 @@
 # Spec 02: Items erfassen
 
-Status: ready-for-agent
+Status: erledigt
 Blocked by: 01-grundgeruest-und-anmeldung
 
 ## Problem Statement
@@ -48,7 +48,7 @@ In der App fotografiert man ein Item, gibt ihm einen Namen und hat sich selbst a
 - **Invarianten, die der Server erzwingt:**
   - Mindestens ein Foto. Das Löschen des letzten Fotos wird mit dem Code „letztes Foto“ abgelehnt.
   - Mindestens ein Besitzer. Das Entfernen des letzten Besitzers wird mit „letzter Besitzer“ abgelehnt.
-  - Genau ein Hauptfoto. Wird das Hauptfoto gelöscht, wird das nächste in der Reihenfolge Hauptfoto.
+  - Genau ein Hauptfoto. Wird das Hauptfoto gelöscht, wird das nächste in der Reihenfolge Hauptfoto; war es das letzte, das erste.
   - Eine Person mit Nutzerzugang oder die letzter Besitzer eines Items ist, kann nicht gelöscht werden.
 - **Fotos:**
   - Sie liegen als Dateien im Foto-Ordner des Datenverzeichnisses, nicht in der Datenbank (ADR-0002). Dateinamen sind zufällige IDs, nie vom Nutzer vorgegeben.
@@ -103,15 +103,15 @@ In der App fotografiert man ein Item, gibt ihm einen Namen und hat sich selbst a
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Migration für Item (Name, Beschreibung, optionaler Verbleib, Zeitstempel), Foto (Item, Hauptfoto-Kennzeichen, Reihenfolge, Dateiverweise) und Besitz (Item–Person).
-- [ ] R002: Foto-Speicher im Datenverzeichnis: Prüfung von Inhaltstyp und Größe, zufällige Dateinamen, Original speichern, Vorschau mit angewendeter EXIF-Ausrichtung erzeugen, Dateien löschen.
-- [ ] R003: Personen-API: auflisten, anlegen, umbenennen, löschen. Löschen wird abgelehnt bei Nutzerzugang oder wenn die Person bei einem Item letzter Besitzer ist.
-- [ ] R004: Item anlegen in einer multipart-Anfrage mit mindestens einem Foto und mindestens einem Besitzer. Das erste Foto ist Hauptfoto.
-- [ ] R005: Item abrufen, bearbeiten (Name, Beschreibung, Verbleib inkl. Zurücksetzen auf offen) und löschen samt Foto-Dateien.
-- [ ] R006: Besitzer hinzufügen und entfernen. Das Entfernen des letzten Besitzers wird mit „letzter Besitzer“ abgelehnt.
-- [ ] R007: Fotos hinzufügen, Hauptfoto setzen und löschen. Das letzte Foto ist nicht löschbar („letztes Foto“), nach dem Löschen des Hauptfotos rückt das nächste nach. Original und Vorschau nur mit Sitzung abrufbar.
-- [ ] R008: Item-Liste mit Textsuche, Filter nach Besitzer und Verbleib (inkl. „offen“), Sortierung nach zuletzt geändert und seitenweisem Abruf. Jedes Listenelement enthält die Adresse der Vorschau des Hauptfotos.
-- [ ] R009: Client, Schnell-Erfassen: Kamera oder Galerie, Name, angemeldeter Nutzer als Besitzer vorausgewählt, Verbleib optional.
-- [ ] R010: Client: Item-Liste mit Vorschaubildern, Suche und Filtern, Detailseite mit Fotos, Besitzern und Verbleib, Bearbeiten und Löschen inkl. Foto- und Besitzerverwaltung, fachliche Fehlermeldungen.
-- [ ] R011: Client: Personenverwaltung (auflisten, anlegen, umbenennen, löschen mit verständlicher Ablehnung).
-- [ ] R012: API-Tests für alle Invarianten, Löschregeln, Filter, Dateityp-Prüfung, EXIF-Vorschau, Entfernen der Dateien und Zugriffsschutz für Fotos.
+- [x] R001: Migration für Item (Name, Beschreibung, optionaler Verbleib, Zeitstempel), Foto (Item, Hauptfoto-Kennzeichen, Reihenfolge, Dateiverweise) und Besitz (Item–Person).
+- [x] R002: Foto-Speicher im Datenverzeichnis: Prüfung von Inhaltstyp und Größe, zufällige Dateinamen, Original speichern, Vorschau mit angewendeter EXIF-Ausrichtung erzeugen, Dateien löschen.
+- [x] R003: Personen-API: auflisten, anlegen, umbenennen, löschen. Löschen wird abgelehnt bei Nutzerzugang oder wenn die Person bei einem Item letzter Besitzer ist.
+- [x] R004: Item anlegen in einer multipart-Anfrage mit mindestens einem Foto und mindestens einem Besitzer. Das erste Foto ist Hauptfoto.
+- [x] R005: Item abrufen, bearbeiten (Name, Beschreibung, Verbleib inkl. Zurücksetzen auf offen) und löschen samt Foto-Dateien.
+- [x] R006: Besitzer hinzufügen und entfernen. Das Entfernen des letzten Besitzers wird mit „letzter Besitzer“ abgelehnt.
+- [x] R007: Fotos hinzufügen, Hauptfoto setzen und löschen. Das letzte Foto ist nicht löschbar („letztes Foto“), nach dem Löschen des Hauptfotos rückt das nächste nach. Original und Vorschau nur mit Sitzung abrufbar.
+- [x] R008: Item-Liste mit Textsuche, Filter nach Besitzer und Verbleib (inkl. „offen“), Sortierung nach zuletzt geändert und seitenweisem Abruf. Jedes Listenelement enthält die Adresse der Vorschau des Hauptfotos.
+- [x] R009: Client, Schnell-Erfassen: Kamera oder Galerie, Name, angemeldeter Nutzer als Besitzer vorausgewählt, Verbleib optional.
+- [x] R010: Client: Item-Liste mit Vorschaubildern, Suche und Filtern, Detailseite mit Fotos, Besitzern und Verbleib, Bearbeiten und Löschen inkl. Foto- und Besitzerverwaltung, fachliche Fehlermeldungen.
+- [x] R011: Client: Personenverwaltung (auflisten, anlegen, umbenennen, löschen mit verständlicher Ablehnung).
+- [x] R012: API-Tests für alle Invarianten, Löschregeln, Filter, Dateityp-Prüfung, EXIF-Vorschau, Entfernen der Dateien und Zugriffsschutz für Fotos.

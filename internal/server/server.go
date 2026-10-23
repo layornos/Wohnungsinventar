@@ -162,11 +162,11 @@ func (s *server) storeFehler(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, store.ErrHatNutzerzugang):
 		schreibeFehler(w, http.StatusConflict, "hat_nutzerzugang", "Personen mit Nutzerzugang können nicht gelöscht werden")
 	case errors.Is(err, store.ErrLetzterBesitzer):
-		schreibeFehler(w, http.StatusConflict, "letzter_besitzer", "Jedes Item braucht mindestens einen Besitzer")
+		schreibeFehler(w, http.StatusConflict, "letzter_besitzer", meldungBesitzerFehlt)
 	case errors.Is(err, store.ErrLetztesFoto):
-		schreibeFehler(w, http.StatusConflict, "letztes_foto", "Jedes Item braucht mindestens ein Foto")
+		schreibeFehler(w, http.StatusConflict, "letztes_foto", meldungFotoFehlt)
 	case errors.Is(err, store.ErrUnbekanntePerson):
-		schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", "Diese Person gibt es nicht")
+		schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", meldungUnbekanntePerson)
 	default:
 		s.internerFehler(w, r, err)
 	}

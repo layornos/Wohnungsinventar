@@ -20,11 +20,13 @@ type Person struct {
 	Nutzer bool
 }
 
+const personSelect = `SELECT p.id, p.name, n.person_id IS NOT NULL FROM person p LEFT JOIN nutzer n ON n.person_id = p.id`
+
 func (s *Store) PersonenAuflisten(ctx context.Context) ([]Person, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT p.id, p.name, n.person_id IS NOT NULL
-		FROM person p LEFT JOIN nutzer n ON n.person_id = p.id
-		ORDER BY p.name, p.id`)
+	return personenLesen(s.db.QueryContext(ctx, personSelect+` ORDER BY p.name, p.id`))
+}
+
+func personenLesen(rows *sql.Rows, err error) ([]Person, error) {
 	if err != nil {
 		return nil, err
 	}

@@ -68,6 +68,10 @@ _Avoid_: Kiste, Karton, Umzugskarton
 Was mit einem Item geschehen soll: Behalten, Verkaufen, Später verkaufen oder Verschenken.
 _Avoid_: Kategorie, Status, Entscheidung
 
+**Verbleib offen**:
+Ein Item, für das noch kein Verbleib festgelegt ist. Das ist erlaubt, damit das Erfassen beim Packen nicht aufhält.
+_Avoid_: unentschieden, unsortiert
+
 **Behalten**:
 Verbleib eines Items, das bleibt. Alle drei Jahre gibt es eine Behalte-Prüfung.
 
