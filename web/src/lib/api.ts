@@ -19,8 +19,50 @@ export function zurAnmeldung() {
 
 export type Nutzer = { personId: number; name: string; email: string };
 
+export type Person = { id: number; name: string; nutzer: boolean };
+
+/** null heißt: Verbleib noch offen. */
+export type Verbleib = 'behalten' | 'verkaufen' | 'spaeter_verkaufen' | 'verschenken';
+
+export const VERBLEIBE: { wert: Verbleib; name: string }[] = [
+	{ wert: 'behalten', name: 'Behalten' },
+	{ wert: 'verkaufen', name: 'Verkaufen' },
+	{ wert: 'spaeter_verkaufen', name: 'Später verkaufen' },
+	{ wert: 'verschenken', name: 'Verschenken' }
+];
+
+export function verbleibName(v: Verbleib | null): string {
+	return VERBLEIBE.find((e) => e.wert === v)?.name ?? 'Offen';
+}
+
+export type Foto = { id: number; hauptfoto: boolean; url: string; vorschauUrl: string };
+
+export type Item = {
+	id: number;
+	name: string;
+	beschreibung: string;
+	verbleib: Verbleib | null;
+	erstelltAm: string;
+	geaendertAm: string;
+	besitzer: Person[];
+	fotos: Foto[];
+};
+
+export type ItemListenEintrag = {
+	id: number;
+	name: string;
+	verbleib: Verbleib | null;
+	vorschauUrl: string;
+};
+
+/** Meldung für einen Fehler, ob von der API oder weil der Server nicht erreichbar ist. */
+export function fehlerText(e: unknown): string {
+	return e instanceof ApiError ? e.message : 'Der Server ist nicht erreichbar.';
+}
+
 /**
- * Ruft die API auf. Bei 401 wird zur Anmeldung umgeleitet, außer `ohneUmleitung` ist gesetzt.
+ * Ruft die API auf; FormData geht als multipart, alles andere als JSON.
+ * Bei 401 wird zur Anmeldung umgeleitet, außer `ohneUmleitung` ist gesetzt.
  */
 export async function api<T>(
 	method: string,
@@ -28,10 +70,11 @@ export async function api<T>(
 	body?: unknown,
 	opts: { ohneUmleitung?: boolean } = {}
 ): Promise<T> {
+	const alsJSON = body !== undefined && !(body instanceof FormData);
 	const res = await fetch(path, {
 		method,
-		headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-		body: body === undefined ? undefined : JSON.stringify(body)
+		headers: alsJSON ? { 'Content-Type': 'application/json' } : {},
+		body: alsJSON ? JSON.stringify(body) : (body as FormData | undefined)
 	});
 	if (res.status === 204) return undefined as T;
 	const data = await res.json().catch(() => ({}));

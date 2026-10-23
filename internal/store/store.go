@@ -99,3 +99,5 @@ func (s *Store) inTransaktion(ctx context.Context, fn func(*sql.Tx) error) error
 
 // Zeitpunkte werden als RFC 3339 in UTC gespeichert, damit sie textuell sortierbar sind.
 func zeitText(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+
+func zeitLesen(s string) (time.Time, error) { return time.Parse(time.RFC3339Nano, s) }

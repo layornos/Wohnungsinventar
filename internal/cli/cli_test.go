@@ -25,6 +25,8 @@ func TestUnvollstaendigeKonfigurationVerhindertDenStart(t *testing.T) {
 		"SMTP-Nutzer ohne Host":     {"INVENTAR_SMTP_USER": "a@gmail.com", "INVENTAR_SMTP_PASSWORD": "x"},
 		"SMTP-Port keine Zahl":      {"INVENTAR_SMTP_PORT": "abc"},
 		"SMTP-Port ohne Host":       {"INVENTAR_SMTP_PORT": "587"},
+		"Fotogröße keine Zahl":      {"INVENTAR_MAX_FOTO_MB": "viel"},
+		"Fotogröße null":            {"INVENTAR_MAX_FOTO_MB": "0"},
 	}
 	for name, env := range cases {
 		t.Run(name, func(t *testing.T) {

@@ -31,8 +31,9 @@ Das Binary auf den Pi kopieren. Es enthält den Client und alle Migrationen.
 
 | Variable | Bedeutung | Standard |
 |---|---|---|
-| `INVENTAR_DATA_DIR` | Verzeichnis für Datenbank, Fotos und Zertifikate. Sollte auf der SSD liegen. | `./data` |
+| `INVENTAR_DATA_DIR` | Verzeichnis für Datenbank, Fotos (Ordner `fotos`) und Zertifikate. Sollte auf der SSD liegen und gehört komplett ins Backup. | `./data` |
 | `INVENTAR_ADDR` | Adresse und Port | `:443` mit DuckDNS, sonst `localhost:8080` |
+| `INVENTAR_MAX_FOTO_MB` | Größte erlaubte Fotodatei in MB | `20` |
 | `INVENTAR_DUCKDNS_DOMAIN` | z. B. `inventar-xyz.duckdns.org`. Aktiviert HTTPS (ADR-0004). | – |
 | `INVENTAR_DUCKDNS_TOKEN` | DuckDNS-Token, Pflicht zusammen mit der Domain | – |
 | `INVENTAR_SMTP_HOST` | z. B. `smtp.gmail.com`. Aktiviert den Mailversand. | – |

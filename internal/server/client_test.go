@@ -6,13 +6,17 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"inventar/internal/server"
 )
 
 func TestClientRoutenLiefernDieAppHuelle(t *testing.T) {
-	e := newTestEnvWith(t, fstest.MapFS{
-		"index.html":                {Data: []byte("<html>app-huelle</html>")},
-		"manifest.webmanifest":      {Data: []byte(`{"name":"Inventar"}`)},
-		"_app/immutable/entry/a.js": {Data: []byte("console.log(1)")},
+	e := newTestEnvMit(t, func(d *server.Deps) {
+		d.Client = fstest.MapFS{
+			"index.html":                {Data: []byte("<html>app-huelle</html>")},
+			"manifest.webmanifest":      {Data: []byte(`{"name":"Inventar"}`)},
+			"_app/immutable/entry/a.js": {Data: []byte("console.log(1)")},
+		}
 	})
 
 	for path, want := range map[string]string{

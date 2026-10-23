@@ -7,11 +7,15 @@ import (
 	"strconv"
 )
 
+const StandardMaxFotoGroesse = 20 << 20
+
 type Config struct {
 	Datenverzeichnis string
 	Adresse          string
-	DuckDNS          DuckDNS
-	SMTP             SMTP
+	// MaxFotoGroesse ist die größte erlaubte Fotodatei in Bytes.
+	MaxFotoGroesse int64
+	DuckDNS        DuckDNS
+	SMTP           SMTP
 }
 
 // DuckDNS aktiviert HTTPS mit Zertifikat per DNS-01 (ADR-0004), wenn Domain und Token gesetzt sind.
@@ -49,6 +53,14 @@ func Laden(getenv func(string) string) (Config, error) {
 	}
 	if c.Datenverzeichnis == "" {
 		c.Datenverzeichnis = "data"
+	}
+	c.MaxFotoGroesse = StandardMaxFotoGroesse
+	if mb := getenv("INVENTAR_MAX_FOTO_MB"); mb != "" {
+		n, err := strconv.Atoi(mb)
+		if err != nil || n <= 0 {
+			return Config{}, fmt.Errorf("INVENTAR_MAX_FOTO_MB ist keine positive Zahl: %q", mb)
+		}
+		c.MaxFotoGroesse = int64(n) << 20
 	}
 
 	if (c.DuckDNS.Domain == "") != (c.DuckDNS.Token == "") {

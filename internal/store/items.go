@@ -1,0 +1,435 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strings"
+	"time"
+)
+
+var ErrLetztesFoto = errors.New("letztes Foto eines Items")
+
+// Verbleib ist die Entscheidung, was mit einem Item passiert; Offen heißt noch nicht entschieden.
+type Verbleib string
+
+const (
+	Offen            Verbleib = ""
+	Behalten         Verbleib = "behalten"
+	Verkaufen        Verbleib = "verkaufen"
+	SpaeterVerkaufen Verbleib = "spaeter_verkaufen"
+	Verschenken      Verbleib = "verschenken"
+)
+
+func (v Verbleib) Gueltig() bool {
+	switch v {
+	case Offen, Behalten, Verkaufen, SpaeterVerkaufen, Verschenken:
+		return true
+	}
+	return false
+}
+
+type Item struct {
+	ID           int64
+	Name         string
+	Beschreibung string
+	Verbleib     Verbleib
+	ErstelltAm   time.Time
+	GeaendertAm  time.Time
+	Besitzer     []Person
+	// Fotos in ihrer Reihenfolge; genau eines ist Hauptfoto.
+	Fotos []Foto
+}
+
+type Foto struct {
+	ID        int64
+	ItemID    int64
+	Datei     string
+	Typ       string
+	Hauptfoto bool
+}
+
+// NeuesFoto ist eine bereits gespeicherte Datei, die einem Item zugeordnet wird.
+type NeuesFoto struct {
+	Datei string
+	Typ   string
+}
+
+type NeuesItem struct {
+	Name         string
+	Beschreibung string
+	Verbleib     Verbleib
+	BesitzerIDs  []int64
+	Fotos        []NeuesFoto
+}
+
+// abfrager ist, was *sql.DB und *sql.Tx gemeinsam haben.
+type abfrager interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func verbleibWert(v Verbleib) any {
+	if v == Offen {
+		return nil
+	}
+	return string(v)
+}
+
+// ItemAnlegen legt ein Item mit seinen Besitzern und Fotos an; das erste Foto wird Hauptfoto.
+// Der Aufrufer stellt sicher, dass es mindestens einen Besitzer und ein Foto gibt.
+func (s *Store) ItemAnlegen(ctx context.Context, neu NeuesItem, jetzt time.Time) (Item, error) {
+	var item Item
+	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
+		var id int64
+		err := tx.QueryRowContext(ctx, `
+			INSERT INTO item (name, name_klein, beschreibung, verbleib, erstellt_am, geaendert_am)
+			VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+			neu.Name, strings.ToLower(neu.Name), neu.Beschreibung, verbleibWert(neu.Verbleib), zeitText(jetzt), zeitText(jetzt)).Scan(&id)
+		if err != nil {
+			return err
+		}
+		for _, p := range neu.BesitzerIDs {
+			if err := besitzEintragen(ctx, tx, id, p); err != nil {
+				return err
+			}
+		}
+		if err := fotosEintragen(ctx, tx, id, neu.Fotos); err != nil {
+			return err
+		}
+		item, err = itemLesen(ctx, tx, id)
+		return err
+	})
+	return item, err
+}
+
+func besitzEintragen(ctx context.Context, q abfrager, itemID, personID int64) error {
+	var existiert bool
+	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM person WHERE id = ?)`, personID).Scan(&existiert); err != nil {
+		return err
+	}
+	if !existiert {
+		return ErrUnbekanntePerson
+	}
+	_, err := q.ExecContext(ctx, `
+		INSERT INTO besitz (item_id, person_id) SELECT ?, ?
+		WHERE NOT EXISTS (SELECT 1 FROM besitz WHERE item_id = ? AND person_id = ?)`,
+		itemID, personID, itemID, personID)
+	return err
+}
+
+// fotosEintragen hängt Fotos hinten an; hat das Item noch kein Hauptfoto, wird das erste neue es.
+func fotosEintragen(ctx context.Context, q abfrager, itemID int64, fotos []NeuesFoto) error {
+	for _, f := range fotos {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO foto (item_id, datei, typ, hauptfoto, reihenfolge)
+			SELECT ?, ?, ?,
+				CASE WHEN EXISTS (SELECT 1 FROM foto WHERE item_id = ? AND hauptfoto = 1) THEN 0 ELSE 1 END,
+				COALESCE((SELECT MAX(reihenfolge) FROM foto WHERE item_id = ?), 0) + 1`,
+			itemID, f.Datei, f.Typ, itemID, itemID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Store) ItemAbrufen(ctx context.Context, id int64) (Item, error) {
+	return itemLesen(ctx, s.db, id)
+}
+
+func itemLesen(ctx context.Context, q abfrager, id int64) (Item, error) {
+	var (
+		item                    Item
+		verbleib                sql.NullString
+		erstelltAm, geaendertAm string
+	)
+	err := q.QueryRowContext(ctx, `
+		SELECT id, name, beschreibung, verbleib, erstellt_am, geaendert_am FROM item WHERE id = ?`, id).
+		Scan(&item.ID, &item.Name, &item.Beschreibung, &verbleib, &erstelltAm, &geaendertAm)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Item{}, ErrNichtGefunden
+	}
+	if err != nil {
+		return Item{}, err
+	}
+	item.Verbleib = Verbleib(verbleib.String)
+	if item.ErstelltAm, err = zeitLesen(erstelltAm); err != nil {
+		return Item{}, err
+	}
+	if item.GeaendertAm, err = zeitLesen(geaendertAm); err != nil {
+		return Item{}, err
+	}
+	if item.Besitzer, err = besitzerLesen(ctx, q, id); err != nil {
+		return Item{}, err
+	}
+	item.Fotos, err = fotosLesen(ctx, q, id)
+	return item, err
+}
+
+func besitzerLesen(ctx context.Context, q abfrager, itemID int64) ([]Person, error) {
+	rows, err := q.QueryContext(ctx, `
+		SELECT p.id, p.name, n.person_id IS NOT NULL
+		FROM besitz b JOIN person p ON p.id = b.person_id LEFT JOIN nutzer n ON n.person_id = p.id
+		WHERE b.item_id = ? ORDER BY p.name, p.id`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var personen []Person
+	for rows.Next() {
+		var p Person
+		if err := rows.Scan(&p.ID, &p.Name, &p.Nutzer); err != nil {
+			return nil, err
+		}
+		personen = append(personen, p)
+	}
+	return personen, rows.Err()
+}
+
+const fotoSelect = `SELECT id, item_id, datei, typ, hauptfoto = 1 FROM foto`
+
+func fotosLesen(ctx context.Context, q abfrager, itemID int64) ([]Foto, error) {
+	rows, err := q.QueryContext(ctx, fotoSelect+` WHERE item_id = ? ORDER BY reihenfolge, id`, itemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var fotos []Foto
+	for rows.Next() {
+		var f Foto
+		if err := rows.Scan(&f.ID, &f.ItemID, &f.Datei, &f.Typ, &f.Hauptfoto); err != nil {
+			return nil, err
+		}
+		fotos = append(fotos, f)
+	}
+	return fotos, rows.Err()
+}
+
+// ItemListenEintrag ist ein Item in der Liste, mit seinem Hauptfoto für die Vorschau.
+type ItemListenEintrag struct {
+	ID          int64
+	Name        string
+	Verbleib    Verbleib
+	HauptfotoID int64
+}
+
+type ItemFilter struct {
+	// Text muss im Namen vorkommen, Groß- und Kleinschreibung egal.
+	Text       string
+	BesitzerID int64
+	// Verbleib filtert, wenn gesetzt; ein Zeiger auf Offen liefert die Items ohne Verbleib.
+	Verbleib *Verbleib
+	Anzahl   int
+	Versatz  int
+}
+
+// ItemsAuflisten liefert die passenden Items, zuletzt geänderte zuerst, und ob es weitere gibt.
+func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenEintrag, bool, error) {
+	abfrage := `
+		SELECT i.id, i.name, i.verbleib, f.id
+		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1
+		WHERE 1 = 1`
+	var args []any
+	if f.Text != "" {
+		abfrage += ` AND i.name_klein LIKE ? ESCAPE '\'`
+		args = append(args, "%"+likeMaskieren(strings.ToLower(f.Text))+"%")
+	}
+	if f.BesitzerID != 0 {
+		abfrage += ` AND EXISTS (SELECT 1 FROM besitz b WHERE b.item_id = i.id AND b.person_id = ?)`
+		args = append(args, f.BesitzerID)
+	}
+	if f.Verbleib != nil {
+		if *f.Verbleib == Offen {
+			abfrage += ` AND i.verbleib IS NULL`
+		} else {
+			abfrage += ` AND i.verbleib = ?`
+			args = append(args, string(*f.Verbleib))
+		}
+	}
+	// Einer mehr als verlangt, um zu erkennen, ob es weitere gibt.
+	abfrage += ` ORDER BY i.geaendert_am DESC, i.id DESC LIMIT ? OFFSET ?`
+	args = append(args, f.Anzahl+1, f.Versatz)
+
+	rows, err := s.db.QueryContext(ctx, abfrage, args...)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	eintraege := []ItemListenEintrag{}
+	for rows.Next() {
+		var (
+			e        ItemListenEintrag
+			verbleib sql.NullString
+		)
+		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID); err != nil {
+			return nil, false, err
+		}
+		e.Verbleib = Verbleib(verbleib.String)
+		eintraege = append(eintraege, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	if len(eintraege) > f.Anzahl {
+		return eintraege[:f.Anzahl], true, nil
+	}
+	return eintraege, false, nil
+}
+
+func likeMaskieren(s string) string {
+	return strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(s)
+}
+
+func (s *Store) FotoAbrufen(ctx context.Context, id int64) (Foto, error) {
+	var f Foto
+	err := s.db.QueryRowContext(ctx, fotoSelect+` WHERE id = ?`, id).Scan(&f.ID, &f.ItemID, &f.Datei, &f.Typ, &f.Hauptfoto)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Foto{}, ErrNichtGefunden
+	}
+	return f, err
+}
+
+// itemAendern führt eine Änderung an einem bestehenden Item aus, setzt geaendert_am
+// und liefert das Item danach.
+func (s *Store) itemAendern(ctx context.Context, id int64, jetzt time.Time, aendern func(*sql.Tx) error) (Item, error) {
+	var item Item
+	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `UPDATE item SET geaendert_am = ? WHERE id = ?`, zeitText(jetzt), id)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
+			return errors.Join(err, ErrNichtGefunden)
+		}
+		if err := aendern(tx); err != nil {
+			return err
+		}
+		item, err = itemLesen(ctx, tx, id)
+		return err
+	})
+	return item, err
+}
+
+func (s *Store) ItemBearbeiten(ctx context.Context, id int64, name, beschreibung string, verbleib Verbleib, jetzt time.Time) (Item, error) {
+	return s.itemAendern(ctx, id, jetzt, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `UPDATE item SET name = ?, name_klein = ?, beschreibung = ?, verbleib = ? WHERE id = ?`,
+			name, strings.ToLower(name), beschreibung, verbleibWert(verbleib), id)
+		return err
+	})
+}
+
+// ItemLoeschen löscht das Item samt Fotos und Besitz und liefert die Namen der Foto-Dateien,
+// die der Aufrufer danach entfernt.
+func (s *Store) ItemLoeschen(ctx context.Context, id int64) ([]string, error) {
+	var dateien []string
+	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
+		fotos, err := fotosLesen(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+		res, err := tx.ExecContext(ctx, `DELETE FROM item WHERE id = ?`, id)
+		if err != nil {
+			return err
+		}
+		if n, err := res.RowsAffected(); err != nil || n == 0 {
+			return errors.Join(err, ErrNichtGefunden)
+		}
+		for _, f := range fotos {
+			dateien = append(dateien, f.Datei)
+		}
+		return nil
+	})
+	return dateien, err
+}
+
+func (s *Store) BesitzerHinzufuegen(ctx context.Context, itemID, personID int64, jetzt time.Time) (Item, error) {
+	return s.itemAendern(ctx, itemID, jetzt, func(tx *sql.Tx) error {
+		return besitzEintragen(ctx, tx, itemID, personID)
+	})
+}
+
+// BesitzerEntfernen entfernt eine Person als Besitzer; der letzte Besitzer bleibt.
+func (s *Store) BesitzerEntfernen(ctx context.Context, itemID, personID int64, jetzt time.Time) (Item, error) {
+	return s.itemAendern(ctx, itemID, jetzt, func(tx *sql.Tx) error {
+		var andere bool
+		err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM besitz WHERE item_id = ? AND person_id <> ?)`,
+			itemID, personID).Scan(&andere)
+		if err != nil {
+			return err
+		}
+		if !andere {
+			return ErrLetzterBesitzer
+		}
+		_, err = tx.ExecContext(ctx, `DELETE FROM besitz WHERE item_id = ? AND person_id = ?`, itemID, personID)
+		return err
+	})
+}
+
+func (s *Store) FotosHinzufuegen(ctx context.Context, itemID int64, fotos []NeuesFoto, jetzt time.Time) (Item, error) {
+	return s.itemAendern(ctx, itemID, jetzt, func(tx *sql.Tx) error {
+		return fotosEintragen(ctx, tx, itemID, fotos)
+	})
+}
+
+// HauptfotoSetzen macht ein Foto des Items zum Hauptfoto.
+func (s *Store) HauptfotoSetzen(ctx context.Context, itemID, fotoID int64, jetzt time.Time) (Item, error) {
+	return s.itemAendern(ctx, itemID, jetzt, func(tx *sql.Tx) error {
+		var gehoertDazu bool
+		err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM foto WHERE id = ? AND item_id = ?)`, fotoID, itemID).Scan(&gehoertDazu)
+		if err != nil {
+			return err
+		}
+		if !gehoertDazu {
+			return ErrNichtGefunden
+		}
+		// Erst das alte Hauptfoto zurücksetzen, sonst greift der Index „genau ein Hauptfoto“.
+		if _, err := tx.ExecContext(ctx, `UPDATE foto SET hauptfoto = 0 WHERE item_id = ?`, itemID); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE foto SET hauptfoto = 1 WHERE id = ?`, fotoID)
+		return err
+	})
+}
+
+// FotoLoeschen löscht ein Foto, außer es ist das letzte seines Items. War es das Hauptfoto,
+// wird das nächste in der Reihenfolge Hauptfoto, nach dem letzten das erste. Geliefert werden
+// der Dateiname, den der Aufrufer danach entfernt, und das Item.
+func (s *Store) FotoLoeschen(ctx context.Context, fotoID int64, jetzt time.Time) (string, Item, error) {
+	f, err := s.FotoAbrufen(ctx, fotoID)
+	if err != nil {
+		return "", Item{}, err
+	}
+	item, err := s.itemAendern(ctx, f.ItemID, jetzt, func(tx *sql.Tx) error {
+		var reihenfolge, anzahl int
+		err := tx.QueryRowContext(ctx, `
+			SELECT reihenfolge, (SELECT COUNT(*) FROM foto WHERE item_id = ?) FROM foto WHERE id = ?`,
+			f.ItemID, fotoID).Scan(&reihenfolge, &anzahl)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNichtGefunden
+		}
+		if err != nil {
+			return err
+		}
+		if anzahl <= 1 {
+			return ErrLetztesFoto
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM foto WHERE id = ?`, fotoID); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, `
+			UPDATE foto SET hauptfoto = 1
+			WHERE id = (
+				SELECT id FROM foto WHERE item_id = ?
+				ORDER BY CASE WHEN reihenfolge > ? THEN 0 ELSE 1 END, reihenfolge, id
+				LIMIT 1)
+			AND NOT EXISTS (SELECT 1 FROM foto WHERE item_id = ? AND hauptfoto = 1)`,
+			f.ItemID, reihenfolge, f.ItemID)
+		return err
+	})
+	if err != nil {
+		return "", Item{}, err
+	}
+	return f.Datei, item, nil
+}
