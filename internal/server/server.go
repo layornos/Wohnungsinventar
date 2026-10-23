@@ -26,6 +26,23 @@ type Store interface {
 	PersonenStore
 	ItemStore
 	OrteStore
+	UmzugStore
+}
+
+type UmzugStore interface {
+	LaufenderUmzug(ctx context.Context) (store.Umzug, error)
+	UmzugAbrufen(ctx context.Context, id int64) (store.Umzug, error)
+	UmzuegeAuflisten(ctx context.Context) ([]store.Umzug, error)
+	UmzugAnlegen(ctx context.Context, alteWohnungID, neueWohnungID int64, jetzt time.Time) (store.Umzug, error)
+	BoxAnlegen(ctx context.Context, bezeichnung string, jetzt time.Time) (store.Box, error)
+	BoxAbrufen(ctx context.Context, id int64) (store.Box, error)
+	BoxPerNummer(ctx context.Context, nummer int) (store.Box, error)
+	BoxUmbenennen(ctx context.Context, id int64, bezeichnung string) (store.Box, error)
+	BoxLoeschen(ctx context.Context, id int64) error
+	UmzugsangabenSetzen(ctx context.Context, itemID int64, a store.AngabenAenderung, jetzt time.Time) (store.Item, error)
+	UmzugsangabenSammeln(ctx context.Context, itemIDs []int64, a store.AngabenAenderung, jetzt time.Time) error
+	Zielraumuebersicht(ctx context.Context) ([]store.ZielraumEintrag, error)
+	UmzugAbschliessen(ctx context.Context, jetzt time.Time) (store.Umzug, error)
 }
 
 type ZugangStore interface {
@@ -152,6 +169,19 @@ func New(d Deps) http.Handler {
 		func(f *store.ItemFilter, id int64) { f.MoebelID = id }))
 	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/moebel", s.moebelSetzen)
 	geschuetzt.HandleFunc("PUT /api/items/{id}/platzierung", s.platzierungSetzen)
+	geschuetzt.HandleFunc("GET /api/umzug", s.laufenderUmzug)
+	geschuetzt.HandleFunc("POST /api/umzug", s.umzugAnlegen)
+	geschuetzt.HandleFunc("POST /api/umzug/boxen", s.boxAnlegen)
+	geschuetzt.HandleFunc("GET /api/umzug/boxen/{nummer}", s.boxPerNummer)
+	geschuetzt.HandleFunc("GET /api/umzug/zielraeume", s.zielraeume)
+	geschuetzt.HandleFunc("POST /api/umzug/abschluss", s.umzugAbschliessen)
+	geschuetzt.HandleFunc("GET /api/boxen/{id}", s.boxAbrufen)
+	geschuetzt.HandleFunc("PUT /api/boxen/{id}", s.boxUmbenennen)
+	geschuetzt.HandleFunc("DELETE /api/boxen/{id}", s.loeschen(s.Store.BoxLoeschen))
+	geschuetzt.HandleFunc("PATCH /api/items/{id}/umzug", s.umzugsangabenSetzen)
+	geschuetzt.HandleFunc("POST /api/umzug/sammeln", s.umzugsangabenSammeln)
+	geschuetzt.HandleFunc("GET /api/umzuege", s.umzuegeAuflisten)
+	geschuetzt.HandleFunc("GET /api/umzuege/{id}", s.umzugAbrufen)
 	geschuetzt.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		schreibeFehler(w, http.StatusNotFound, "nicht_gefunden", "Unbekannter Endpunkt")
 	})
@@ -229,6 +259,28 @@ func (s *server) storeFehler(w http.ResponseWriter, r *http.Request, err error) 
 		schreibeFehler(w, http.StatusConflict, "moebel_in_sich_selbst", "Ein Möbelstück kann nicht in einem eigenen Lagerort liegen")
 	case errors.Is(err, store.ErrUnbekannterPlatz):
 		schreibeFehler(w, http.StatusBadRequest, "unbekannter_platz", "Diesen Raum oder Lagerort gibt es nicht")
+	case errors.Is(err, store.ErrKeinUmzug):
+		schreibeFehler(w, http.StatusConflict, "kein_umzug", "Es läuft kein Umzug")
+	case errors.Is(err, store.ErrUmzugLaeuft):
+		schreibeFehler(w, http.StatusConflict, "umzug_laeuft", "Es läuft schon ein Umzug")
+	case errors.Is(err, store.ErrUmzugAbgeschlossen):
+		schreibeFehler(w, http.StatusConflict, "umzug_abgeschlossen", "Der Umzug ist abgeschlossen und lässt sich nicht mehr ändern")
+	case errors.Is(err, store.ErrGleicheWohnung):
+		schreibeFehler(w, http.StatusBadRequest, "gleiche_wohnung", "Alte und neue Wohnung müssen verschieden sein")
+	case errors.Is(err, store.ErrUnbekannteWohnung):
+		schreibeFehler(w, http.StatusBadRequest, "unbekannte_wohnung", "Diese Wohnung gibt es nicht")
+	case errors.Is(err, store.ErrWohnungImUmzug):
+		schreibeFehler(w, http.StatusConflict, "wohnung_im_umzug", "Die Wohnung gehört zu einem Umzug")
+	case errors.Is(err, store.ErrRaumImUmzug):
+		schreibeFehler(w, http.StatusConflict, "raum_im_umzug", "Der Raum ist Herkunfts- oder Zielraum in einem Umzug")
+	case errors.Is(err, store.ErrBoxNichtLeer):
+		schreibeFehler(w, http.StatusConflict, "box_nicht_leer", "Nur leere Boxen lassen sich löschen")
+	case errors.Is(err, store.ErrUnbekannteBox):
+		schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", "Diese Box gibt es im laufenden Umzug nicht")
+	case errors.Is(err, store.ErrZielraumFalsch):
+		schreibeFehler(w, http.StatusBadRequest, "zielraum_nicht_in_neuer_wohnung", "Der Zielraum muss in der neuen Wohnung liegen")
+	case errors.Is(err, store.ErrUnbekanntesItem):
+		schreibeFehler(w, http.StatusBadRequest, "unbekanntes_item", "Dieses Item gibt es nicht")
 	case errors.Is(err, store.ErrUnbekanntePerson):
 		schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", meldungUnbekanntePerson)
 	default:

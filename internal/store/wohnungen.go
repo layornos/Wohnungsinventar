@@ -82,15 +82,18 @@ func umbenennen(ctx context.Context, q abfrager, tabelle string, id int64, name 
 
 func (s *Store) WohnungLoeschen(ctx context.Context, id int64) error {
 	return s.inTransaktion(ctx, func(tx *sql.Tx) error {
-		var existiert, raeume bool
+		var existiert, raeume, umzug bool
 		err := tx.QueryRowContext(ctx, `
-			SELECT EXISTS (SELECT 1 FROM wohnung WHERE id = ?), EXISTS (SELECT 1 FROM raum WHERE wohnung_id = ?)`,
-			id, id).Scan(&existiert, &raeume)
+			SELECT EXISTS (SELECT 1 FROM wohnung WHERE id = ?), EXISTS (SELECT 1 FROM raum WHERE wohnung_id = ?),
+				EXISTS (SELECT 1 FROM umzug WHERE alte_wohnung_id = ? OR neue_wohnung_id = ?)`,
+			id, id, id, id).Scan(&existiert, &raeume, &umzug)
 		switch {
 		case err != nil:
 			return err
 		case !existiert:
 			return ErrNichtGefunden
+		case umzug:
+			return ErrWohnungImUmzug
 		case raeume:
 			return ErrWohnungNichtLeer
 		}
@@ -117,11 +120,12 @@ func (s *Store) RaumUmbenennen(ctx context.Context, id int64, name string) (Bena
 // RaumLoeschen löscht einen leeren Raum: ohne Lagerorte und ohne direkt darin platzierte Items.
 func (s *Store) RaumLoeschen(ctx context.Context, id int64) error {
 	return s.inTransaktion(ctx, func(tx *sql.Tx) error {
-		var existiert, belegt bool
+		var existiert, belegt, imUmzug bool
 		err := tx.QueryRowContext(ctx, `
 			SELECT EXISTS (SELECT 1 FROM raum WHERE id = ?),
-				EXISTS (SELECT 1 FROM lagerort WHERE raum_id = ?) OR EXISTS (SELECT 1 FROM item WHERE raum_id = ?)`,
-			id, id, id).Scan(&existiert, &belegt)
+				EXISTS (SELECT 1 FROM lagerort WHERE raum_id = ?) OR EXISTS (SELECT 1 FROM item WHERE raum_id = ?),
+				EXISTS (SELECT 1 FROM umzugsangabe WHERE herkunftsraum_id = ? OR zielraum_id = ?)`,
+			id, id, id, id, id).Scan(&existiert, &belegt, &imUmzug)
 		switch {
 		case err != nil:
 			return err
@@ -129,6 +133,8 @@ func (s *Store) RaumLoeschen(ctx context.Context, id int64) error {
 			return ErrNichtGefunden
 		case belegt:
 			return ErrRaumNichtLeer
+		case imUmzug:
+			return ErrRaumImUmzug
 		}
 		_, err = tx.ExecContext(ctx, `DELETE FROM raum WHERE id = ?`, id)
 		return err

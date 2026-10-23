@@ -43,6 +43,8 @@ type Item struct {
 	Platzierung *Pfad
 	// MoebelLagerorte sind die Lagerorte, die zu diesem Item als Möbelstück gehören.
 	MoebelLagerorte []Benannt
+	// Umzug sind die Angaben im laufenden Umzug; nil, wenn keiner läuft oder es keine gibt.
+	Umzug *Umzugsangaben
 }
 
 type Foto struct {
@@ -66,6 +68,8 @@ type NeuesItem struct {
 	BesitzerIDs  []int64
 	Fotos        []NeuesFoto
 	Platz        Platz
+	// BoxID packt das neue Item gleich in eine Box des laufenden Umzugs.
+	BoxID int64
 }
 
 // abfrager ist, was *sql.DB und *sql.Tx gemeinsam haben.
@@ -108,6 +112,11 @@ func (s *Store) ItemAnlegen(ctx context.Context, neu NeuesItem, jetzt time.Time)
 		}
 		if err := platzSetzen(ctx, tx, id, neu.Platz); err != nil {
 			return err
+		}
+		if neu.BoxID != 0 {
+			if err := angabenSetzen(ctx, tx, id, AngabenAenderung{BoxID: &neu.BoxID}); err != nil {
+				return err
+			}
 		}
 		item, err = itemLesen(ctx, tx, id)
 		return err
@@ -180,6 +189,9 @@ func itemLesen(ctx context.Context, q abfrager, id int64) (Item, error) {
 		`SELECT id, name FROM lagerort WHERE moebel_item_id = ? ORDER BY name, id`, id)); err != nil {
 		return Item{}, err
 	}
+	if item.Umzug, err = angabenLesen(ctx, q, id); err != nil {
+		return Item{}, err
+	}
 	item.Fotos, err = fotosLesen(ctx, q, id)
 	return item, err
 }
@@ -239,6 +251,8 @@ type ItemListenEintrag struct {
 	Name        string
 	Verbleib    Verbleib
 	HauptfotoID int64
+	// Umzug sind die Umzugsangaben im laufenden (oder im Filter genannten) Umzug.
+	Umzug *Umzugsangaben
 }
 
 type ItemFilter struct {
@@ -253,6 +267,13 @@ type ItemFilter struct {
 	// MoebelID liefert die Items in den Lagerorten dieses Möbelstücks.
 	MoebelID     int64
 	OhneLagerort bool
+	// Umzugsfilter beziehen sich auf den laufenden Umzug, außer UmzugID nennt einen anderen.
+	UmzugID         int64
+	BoxID           int64
+	ZielraumID      int64
+	HerkunftsraumID int64
+	// OhneZielraum liefert die Items, die in der alten Wohnung stehen und noch keinen Zielraum haben.
+	OhneZielraum bool
 	Anzahl       int
 	Versatz      int
 }
@@ -307,20 +328,47 @@ func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenE
 	if f.OhneLagerort {
 		bedingungen = append(bedingungen, `i.lagerort_id IS NULL`)
 	}
+	if f.BoxID != 0 {
+		bedingungen = append(bedingungen, `ua.box_id = ?`)
+		args = append(args, f.BoxID)
+	}
+	if f.ZielraumID != 0 {
+		bedingungen = append(bedingungen, `ua.zielraum_id = ?`)
+		args = append(args, f.ZielraumID)
+	}
+	// Ohne Umzugsangaben gilt der aktuelle Raum als Herkunftsraum, so wie er beim Anlegen vorbelegt würde.
+	if f.HerkunftsraumID != 0 {
+		ctes = append(ctes, teilbaum("im_herkunftsraum", "raum_id = ?"))
+		cteArgs = append(cteArgs, f.HerkunftsraumID)
+		bedingungen = append(bedingungen, `((ua.item_id IS NOT NULL AND ua.herkunftsraum_id = ?)
+			OR (ua.item_id IS NULL AND (i.raum_id = ? OR i.lagerort_id IN (SELECT id FROM im_herkunftsraum))))`)
+		args = append(args, f.HerkunftsraumID, f.HerkunftsraumID)
+	}
+	if f.OhneZielraum {
+		alteRaeume := `SELECT r.id FROM raum r JOIN umzug u ON u.alte_wohnung_id = r.wohnung_id WHERE u.laufend = 1`
+		ctes = append(ctes, teilbaum("in_alter_wohnung", "raum_id IN ("+alteRaeume+")"))
+		bedingungen = append(bedingungen, `ua.zielraum_id IS NULL
+			AND (i.raum_id IN (`+alteRaeume+`) OR i.lagerort_id IN (SELECT id FROM in_alter_wohnung))`)
+	}
 
 	abfrage := ""
 	if len(ctes) > 0 {
 		abfrage = "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
 	}
 	abfrage += `
-		SELECT i.id, i.name, i.verbleib, f.id
-		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1`
+		SELECT i.id, i.name, i.verbleib, f.id, ua.item_id IS NOT NULL, h.id, h.name, z.id, z.name, b.id, b.nummer, b.bezeichnung
+		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1
+		LEFT JOIN umzugsangabe ua ON ua.item_id = i.id
+			AND ua.umzug_id = COALESCE(?, (SELECT id FROM umzug WHERE laufend = 1))
+		LEFT JOIN raum h ON h.id = ua.herkunftsraum_id
+		LEFT JOIN raum z ON z.id = ua.zielraum_id
+		LEFT JOIN box b ON b.id = ua.box_id`
 	if len(bedingungen) > 0 {
 		abfrage += " WHERE " + strings.Join(bedingungen, " AND ")
 	}
 	// Einer mehr als verlangt, um zu erkennen, ob es weitere gibt.
 	abfrage += ` ORDER BY i.geaendert_am DESC, i.id DESC LIMIT ? OFFSET ?`
-	args = append(append(cteArgs, args...), f.Anzahl+1, f.Versatz)
+	args = append(append(append(cteArgs, nullID(f.UmzugID)), args...), f.Anzahl+1, f.Versatz)
 
 	rows, err := s.db.QueryContext(ctx, abfrage, args...)
 	if err != nil {
@@ -330,13 +378,24 @@ func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenE
 	eintraege := []ItemListenEintrag{}
 	for rows.Next() {
 		var (
-			e        ItemListenEintrag
-			verbleib sql.NullString
+			e                                  ItemListenEintrag
+			verbleib                           sql.NullString
+			mitAngaben                         bool
+			herkunftID, zielID, boxID          sql.NullInt64
+			herkunftName, zielName, boxBezeich sql.NullString
+			boxNummer                          sql.NullInt64
 		)
-		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID); err != nil {
+		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID, &mitAngaben,
+			&herkunftID, &herkunftName, &zielID, &zielName, &boxID, &boxNummer, &boxBezeich); err != nil {
 			return nil, false, err
 		}
 		e.Verbleib = verbleibAus(verbleib)
+		if mitAngaben {
+			e.Umzug = &Umzugsangaben{Herkunftsraum: benanntAus(herkunftID, herkunftName), Zielraum: benanntAus(zielID, zielName)}
+			if boxID.Valid {
+				e.Umzug.Box = &Box{ID: boxID.Int64, Nummer: int(boxNummer.Int64), Bezeichnung: boxBezeich.String}
+			}
+		}
 		eintraege = append(eintraege, e)
 	}
 	if err := rows.Err(); err != nil {

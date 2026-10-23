@@ -85,6 +85,7 @@
 	<header class="kopf">
 		<h1>Inventar</h1>
 		<nav class="knopfzeile">
+			<a class="knopf sekundaer" href="/umzug">Umzug</a>
 			<a class="knopf sekundaer" href="/wohnungen">Wohnungen</a>
 			<a class="knopf sekundaer" href="/ohne-lagerort">Ohne Lagerort</a>
 			<a class="knopf sekundaer" href="/personen">Personen</a>

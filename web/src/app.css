@@ -456,3 +456,90 @@ ul.baum a {
 	min-height: 32px;
 	font-weight: 600;
 }
+
+.klein-text {
+	display: block;
+	font-size: 0.85em;
+	font-weight: 400;
+}
+
+.marke.box {
+	background: var(--flaeche);
+	color: var(--akzent);
+	border: 1px solid var(--akzent);
+}
+
+a.marke {
+	text-decoration: none;
+}
+
+.kacheln {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+	gap: 8px;
+	margin: 16px 0;
+}
+
+.kacheln a.knopf {
+	justify-content: center;
+}
+
+form.gross input {
+	font-size: 1.6em;
+	flex: 1 1 6em;
+}
+
+h1.boxnummer {
+	font-size: 2.6em;
+}
+
+.packkopf {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+input[type='checkbox'].gross {
+	min-height: 0;
+	width: 28px;
+	height: 28px;
+	accent-color: var(--akzent);
+}
+
+button.packen {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	text-align: left;
+	background: var(--flaeche);
+	color: var(--text);
+	border: 1px solid var(--rand);
+	font-weight: 600;
+}
+
+button.packen.drin {
+	border-color: var(--akzent);
+	outline: 2px solid var(--akzent);
+}
+
+button.packen img {
+	width: 48px;
+	height: 48px;
+	object-fit: cover;
+	border-radius: 6px;
+}
+
+.leiste {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 12px max(12px, env(safe-area-inset-bottom));
+	background: var(--flaeche);
+	border-top: 1px solid var(--rand);
+}

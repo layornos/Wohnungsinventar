@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { api, fehlerText, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import BesitzerAuswahl from '#lib/BesitzerAuswahl.svelte';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
@@ -19,6 +20,8 @@
 	let fehler = $state('');
 	let laeuft = $state(false);
 	let gespeichert = $state<Item | null>(null);
+	// Aus dem Pack-Modus kommen neue Items direkt in die aktive Box.
+	const box = page.url.searchParams.get('box');
 	let plaetze = $state<PlatzEintrag[]>([]);
 	let platz = $state<Platz | null>(null);
 
@@ -60,6 +63,7 @@
 		form.set('beschreibung', beschreibung);
 		if (verbleib) form.set('verbleib', verbleib);
 		if (platz) form.set(platz.art, String(platz.id));
+		if (box) form.set('box', box);
 		for (const id of besitzer) form.append('besitzer', String(id));
 		for (const f of fotos) form.append('foto', f.datei);
 
@@ -83,9 +87,10 @@
 
 <main class="seite">
 	<header class="kopf">
-		<a class="knopf sekundaer" href="/">← Liste</a>
+		<a class="knopf sekundaer" href={box ? '/umzug/packen?box=' + box : '/'}>{box ? '← Packen' : '← Liste'}</a>
 		<h1>Erfassen</h1>
 	</header>
+	{#if box}<p class="hinweis">Neue Items kommen direkt in die aktive Box.</p>{/if}
 
 	{#if gespeichert}
 		<p class="hinweis" role="status">

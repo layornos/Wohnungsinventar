@@ -35,6 +35,8 @@ type itemJSON struct {
 	// Platzierung ist null, solange das Item nicht platziert ist.
 	Platzierung     *pfadJSON     `json:"platzierung"`
 	MoebelLagerorte []benanntJSON `json:"moebelLagerorte"`
+	// Umzug sind die Angaben im laufenden Umzug, sonst null.
+	Umzug *umzugsangabenJSON `json:"umzug"`
 }
 
 type fotoJSON struct {
@@ -66,6 +68,7 @@ func alsItemJSON(item store.Item) itemJSON {
 		Besitzer:        alsPersonenJSON(item.Besitzer),
 		Fotos:           []fotoJSON{},
 		MoebelLagerorte: alsBenannteJSON(item.MoebelLagerorte),
+		Umzug:           alsUmzugsangabenJSON(item.Umzug),
 	}
 	if item.Platzierung != nil {
 		p := alsPfadJSON(*item.Platzierung)
@@ -206,8 +209,18 @@ func neuesItemLesen(w http.ResponseWriter, f formular) (store.NeuesItem, bool) {
 		fotoFehlt(w)
 		return neu, false
 	}
-	neu.Platz, ok = platzAusFormular(w, f)
-	return neu, ok
+	if neu.Platz, ok = platzAusFormular(w, f); !ok {
+		return neu, false
+	}
+	if box := f.feld("box"); box != "" {
+		id, err := strconv.ParseInt(box, 10, 64)
+		if err != nil {
+			schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", "Diese Box gibt es im laufenden Umzug nicht")
+			return neu, false
+		}
+		neu.BoxID = id
+	}
+	return neu, true
 }
 
 func (s *server) itemAnlegen(w http.ResponseWriter, r *http.Request) {
@@ -243,14 +256,27 @@ func (s *server) itemAbrufen(w http.ResponseWriter, r *http.Request) {
 }
 
 type itemListenJSON struct {
-	ID          int64           `json:"id"`
-	Name        string          `json:"name"`
-	Verbleib    *store.Verbleib `json:"verbleib"`
-	VorschauURL string          `json:"vorschauUrl"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Verbleib    *store.Verbleib    `json:"verbleib"`
+	VorschauURL string             `json:"vorschauUrl"`
+	Umzug       *umzugsangabenJSON `json:"umzug"`
+}
+
+func alsItemListeJSON(eintraege []store.ItemListenEintrag) []itemListenJSON {
+	items := make([]itemListenJSON, 0, len(eintraege))
+	for _, e := range eintraege {
+		items = append(items, itemListenJSON{
+			ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID),
+			Umzug: alsUmzugsangabenJSON(e.Umzug),
+		})
+	}
+	return items
 }
 
 // itemsAuflisten filtert mit q (Text im Namen), besitzer (Person-ID), verbleib (inkl. "offen"),
-// raum, lagerort (beide inkl. verschachtelter Lagerorte) und ohneLagerort und liefert seitenweise
+// raum, lagerort (beide inkl. verschachtelter Lagerorte), ohneLagerort sowie box, herkunftsraum und
+// ohneZielraum im laufenden Umzug und liefert seitenweise
 // mit seite (ab 1) und proSeite.
 func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -261,7 +287,10 @@ func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 	for _, feld := range []struct {
 		name string
 		ziel *int64
-	}{{"besitzer", &filter.BesitzerID}, {"raum", &filter.RaumID}, {"lagerort", &filter.LagerortID}} {
+	}{
+		{"besitzer", &filter.BesitzerID}, {"raum", &filter.RaumID}, {"lagerort", &filter.LagerortID},
+		{"box", &filter.BoxID}, {"herkunftsraum", &filter.HerkunftsraumID},
+	} {
 		if wert := q.Get(feld.name); wert != "" {
 			id, err := strconv.ParseInt(wert, 10, 64)
 			if err != nil {
@@ -272,6 +301,7 @@ func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	filter.OhneLagerort = q.Get("ohneLagerort") != ""
+	filter.OhneZielraum = q.Get("ohneZielraum") != ""
 	if v := q.Get("verbleib"); v != "" {
 		verbleib := store.Offen
 		if v != "offen" {
@@ -310,11 +340,7 @@ func (s *server) itemListeAntworten(w http.ResponseWriter, r *http.Request, filt
 		s.internerFehler(w, r, err)
 		return
 	}
-	items := make([]itemListenJSON, 0, len(eintraege))
-	for _, e := range eintraege {
-		items = append(items, itemListenJSON{ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID)})
-	}
-	schreibeJSON(w, http.StatusOK, map[string]any{"items": items, "weitere": weitere})
+	schreibeJSON(w, http.StatusOK, map[string]any{"items": alsItemListeJSON(eintraege), "weitere": weitere})
 }
 
 // wegfallVorschau liefert alle Items, die beim Löschen ohne Lagerort dastünden. pruefen stellt sicher,

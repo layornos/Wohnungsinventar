@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { verbleibName, type ItemListenEintrag } from './api.ts';
+	import { boxName, verbleibName, type ItemListenEintrag } from './api.ts';
 
 	let { items }: { items: ItemListenEintrag[] } = $props();
 </script>
@@ -11,6 +11,7 @@
 				<img src={item.vorschauUrl} alt="" loading="lazy" />
 				<span class="karte-name">{item.name}</span>
 				<span class="marke" class:offen={item.verbleib === null}>{verbleibName(item.verbleib)}</span>
+				{#if item.umzug?.box}<span class="marke box">{boxName(item.umzug.box)}</span>{/if}
 			</a>
 		</li>
 	{/each}

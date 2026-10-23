@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, fehlerText, verbleibName, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
+	import { api, boxName, fehlerText, verbleibName, type Benannt, type Item, type Umzug, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
 	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/plaetze.ts';
+	import { ladeUmzug, ladeUmzugsraeume } from '#lib/umzug.ts';
 	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
 	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 	import { ladePersonen } from '#lib/personen.ts';
@@ -97,6 +98,32 @@
 
 	async function platzSpeichern() {
 		if (await aendern('PUT', `${pfad}/platzierung`, platzBody(platz))) platzWaehlen = false;
+	}
+
+	// Umzugsangaben, solange ein Umzug läuft.
+	let umzug = $state<Umzug | null>(null);
+	let umzugsraeume = $state<{ alt: Benannt[]; neu: Benannt[] }>({ alt: [], neu: [] });
+	let angaben = $state({ herkunft: '', ziel: '', box: '' });
+
+	ladeUmzug()
+		.then(async (u) => {
+			umzug = u;
+			if (u) umzugsraeume = await ladeUmzugsraeume(u);
+		})
+		.catch((e) => (fehler = fehlerText(e)));
+
+	$effect(() => {
+		const a = item?.umzug;
+		angaben = {
+			herkunft: a?.herkunftsraum ? String(a.herkunftsraum.id) : '',
+			ziel: a?.zielraum ? String(a.zielraum.id) : '',
+			box: a?.box ? String(a.box.id) : ''
+		};
+	});
+
+	function angabenSpeichern() {
+		const id = (v: string) => (v ? Number(v) : null);
+		aendern('PATCH', `${pfad}/umzug`, { herkunftsraumId: id(angaben.herkunft), zielraumId: id(angaben.ziel), boxId: id(angaben.box) });
 	}
 
 	async function itemLoeschen() {
@@ -206,6 +233,36 @@
 				</p>
 			{/if}
 		</section>
+
+		{#if umzug}
+			<section>
+				<h2>Umzug</h2>
+				<div class="filter">
+					<label>
+						Herkunftsraum
+						<select bind:value={angaben.herkunft}>
+							<option value="">–</option>
+							{#each umzugsraeume.alt as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+						</select>
+					</label>
+					<label>
+						Zielraum
+						<select bind:value={angaben.ziel}>
+							<option value="">–</option>
+							{#each umzugsraeume.neu as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+						</select>
+					</label>
+					<label class="ganz">
+						Box
+						<select bind:value={angaben.box}>
+							<option value="">Keine</option>
+							{#each umzug.boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
+						</select>
+					</label>
+				</div>
+				<button class="sekundaer" disabled={laeuft} onclick={angabenSpeichern}>Umzugsangaben speichern</button>
+			</section>
+		{/if}
 
 		<section>
 			<h2>Besitzer</h2>

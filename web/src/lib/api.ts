@@ -5,7 +5,9 @@ export class ApiError extends Error {
 	constructor(
 		readonly status: number,
 		readonly code: string,
-		meldung: string
+		meldung: string,
+		/** Die vollständige Fehlerantwort, z. B. mit der Liste der Items ohne Zielraum. */
+		readonly daten: Record<string, unknown> = {}
 	) {
 		super(meldung);
 	}
@@ -67,13 +69,35 @@ export type Item = {
 	fotos: Foto[];
 	platzierung: Pfad | null;
 	moebelLagerorte: Benannt[];
+	umzug: Umzugsangaben | null;
 };
+
+export type BoxKurz = { id: number; nummer: number; bezeichnung: string };
+export type Box = BoxKurz & { anzahl: number };
+
+/** Herkunftsraum, Zielraum und Box eines Items im laufenden Umzug. */
+export type Umzugsangaben = { herkunftsraum: Benannt | null; zielraum: Benannt | null; box: BoxKurz | null };
+
+export type Umzug = {
+	id: number;
+	alteWohnung: Benannt;
+	neueWohnung: Benannt;
+	laufend: boolean;
+	erstelltAm: string;
+	abgeschlossenAm: string | null;
+	boxen: Box[];
+};
+
+export function boxName(b: BoxKurz): string {
+	return b.bezeichnung ? `Box ${b.nummer} · ${b.bezeichnung}` : `Box ${b.nummer}`;
+}
 
 export type ItemListenEintrag = {
 	id: number;
 	name: string;
 	verbleib: Verbleib | null;
 	vorschauUrl: string;
+	umzug: Umzugsangaben | null;
 };
 
 /** Meldung für einen Fehler, ob von der API oder weil der Server nicht erreichbar ist. */
@@ -103,7 +127,11 @@ export async function api<T>(
 		if (res.status === 401 && !opts.ohneUmleitung) {
 			await zurAnmeldung();
 		}
-		throw new ApiError(res.status, data.code ?? 'unbekannt', data.meldung ?? res.statusText);
+		throw new ApiError(res.status, data.code ?? 'unbekannt', data.meldung ?? res.statusText, data);
 	}
 	return data as T;
+}
+
+export function datumKurz(iso: string): string {
+	return new Date(iso).toLocaleDateString('de-DE');
 }
