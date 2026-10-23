@@ -19,15 +19,16 @@ func alsPfadJSON(p store.Pfad) pfadJSON {
 }
 
 type lagerortJSON struct {
-	ID     int64         `json:"id"`
-	Name   string        `json:"name"`
-	Pfad   pfadJSON      `json:"pfad"`
-	Moebel *benanntJSON  `json:"moebel"`
-	Unter  []benanntJSON `json:"unter"`
+	ID        int64         `json:"id"`
+	Name      string        `json:"name"`
+	Pfad      pfadJSON      `json:"pfad"`
+	Moebel    *benanntJSON  `json:"moebel"`
+	Unter     []benanntJSON `json:"unter"`
+	Unterbaum []int64       `json:"unterbaum"`
 }
 
 func alsLagerortJSON(l store.LagerortDetail) lagerortJSON {
-	out := lagerortJSON{ID: l.ID, Name: l.Name, Pfad: alsPfadJSON(l.Pfad), Unter: alsBenannteJSON(l.Unter)}
+	out := lagerortJSON{ID: l.ID, Name: l.Name, Pfad: alsPfadJSON(l.Pfad), Unter: alsBenannteJSON(l.Unter), Unterbaum: l.Unterbaum}
 	if l.Moebel != nil {
 		m := alsBenanntJSON(*l.Moebel)
 		out.Moebel = &m
@@ -180,9 +181,9 @@ func (s *server) lagerortLoeschen(w http.ResponseWriter, r *http.Request) {
 }
 
 type platzJSON struct {
-	Art  string `json:"art"`
-	ID   int64  `json:"id"`
-	Pfad string `json:"pfad"`
+	Art  store.PlatzArt `json:"art"`
+	ID   int64          `json:"id"`
+	Pfad string         `json:"pfad"`
 }
 
 func (s *server) plaetzeAuflisten(w http.ResponseWriter, r *http.Request) {

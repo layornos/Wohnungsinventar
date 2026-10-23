@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -245,4 +246,23 @@ func TestRaumNurLeerLoeschbar(t *testing.T) {
 	c.mustStatus(http.StatusOK, "PUT", itemPfad(sofa)+"/platzierung", map[string]any{})
 	c.mustStatus(http.StatusNoContent, "DELETE", fmt.Sprintf("/api/raeume/%d", kueche), nil)
 	c.mustStatus(http.StatusNoContent, "DELETE", fmt.Sprintf("/api/raeume/%d", bad), nil)
+}
+
+func TestLagerortNenntSeinenUnterbaum(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	a := c.arbeitszimmerAnlegen()
+	trenner := c.lagerortAnlegen(map[string]any{"name": "Trenner", "elternId": a.schublade})
+	// Gleicher Name wie die Schublade, aber kein Unterlagerort des Schreibtischs.
+	c.lagerortAnlegen(map[string]any{"name": "obere Schublade", "raumId": a.raum})
+
+	l := c.get(fmt.Sprintf("/api/lagerorte/%d", a.schreibtisch))
+	var ids []int64
+	for _, id := range l.Body["unterbaum"].([]any) {
+		ids = append(ids, int64(id.(float64)))
+	}
+	slices.Sort(ids)
+	if !slices.Equal(ids, []int64{a.schreibtisch, a.schublade, trenner}) {
+		t.Fatalf("Unterbaum %v", ids)
+	}
 }

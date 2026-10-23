@@ -317,12 +317,16 @@ func (s *server) itemListeAntworten(w http.ResponseWriter, r *http.Request, filt
 	schreibeJSON(w, http.StatusOK, map[string]any{"items": items, "weitere": weitere})
 }
 
-// wegfallVorschau liefert alle Items, die beim Löschen ohne Lagerort dastünden;
-// filtern setzt im Filter den Lagerort oder das Möbelstück aus dem Pfad.
-func (s *server) wegfallVorschau(filtern func(*store.ItemFilter, int64)) http.HandlerFunc {
+// wegfallVorschau liefert alle Items, die beim Löschen ohne Lagerort dastünden. pruefen stellt sicher,
+// dass es den Lagerort oder das Möbelstück gibt; filtern setzt ihn im Filter.
+func (s *server) wegfallVorschau(pruefen func(ctx context.Context, id int64) error, filtern func(*store.ItemFilter, int64)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pfadID(w, r, "id")
 		if !ok {
+			return
+		}
+		if err := pruefen(r.Context(), id); err != nil {
+			s.storeFehler(w, r, err)
 			return
 		}
 		filter := store.ItemFilter{Anzahl: maxWegfallVorschau}

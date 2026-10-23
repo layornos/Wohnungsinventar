@@ -144,8 +144,12 @@ func New(d Deps) http.Handler {
 	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}", s.umbenennen(s.Store.LagerortUmbenennen))
 	geschuetzt.HandleFunc("DELETE /api/lagerorte/{id}", s.lagerortLoeschen)
 	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/eltern", s.lagerortVerschieben)
-	geschuetzt.HandleFunc("GET /api/lagerorte/{id}/wegfall", s.wegfallVorschau(func(f *store.ItemFilter, id int64) { f.LagerortID = id }))
-	geschuetzt.HandleFunc("GET /api/items/{id}/wegfall", s.wegfallVorschau(func(f *store.ItemFilter, id int64) { f.MoebelID = id }))
+	geschuetzt.HandleFunc("GET /api/lagerorte/{id}/wegfall", s.wegfallVorschau(
+		func(ctx context.Context, id int64) error { _, err := s.Store.LagerortAbrufen(ctx, id); return err },
+		func(f *store.ItemFilter, id int64) { f.LagerortID = id }))
+	geschuetzt.HandleFunc("GET /api/items/{id}/wegfall", s.wegfallVorschau(
+		func(ctx context.Context, id int64) error { _, err := s.Store.ItemAbrufen(ctx, id); return err },
+		func(f *store.ItemFilter, id int64) { f.MoebelID = id }))
 	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/moebel", s.moebelSetzen)
 	geschuetzt.HandleFunc("PUT /api/items/{id}/platzierung", s.platzierungSetzen)
 	geschuetzt.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {

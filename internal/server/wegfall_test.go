@@ -136,3 +136,13 @@ func TestPlaetzeAlsDurchsuchbarePfadliste(t *testing.T) {
 		t.Fatalf("Plätze:\n%v\nerwartet:\n%v", got, want)
 	}
 }
+
+func TestWegfallVorschauFuerUnbekanntesIstNichtGefunden(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	for _, pfad := range []string{"/api/lagerorte/999/wegfall", "/api/items/999/wegfall"} {
+		if r := c.do("GET", pfad, nil); r.Status != http.StatusNotFound || r.errorCode() != "nicht_gefunden" {
+			t.Errorf("%s: Status %d, Fehlercode %q", pfad, r.Status, r.errorCode())
+		}
+	}
+}

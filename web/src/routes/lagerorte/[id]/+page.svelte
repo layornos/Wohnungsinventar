@@ -12,6 +12,8 @@
 
 	let lagerort = $state<Lagerort | null>(null);
 	let items = $state<ItemListenEintrag[]>([]);
+	let weitere = $state(false);
+	let seite = 1;
 	let plaetze = $state<PlatzEintrag[]>([]);
 	let neuerLagerort = $state('');
 	let name = $state<string | null>(null);
@@ -21,16 +23,29 @@
 	let fehler = $state('');
 	let laeuft = $state(false);
 
-	// Pfade der Unterlagerorte beginnen mit dem eigenen Pfad; dorthin kann er nicht verschoben werden.
-	const eigenerPfad = $derived(plaetze.find((p) => p.art === 'lagerort' && p.id === id)?.pfad);
-	const imEigenenBaum = (p: PlatzEintrag) =>
-		!!eigenerPfad && p.art === 'lagerort' && (p.pfad === eigenerPfad || p.pfad.startsWith(eigenerPfad + ' › '));
+	// In sich selbst oder einen Unterlagerort lässt er sich nicht verschieben.
+	const imEigenenBaum = (p: PlatzEintrag) => p.art === 'lagerort' && !!lagerort?.unterbaum.includes(p.id);
 
 	async function laden(lagerortID: number) {
 		fehler = '';
 		try {
 			lagerort = await api<Lagerort>('GET', `/api/lagerorte/${lagerortID}`);
-			items = (await api<{ items: ItemListenEintrag[] }>('GET', `/api/items?lagerort=${lagerortID}&proSeite=100`)).items;
+			await itemsLaden(lagerortID, 1);
+		} catch (e) {
+			fehler = fehlerText(e);
+		}
+	}
+
+	async function itemsLaden(lagerortID: number, s: number) {
+		const r = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', `/api/items?lagerort=${lagerortID}&seite=${s}`);
+		items = s === 1 ? r.items : [...items, ...r.items];
+		weitere = r.weitere;
+		seite = s;
+	}
+
+	async function mehrLaden() {
+		try {
+			await itemsLaden(id, seite + 1);
 		} catch (e) {
 			fehler = fehlerText(e);
 		}
@@ -173,6 +188,9 @@
 			<h2>Items darin</h2>
 			{#if items.length > 0}
 				<ItemRaster {items} />
+				{#if weitere}
+					<button class="sekundaer breit" onclick={mehrLaden}>Mehr laden</button>
+				{/if}
 			{:else}
 				<p class="leise">Keine Items, auch nicht in Unterlagerorten.</p>
 			{/if}

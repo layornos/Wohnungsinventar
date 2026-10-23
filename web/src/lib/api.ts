@@ -51,7 +51,8 @@ export type Platz = { art: 'raum' | 'lagerort'; id: number };
 export type PlatzEintrag = Platz & { pfad: string };
 
 export type LagerortKnoten = Benannt & { moebel: Benannt | null; unter: LagerortKnoten[] };
-export type Lagerort = Benannt & { pfad: Pfad; moebel: Benannt | null; unter: Benannt[] };
+/** unterbaum: IDs des Lagerorts und aller Unterlagerorte. */
+export type Lagerort = Benannt & { pfad: Pfad; moebel: Benannt | null; unter: Benannt[]; unterbaum: number[] };
 export type Raum = Benannt & { wohnung: Benannt; lagerorte: LagerortKnoten[] };
 export type Wohnung = Benannt & { raeume: Benannt[] };
 

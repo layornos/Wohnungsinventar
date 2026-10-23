@@ -1,6 +1,6 @@
 # Spec 03: Wohnungen, Räume, Lagerorte
 
-Status: ready-for-agent
+Status: erledigt
 Blocked by: 02-items-erfassen
 
 ## Problem Statement
@@ -26,7 +26,7 @@ Wohnungen bestehen aus Räumen, und in Räumen gibt es verschachtelte Lagerorte.
 11. Als Nutzer will ich daran gehindert werden, einen Lagerort in sich selbst oder in einen seiner Unterlagerorte zu verschieben.
 12. Als Nutzer will ich beim Löschen eines Lagerorts vorher sehen, welche Items dadurch ohne Lagerort sind.
 13. Als Nutzer will ich, dass die Items eines gelöschten Lagerorts und seiner Unterlagerorte danach ohne Lagerort in dem Raum stehen, in dem der Lagerort lag.
-14. Als Nutzer will ich beim Löschen eines Möbelstück-Items gewarnt werden, dass seine Lagerorte entfallen und deren Items ohne Lagerort im Raum des Möbelstücks stehen.
+14. Als Nutzer will ich beim Löschen eines Möbelstück-Items gewarnt werden, dass seine Lagerorte entfallen und deren Items ohne Lagerort in dem Raum stehen, in dem der jeweilige Lagerort lag.
 15. Als Nutzer will ich einem Item einen Lagerort zuweisen.
 16. Als Nutzer will ich ein Item direkt in einen Raum stellen, ohne Lagerort, z. B. ein Sofa.
 17. Als Nutzer will ich die Platzierung eines Items entfernen können.
@@ -91,20 +91,22 @@ Wohnungen bestehen aus Räumen, und in Räumen gibt es verschachtelte Lagerorte.
 
 ## Further Notes
 
+- Ein Möbelstück darf nur nicht in einem *eigenen* Lagerort liegen. Ketten über mehrere Möbelstücke (A liegt in einem Lagerort von B, B in einem von A) werden nicht verhindert, weil Lagerorte an Räumen hängen und nicht am Platz ihres Möbelstücks.
+- Die Platzierungsregel „höchstens Lagerort oder Raum“ erzwingt der Store; SQLite kann den CHECK nicht nachträglich zur Tabelle hinzufügen.
 - Die Regel „Raum nur leer löschbar“ hat Claude ohne Rückfrage festgelegt, damit nichts unbemerkt seinen Platz verliert. Sie lässt sich leicht ändern.
 
 ## Tasks
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Migration für Wohnung, Raum, Lagerort (Elternelement Raum oder Lagerort, genau eins; optionales Möbelstück-Item) und Platzierung am Item (Lagerort oder Raum, höchstens eins).
-- [ ] R002: API für Wohnungen und Räume mit Löschregeln: Raum nur leer, Wohnung nur ohne Räume.
-- [ ] R003: Lagerort-API: Baum je Raum, anlegen, umbenennen, Möbelstück zuordnen und lösen, verschieben mit Zyklusschutz.
-- [ ] R004: Pfadberechnung (Wohnung › Raum › Lagerort › …) per rekursiver Abfrage. Pfade erscheinen in Lagerort- und Item-Antworten.
-- [ ] R005: Wegfall: Vorschau der betroffenen Items, dann Löschen eines Lagerorts samt Unterlagerorten in einer Transaktion. Items stehen danach ohne Lagerort im Raum des Lagerorts. Das Löschen eines Möbelstück-Items aus Spec 02 löst denselben Wegfall aus.
-- [ ] R006: Platzierung von Items setzen und entfernen, auch beim Anlegen. Ein Möbelstück darf nicht in einem eigenen Lagerort platziert werden.
-- [ ] R007: Item-Liste um Filter nach Raum und Lagerort (inkl. verschachtelter Lagerorte) und „ohne Lagerort“ erweitern.
-- [ ] R008: Client: Verwaltung von Wohnungen und Räumen, Raum- und Lagerortseiten mit Baum, Items und Möbelstück-Zuordnung, Verschieben von Lagerorten.
-- [ ] R009: Client: Platzierungsauswahl als durchsuchbare Pfadliste in Erfassen und Bearbeiten, beim Erfassen mit dem zuletzt gewählten Platz vorausgewählt (lokal im Browser gemerkt). Pfad auf der Item-Detailseite.
-- [ ] R010: Client: Liste „ohne Lagerort“ mit schnellem Einsortieren, Warn-Dialoge mit betroffenen Items vor dem Löschen von Lagerorten und Möbelstück-Items.
-- [ ] R011: API-Tests für Zyklusschutz, mehrstufigen Wegfall (Lagerort und Möbelstück-Item), Löschregeln, verschachtelte Filter, „ohne Lagerort“, Pfade und Verschieben samt Inhalt.
+- [x] R001: Migration für Wohnung, Raum, Lagerort (Elternelement Raum oder Lagerort, genau eins; optionales Möbelstück-Item) und Platzierung am Item (Lagerort oder Raum, höchstens eins).
+- [x] R002: API für Wohnungen und Räume mit Löschregeln: Raum nur leer, Wohnung nur ohne Räume.
+- [x] R003: Lagerort-API: Baum je Raum, anlegen, umbenennen, Möbelstück zuordnen und lösen, verschieben mit Zyklusschutz.
+- [x] R004: Pfadberechnung (Wohnung › Raum › Lagerort › …) per rekursiver Abfrage. Pfade erscheinen in Lagerort- und Item-Antworten.
+- [x] R005: Wegfall: Vorschau der betroffenen Items, dann Löschen eines Lagerorts samt Unterlagerorten in einer Transaktion. Items stehen danach ohne Lagerort im Raum des Lagerorts. Das Löschen eines Möbelstück-Items aus Spec 02 löst denselben Wegfall aus.
+- [x] R006: Platzierung von Items setzen und entfernen, auch beim Anlegen. Ein Möbelstück darf nicht in einem eigenen Lagerort platziert werden.
+- [x] R007: Item-Liste um Filter nach Raum und Lagerort (inkl. verschachtelter Lagerorte) und „ohne Lagerort“ erweitern.
+- [x] R008: Client: Verwaltung von Wohnungen und Räumen, Raum- und Lagerortseiten mit Baum, Items und Möbelstück-Zuordnung, Verschieben von Lagerorten.
+- [x] R009: Client: Platzierungsauswahl als durchsuchbare Pfadliste in Erfassen und Bearbeiten, beim Erfassen mit dem zuletzt gewählten Platz vorausgewählt (lokal im Browser gemerkt). Pfad auf der Item-Detailseite.
+- [x] R010: Client: Liste „ohne Lagerort“ mit schnellem Einsortieren, Warn-Dialoge mit betroffenen Items vor dem Löschen von Lagerorten und Möbelstück-Items.
+- [x] R011: API-Tests für Zyklusschutz, mehrstufigen Wegfall (Lagerort und Möbelstück-Item), Löschregeln, verschachtelte Filter, „ohne Lagerort“, Pfade und Verschieben samt Inhalt.

@@ -40,6 +40,13 @@ _Avoid_: Zimmer, Ort
 Der feste Platz, an den ein Item gehört – nicht, wo es gerade liegt. Etwas, in dem Items liegen, z. B. eine Schreibtisch-Schublade oder ein Regalfach. Lagerorte können verschachtelt sein und zu einem Item gehören (das Möbelstück, z. B. der Schreibtisch).
 _Avoid_: Container, Behälter, Fach
 
+**Platzierung**:
+Wo ein Item hingehört: ein Lagerort, oder direkt ein Raum ohne Lagerort (z. B. ein Sofa), oder noch nichts.
+_Avoid_: Position, Standort
+
+**Wegfall**:
+Ein Lagerort verschwindet samt seinen Unterlagerorten, weil er gelöscht wird oder weil sein Möbelstück gelöscht wird. Die Items darin stehen danach ohne Lagerort in dem Raum, in dem der Lagerort lag.
+
 **Ohne Lagerort**:
 Zustand eines Items, das noch keinen Lagerort hat oder dessen Lagerort weggefallen ist, z. B. weil das Möbelstück verkauft wurde oder ein Umzug abgeschlossen wurde. Das Item muss neu zugewiesen werden.
 _Avoid_: heimatlos, verwaist

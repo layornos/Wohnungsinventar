@@ -168,7 +168,7 @@ func (s *Store) RaumAbrufen(ctx context.Context, id int64) (Raum, error) {
 func lagerortBaum(ctx context.Context, q abfrager, raumID int64) ([]Lagerort, error) {
 	rows, err := q.QueryContext(ctx, `
 		WITH RECURSIVE baum (id, eltern_id) AS (
-			SELECT id, NULL FROM lagerort WHERE raum_id = ?
+			SELECT id, CAST(NULL AS INTEGER) FROM lagerort WHERE raum_id = ?
 			UNION ALL
 			SELECT l.id, l.eltern_id FROM lagerort l JOIN baum b ON l.eltern_id = b.id
 		)
@@ -299,6 +299,8 @@ type LagerortDetail struct {
 	Pfad   Pfad
 	Moebel *Benannt
 	Unter  []Benannt
+	// Unterbaum sind die IDs des Lagerorts und aller Unterlagerorte; dorthin kann er nicht verschoben werden.
+	Unterbaum []int64
 }
 
 type NeuerLagerort struct {
@@ -311,7 +313,7 @@ type NeuerLagerort struct {
 func (s *Store) LagerortAnlegen(ctx context.Context, neu NeuerLagerort, jetzt time.Time) (LagerortDetail, error) {
 	var l LagerortDetail
 	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
-		if err := elternPruefen(ctx, tx, neu.RaumID, neu.ElternID); err != nil {
+		if err := platzPruefen(ctx, tx, neu.RaumID, neu.ElternID); err != nil {
 			return err
 		}
 		var id int64
@@ -327,11 +329,11 @@ func (s *Store) LagerortAnlegen(ctx context.Context, neu NeuerLagerort, jetzt ti
 	return l, err
 }
 
-// elternPruefen prüft, dass es den Raum oder den Eltern-Lagerort gibt.
-func elternPruefen(ctx context.Context, q abfrager, raumID, elternID int64) error {
+// platzPruefen prüft, dass es den Raum oder Lagerort gibt, in den etwas kommen soll.
+func platzPruefen(ctx context.Context, q abfrager, raumID, lagerortID int64) error {
 	tabelle, id := "raum", raumID
-	if elternID != 0 {
-		tabelle, id = "lagerort", elternID
+	if lagerortID != 0 {
+		tabelle, id = "lagerort", lagerortID
 	}
 	var existiert bool
 	if err := q.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM `+tabelle+` WHERE id = ?)`, id).Scan(&existiert); err != nil {
@@ -375,8 +377,27 @@ func lagerortLesen(ctx context.Context, q abfrager, id int64) (LagerortDetail, e
 	if l.Pfad, err = lagerortPfad(ctx, q, id); err != nil {
 		return LagerortDetail{}, err
 	}
-	l.Unter, err = benannteLesen(q.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE eltern_id = ? ORDER BY name, id`, id))
+	if l.Unter, err = benannteLesen(q.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE eltern_id = ? ORDER BY name, id`, id)); err != nil {
+		return LagerortDetail{}, err
+	}
+	l.Unterbaum, err = idsLesen(q.QueryContext(ctx, unterbaum+`SELECT id FROM unterbaum`, id))
 	return l, err
+}
+
+func idsLesen(rows *sql.Rows, err error) ([]int64, error) {
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func benannteLesen(rows *sql.Rows, err error) ([]Benannt, error) {
@@ -451,7 +472,7 @@ func moebelPruefen(ctx context.Context, q abfrager) error {
 // platzSetzen setzt die Platzierung eines Items; es bleibt höchstens Lagerort oder Raum gesetzt.
 func platzSetzen(ctx context.Context, q abfrager, itemID int64, p Platz) error {
 	if p.LagerortID != 0 || p.RaumID != 0 {
-		if err := elternPruefen(ctx, q, p.RaumID, p.LagerortID); err != nil {
+		if err := platzPruefen(ctx, q, p.RaumID, p.LagerortID); err != nil {
 			return err
 		}
 	}
@@ -471,12 +492,8 @@ func (s *Store) PlatzierungSetzen(ctx context.Context, itemID int64, p Platz, je
 	})
 }
 
-// unterbaumCTE liefert als „unterbaum“ den Lagerort mit dem Platzhalter-ID und alle seine Unterlagerorte.
-const unterbaumCTE = `WITH RECURSIVE unterbaum (id) AS (
-	SELECT id FROM lagerort WHERE id = ?
-	UNION ALL
-	SELECT l.id FROM lagerort l JOIN unterbaum u ON l.eltern_id = u.id
-) `
+// unterbaum ist der rekursive Teilausdruck mit dem Lagerort zum Platzhalter und allen seinen Unterlagerorten.
+var unterbaum = "WITH RECURSIVE " + teilbaum("unterbaum", "id = ?") + " "
 
 // LagerortVerschieben hängt den Lagerort samt Inhalt in einen Raum oder unter einen anderen Lagerort.
 func (s *Store) LagerortVerschieben(ctx context.Context, id, raumID, elternID int64) (LagerortDetail, error) {
@@ -489,12 +506,12 @@ func (s *Store) LagerortVerschieben(ctx context.Context, id, raumID, elternID in
 		if !existiert {
 			return ErrNichtGefunden
 		}
-		if err := elternPruefen(ctx, tx, raumID, elternID); err != nil {
+		if err := platzPruefen(ctx, tx, raumID, elternID); err != nil {
 			return err
 		}
 		if elternID != 0 {
 			var zyklus bool
-			if err := tx.QueryRowContext(ctx, unterbaumCTE+`SELECT EXISTS (SELECT 1 FROM unterbaum WHERE id = ?)`, id, elternID).Scan(&zyklus); err != nil {
+			if err := tx.QueryRowContext(ctx, unterbaum+`SELECT EXISTS (SELECT 1 FROM unterbaum WHERE id = ?)`, id, elternID).Scan(&zyklus); err != nil {
 				return err
 			}
 			if zyklus {
@@ -527,18 +544,26 @@ func lagerortWegfall(ctx context.Context, q abfrager, id int64, jetzt time.Time)
 	if err != nil {
 		return err
 	}
-	if _, err := q.ExecContext(ctx, unterbaumCTE+`
+	if _, err := q.ExecContext(ctx, unterbaum+`
 		UPDATE item SET lagerort_id = NULL, raum_id = ?, geaendert_am = ?
 		WHERE lagerort_id IN (SELECT id FROM unterbaum)`, id, pfad.Raum.ID, zeitText(jetzt)); err != nil {
 		return err
 	}
-	_, err = q.ExecContext(ctx, unterbaumCTE+`DELETE FROM lagerort WHERE id IN (SELECT id FROM unterbaum)`, id)
+	_, err = q.ExecContext(ctx, unterbaum+`DELETE FROM lagerort WHERE id IN (SELECT id FROM unterbaum)`, id)
 	return err
 }
 
+// PlatzArt unterscheidet Räume und Lagerorte als Platz.
+type PlatzArt string
+
+const (
+	PlatzRaum     PlatzArt = "raum"
+	PlatzLagerort PlatzArt = "lagerort"
+)
+
 // PlatzEintrag ist ein Raum oder Lagerort mit seinem Pfad als Text, z. B. für eine Auswahlliste.
 type PlatzEintrag struct {
-	Art  string // "raum" oder "lagerort"
+	Art  PlatzArt
 	ID   int64
 	Pfad string
 }
