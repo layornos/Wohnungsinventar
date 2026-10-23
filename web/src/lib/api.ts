@@ -23,6 +23,27 @@ export type Nutzer = { personId: number; name: string; email: string };
 
 export type Person = { id: number; name: string; nutzer: boolean };
 
+/** Offene Einladung; personId ist null, wenn die Person erst beim Annehmen angelegt wird. */
+export type Einladung = {
+	id: number;
+	personId: number | null;
+	name: string;
+	ersteller: string;
+	erstelltAm: string;
+	laeuftAbAm: string;
+};
+
+/** Öffentliche Seite für Einladungslinks; der Token steht im Fragment. */
+export const EINLADUNG = '/einladung';
+
+export function datumText(iso: string): string {
+	return new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+export function datumKurz(iso: string): string {
+	return new Date(iso).toLocaleDateString('de-DE');
+}
+
 /** null heißt: Verbleib noch offen. */
 export type Verbleib = 'behalten' | 'verkaufen' | 'spaeter_verkaufen' | 'verschenken';
 
@@ -130,8 +151,4 @@ export async function api<T>(
 		throw new ApiError(res.status, data.code ?? 'unbekannt', data.meldung ?? res.statusText, data);
 	}
 	return data as T;
-}
-
-export function datumKurz(iso: string): string {
-	return new Date(iso).toLocaleDateString('de-DE');
 }
