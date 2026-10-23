@@ -20,7 +20,8 @@ const (
 	maxFeldLaenge      = 10_000
 	standardProSeite   = 50
 	maxProSeite        = 100
-	maxWegfallVorschau = 10_000
+	// maxVollstaendig begrenzt Listen, die vollständig sein sollen, z. B. Wegfall-Vorschau und Packliste.
+	maxVollstaendig = 10_000
 )
 
 type itemJSON struct {
@@ -175,6 +176,7 @@ const (
 	meldungBesitzerFehlt    = "Jedes Item braucht mindestens einen Besitzer"
 	meldungFotoFehlt        = "Jedes Item braucht mindestens ein Foto"
 	meldungUnbekanntePerson = "Diese Person gibt es nicht"
+	meldungUnbekannteBox    = "Diese Box gibt es im laufenden Umzug nicht"
 )
 
 func nameFehlt(w http.ResponseWriter) {
@@ -215,7 +217,7 @@ func neuesItemLesen(w http.ResponseWriter, f formular) (store.NeuesItem, bool) {
 	if box := f.feld("box"); box != "" {
 		id, err := strconv.ParseInt(box, 10, 64)
 		if err != nil {
-			schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", "Diese Box gibt es im laufenden Umzug nicht")
+			schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", meldungUnbekannteBox)
 			return neu, false
 		}
 		neu.BoxID = id
@@ -355,7 +357,7 @@ func (s *server) wegfallVorschau(pruefen func(ctx context.Context, id int64) err
 			s.storeFehler(w, r, err)
 			return
 		}
-		filter := store.ItemFilter{Anzahl: maxWegfallVorschau}
+		filter := store.ItemFilter{Anzahl: maxVollstaendig}
 		filtern(&filter, id)
 		s.itemListeAntworten(w, r, filter)
 	}

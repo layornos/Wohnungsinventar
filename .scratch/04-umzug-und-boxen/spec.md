@@ -1,6 +1,6 @@
 # Spec 04: Umzug und Boxen
 
-Status: ready-for-agent
+Status: erledigt
 Blocked by: 03-wohnungen-raeume-lagerorte
 
 ## Problem Statement
@@ -106,21 +106,24 @@ Man legt einen Umzug von der alten in die neue Wohnung an. Boxen bekommen fortla
 
 - Dass Items ohne Zielraum nach einer Bestätigung an ihrem bisherigen Platz bleiben, ist mit dem Nutzer abgestimmt.
 - Herkunftsraum und Zielraum gehören zum Umzug, nicht dauerhaft zum Item.
+- Umgesetzt: Nach dem Abschluss zeigen Item und Liste keine Box mehr; die Packliste einer Box des abgeschlossenen Umzugs bleibt als Verlauf abrufbar („Box 7 ist leer“ gilt also für die Items, nicht für den Verlauf).
+- Umgesetzt: Ein Raum, der als Herkunfts- oder Zielraum in einem Umzug vorkommt, ist nicht löschbar (`raum_im_umzug`).
+- Umgesetzt: Im Pack-Modus nimmt erneutes Antippen ein Item wieder aus der aktiven Box.
 - Der Umzug steht bevor, deshalb sind Pack-Modus und Packliste der wichtigste Teil dieser Spec. Wenn die Zeit drängt, können die Übersicht pro Zielraum und der Verlauf abgeschlossener Umzüge zuletzt kommen.
 
 ## Tasks
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Migration für Umzug (alte und neue Wohnung, Zustand, Zeitstempel; höchstens ein laufender), Box (Umzug, fortlaufende Nummer pro Umzug ohne Wiederverwendung, Bezeichnung) und Umzugsangaben (Item, Umzug, Herkunftsraum, Zielraum, Box).
-- [ ] R002: Umzug-API: laufenden abrufen, anlegen (verschiedene Wohnungen, höchstens einer laufend), abgeschlossene auflisten. Eine Wohnung mit Umzug ist nicht löschbar.
-- [ ] R003: Box-API: auflisten, anlegen mit nächster Nummer, umbenennen, nur leer löschen, nach Nummer abrufen samt Packliste (Foto, Name, Herkunftsraum, Zielraum).
-- [ ] R004: Umzugsangaben für ein Item setzen und zurücksetzen. Sie entstehen bei Bedarf mit vorbelegtem Herkunftsraum aus dem abgeleiteten Raum. Prüfungen: Zielraum in der neuen Wohnung, Box im laufenden Umzug. Beim Löschen eines Items verschwinden seine Umzugsangaben.
-- [ ] R005: Sammeloperation: Box oder Zielraum für mehrere Items in einer Anfrage, ganz oder gar nicht.
-- [ ] R006: Item-Liste um Filter nach Box und Herkunftsraum erweitern. Umzugsangaben in Liste und Item-Abruf, solange ein Umzug läuft.
-- [ ] R007: Übersichten: pro Zielraum (Boxen und Items) und Items der alten Wohnung ohne Zielraum.
-- [ ] R008: Abschluss in einer Transaktion: Items mit Zielraum im Zielraum ohne Lagerort platzieren, Items ohne Zielraum unverändert lassen, ohne Bestätigung mit „Items ohne Zielraum“ samt Liste ablehnen. Danach ist der Umzug unveränderlich.
-- [ ] R009: Client: Umzugsbereich (anlegen, Status), Box-Liste, Box-Seite mit Packliste, Box nach Nummer aufrufen.
-- [ ] R010: Client: Pack-Modus mit aktiver Box, Filter nach Herkunftsraum, Antippen zum Hineinpacken, Schnell-Erfassen direkt in die aktive Box, Mehrfachauswahl für Zielraum.
-- [ ] R011: Client: Übersicht pro Zielraum, Liste „ohne Zielraum“, Abschluss-Dialog mit Bestätigung. Umzugsangaben auf der Item-Detailseite anzeigen und ändern.
-- [ ] R012: API-Tests für alle Invarianten, Vorbelegung des Herkunftsraums, Boxnummern, Sammeloperation, Packliste, Übersichten, Abschluss mit und ohne Bestätigung und Unveränderlichkeit danach.
+- [x] R001: Migration für Umzug (alte und neue Wohnung, Zustand, Zeitstempel; höchstens ein laufender), Box (Umzug, fortlaufende Nummer pro Umzug ohne Wiederverwendung, Bezeichnung) und Umzugsangaben (Item, Umzug, Herkunftsraum, Zielraum, Box).
+- [x] R002: Umzug-API: laufenden abrufen, anlegen (verschiedene Wohnungen, höchstens einer laufend), abgeschlossene auflisten. Eine Wohnung mit Umzug ist nicht löschbar.
+- [x] R003: Box-API: auflisten, anlegen mit nächster Nummer, umbenennen, nur leer löschen, nach Nummer abrufen samt Packliste (Foto, Name, Herkunftsraum, Zielraum).
+- [x] R004: Umzugsangaben für ein Item setzen und zurücksetzen. Sie entstehen bei Bedarf mit vorbelegtem Herkunftsraum aus dem abgeleiteten Raum. Prüfungen: Zielraum in der neuen Wohnung, Box im laufenden Umzug. Beim Löschen eines Items verschwinden seine Umzugsangaben.
+- [x] R005: Sammeloperation: Box oder Zielraum für mehrere Items in einer Anfrage, ganz oder gar nicht.
+- [x] R006: Item-Liste um Filter nach Box und Herkunftsraum erweitern. Umzugsangaben in Liste und Item-Abruf, solange ein Umzug läuft.
+- [x] R007: Übersichten: pro Zielraum (Boxen und Items) und Items der alten Wohnung ohne Zielraum.
+- [x] R008: Abschluss in einer Transaktion: Items mit Zielraum im Zielraum ohne Lagerort platzieren, Items ohne Zielraum unverändert lassen, ohne Bestätigung mit „Items ohne Zielraum“ samt Liste ablehnen. Danach ist der Umzug unveränderlich.
+- [x] R009: Client: Umzugsbereich (anlegen, Status), Box-Liste, Box-Seite mit Packliste, Box nach Nummer aufrufen.
+- [x] R010: Client: Pack-Modus mit aktiver Box, Filter nach Herkunftsraum, Antippen zum Hineinpacken, Schnell-Erfassen direkt in die aktive Box, Mehrfachauswahl für Zielraum.
+- [x] R011: Client: Übersicht pro Zielraum, Liste „ohne Zielraum“, Abschluss-Dialog mit Bestätigung. Umzugsangaben auf der Item-Detailseite anzeigen und ändern.
+- [x] R012: API-Tests für alle Invarianten, Vorbelegung des Herkunftsraums, Boxnummern, Sammeloperation, Packliste, Übersichten, Abschluss mit und ohne Bestätigung und Unveränderlichkeit danach.

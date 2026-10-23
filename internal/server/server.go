@@ -43,7 +43,7 @@ type UmzugStore interface {
 	UmzugsangabenSetzen(ctx context.Context, itemID int64, a store.AngabenAenderung, jetzt time.Time) (store.Item, error)
 	UmzugsangabenSammeln(ctx context.Context, itemIDs []int64, a store.AngabenAenderung, jetzt time.Time) error
 	Zielraumuebersicht(ctx context.Context) ([]store.ZielraumEintrag, error)
-	UmzugAbschliessen(ctx context.Context, jetzt time.Time) (store.Umzug, error)
+	UmzugAbschliessen(ctx context.Context, bestaetigt bool, jetzt time.Time) (store.Umzug, []store.ItemListenEintrag, error)
 }
 
 type ZugangStore interface {
@@ -293,7 +293,7 @@ func (s *server) storeFehler(w http.ResponseWriter, r *http.Request, err error) 
 	case errors.Is(err, store.ErrBoxNichtLeer):
 		schreibeFehler(w, http.StatusConflict, "box_nicht_leer", "Nur leere Boxen lassen sich löschen")
 	case errors.Is(err, store.ErrUnbekannteBox):
-		schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", "Diese Box gibt es im laufenden Umzug nicht")
+		schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", meldungUnbekannteBox)
 	case errors.Is(err, store.ErrZielraumFalsch):
 		schreibeFehler(w, http.StatusBadRequest, "zielraum_nicht_in_neuer_wohnung", "Der Zielraum muss in der neuen Wohnung liegen")
 	case errors.Is(err, store.ErrUnbekanntesItem):

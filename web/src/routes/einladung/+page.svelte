@@ -11,7 +11,8 @@
 		einladung_abgelaufen: 'Diese Einladung ist abgelaufen.',
 		einladung_verwendet: 'Diese Einladung wurde schon verwendet.',
 		einladung_zurueckgezogen: 'Diese Einladung wurde zurückgezogen.',
-		einladung_ungueltig: 'Diesen Einladungslink gibt es nicht. Prüfe, ob er vollständig ist.'
+		einladung_ungueltig: 'Diesen Einladungslink gibt es nicht. Prüfe, ob er vollständig ist.',
+		bereits_nutzer: 'Du hast schon einen Zugang. Melde dich einfach an.'
 	};
 
 	/** Meldung, wenn die Einladung nicht (mehr) annehmbar ist; null bei anderen Fehlern. */

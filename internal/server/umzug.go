@@ -166,7 +166,7 @@ func alsBenanntZeiger(b *store.Benannt) *benanntJSON {
 }
 
 // leseAngabenAenderung liest {"herkunftsraumId", "zielraumId", "boxId"}: fehlende Felder bleiben,
-// wie sie sind, null setzt zurück. Weitere Felder liest lesen aus demselben Body.
+// wie sie sind, null setzt zurück. weitere nennt zusätzliche Felder desselben Bodys und wohin sie gelesen werden.
 func leseAngabenAenderung(w http.ResponseWriter, r *http.Request, weitere map[string]any) (store.AngabenAenderung, bool) {
 	var felder map[string]json.RawMessage
 	if !leseJSON(w, r, &felder) {
@@ -236,7 +236,7 @@ func (s *server) packlisteAntworten(w http.ResponseWriter, r *http.Request, b st
 		s.storeFehler(w, r, err)
 		return
 	}
-	items, _, err := s.Store.ItemsAuflisten(r.Context(), store.ItemFilter{UmzugID: b.UmzugID, BoxID: b.ID, Anzahl: maxWegfallVorschau})
+	items, _, err := s.Store.ItemsAuflisten(r.Context(), store.ItemFilter{UmzugID: b.UmzugID, BoxID: b.ID, Anzahl: maxVollstaendig})
 	if err != nil {
 		s.internerFehler(w, r, err)
 		return
@@ -295,26 +295,15 @@ func (s *server) umzugAbschliessen(w http.ResponseWriter, r *http.Request) {
 	if !leseJSON(w, r, &req) {
 		return
 	}
-	if _, err := s.Store.LaufenderUmzug(r.Context()); err != nil {
-		s.storeFehler(w, r, err)
+	u, ohne, err := s.Store.UmzugAbschliessen(r.Context(), req.Bestaetigt, s.Jetzt())
+	if errors.Is(err, store.ErrItemsOhneZielraum) {
+		schreibeJSON(w, http.StatusConflict, map[string]any{
+			"code":    "items_ohne_zielraum",
+			"meldung": "Diese Items der alten Wohnung haben noch keinen Zielraum und blieben, wo sie sind",
+			"items":   alsItemListeJSON(ohne),
+		})
 		return
 	}
-	if !req.Bestaetigt {
-		ohne, _, err := s.Store.ItemsAuflisten(r.Context(), store.ItemFilter{OhneZielraum: true, Anzahl: maxWegfallVorschau})
-		if err != nil {
-			s.internerFehler(w, r, err)
-			return
-		}
-		if len(ohne) > 0 {
-			schreibeJSON(w, http.StatusConflict, map[string]any{
-				"code":    "items_ohne_zielraum",
-				"meldung": "Diese Items der alten Wohnung haben noch keinen Zielraum und blieben, wo sie sind",
-				"items":   alsItemListeJSON(ohne),
-			})
-			return
-		}
-	}
-	u, err := s.Store.UmzugAbschliessen(r.Context(), s.Jetzt())
 	if err != nil {
 		s.storeFehler(w, r, err)
 		return

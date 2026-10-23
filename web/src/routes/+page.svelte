@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { api, fehlerText, VERBLEIBE, zurAnmeldung, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
+	import { api, boxName, fehlerText, VERBLEIBE, zurAnmeldung, type Box, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
 	import ItemRaster from '#lib/ItemRaster.svelte';
 	import { ladePlaetze } from '#lib/plaetze.ts';
+	import { ladeUmzug } from '#lib/umzug.ts';
 	import { ladePersonen } from '#lib/personen.ts';
 	import { abmelden } from '#lib/sitzung.svelte.ts';
 	import type { Snapshot } from './$types';
@@ -12,6 +13,9 @@
 	// Platz als "raum:3" oder "lagerort:7", damit ein einziges Auswahlfeld beides kann.
 	let platz = $state('');
 	let plaetze = $state<PlatzEintrag[]>([]);
+	// Während eines Umzugs lässt sich nach Box filtern.
+	let box = $state('');
+	let boxen = $state<Box[]>([]);
 	let personen = $state<Person[]>([]);
 	let items = $state<ItemListenEintrag[]>([]);
 	let weitere = $state(false);
@@ -20,9 +24,9 @@
 	let seite = 1;
 
 	// Suche und Filter bleiben erhalten, wenn man von einem Item zurückkommt.
-	export const snapshot: Snapshot<{ suche: string; besitzer: string; verbleib: string; platz: string }> = {
-		capture: () => ({ suche, besitzer, verbleib, platz }),
-		restore: (s) => ({ suche, besitzer, verbleib, platz } = s)
+	export const snapshot: Snapshot<{ suche: string; besitzer: string; verbleib: string; platz: string; box: string }> = {
+		capture: () => ({ suche, besitzer, verbleib, platz, box }),
+		restore: (s) => ({ suche, besitzer, verbleib, platz, box } = s)
 	};
 
 	ladePersonen()
@@ -30,6 +34,9 @@
 		.catch((e) => (fehler = fehlerText(e)));
 	ladePlaetze()
 		.then((p) => (plaetze = p))
+		.catch((e) => (fehler = fehlerText(e)));
+	ladeUmzug()
+		.then((u) => (boxen = u?.boxen ?? []))
 		.catch((e) => (fehler = fehlerText(e)));
 
 	function adresse(s: number) {
@@ -39,6 +46,7 @@
 		if (verbleib) p.set('verbleib', verbleib);
 		const [art, id] = platz.split(':');
 		if (id) p.set(art, id);
+		if (box) p.set('box', box);
 		return '/api/items?' + p;
 	}
 
@@ -63,7 +71,7 @@
 	}
 
 	$effect(() => {
-		void [suche, besitzer, verbleib, platz];
+		void [suche, besitzer, verbleib, platz, box];
 		const t = setTimeout(() => laden(true), 250);
 		return () => clearTimeout(t);
 	});
@@ -115,6 +123,12 @@
 				<option value="{p.art}:{p.id}">{p.pfad}</option>
 			{/each}
 		</select>
+		{#if boxen.length > 0}
+			<select class="ganz" aria-label="Box" bind:value={box}>
+				<option value="">Jede Box</option>
+				{#each boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
+			</select>
+		{/if}
 	</div>
 
 	{#if fehler}

@@ -297,9 +297,12 @@ func TestVerknuepftePersonDieInzwischenNutzerIstKannNichtAnnehmen(t *testing.T) 
 	zweite, _ := alex.einladen(map[string]any{"personId": kimID})
 	e.client().mustStatus(http.StatusOK, "POST", "/api/einladungen/annehmen", annahme(erste, "kim@example.org"))
 
-	res := e.client().mustStatus(http.StatusConflict, "POST", "/api/einladungen/annehmen", annahme(zweite, "kim2@example.org"))
-	if res.errorCode() != "bereits_nutzer" {
-		t.Fatalf("Fehlercode %q", res.errorCode())
+	// Schon das Prüfen lehnt ab, damit die Seite gleich erklärt, was los ist, statt erst das Formular zu zeigen.
+	for _, pfad := range []string{"/api/einladungen/pruefen", "/api/einladungen/annehmen"} {
+		res := e.client().mustStatus(http.StatusConflict, "POST", pfad, annahme(zweite, "kim2@example.org"))
+		if res.errorCode() != "bereits_nutzer" {
+			t.Fatalf("%s: Fehlercode %q", pfad, res.errorCode())
+		}
 	}
 	// Die zweite Einladung taucht nicht mehr als offen auf.
 	if liste := alex.mustStatus(http.StatusOK, "GET", "/api/einladungen", nil); len(liste.Body["einladungen"].([]any)) != 0 {

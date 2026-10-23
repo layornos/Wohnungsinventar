@@ -289,6 +289,13 @@ func teilbaum(name, start string) string {
 
 // ItemsAuflisten liefert die passenden Items, zuletzt geänderte zuerst, und ob es weitere gibt.
 func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenEintrag, bool, error) {
+	return itemsAuflisten(ctx, s.db, f)
+}
+
+// alleItems ist die Anzahl für Listen, die vollständig sein sollen, z. B. Packlisten.
+const alleItems = 10_000
+
+func itemsAuflisten(ctx context.Context, q abfrager, f ItemFilter) ([]ItemListenEintrag, bool, error) {
 	var (
 		ctes, bedingungen []string
 		cteArgs, args     []any
@@ -345,10 +352,13 @@ func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenE
 		args = append(args, f.HerkunftsraumID, f.HerkunftsraumID)
 	}
 	if f.OhneZielraum {
-		alteRaeume := `SELECT r.id FROM raum r JOIN umzug u ON u.alte_wohnung_id = r.wohnung_id WHERE u.laufend = 1`
-		ctes = append(ctes, teilbaum("in_alter_wohnung", "raum_id IN ("+alteRaeume+")"))
+		ctes = append(ctes, `alte_raeume (id) AS (
+			SELECT r.id FROM raum r JOIN umzug u ON u.alte_wohnung_id = r.wohnung_id
+			WHERE u.id = COALESCE(?, (SELECT id FROM umzug WHERE laufend = 1)))`,
+			teilbaum("in_alter_wohnung", "raum_id IN (SELECT id FROM alte_raeume)"))
+		cteArgs = append(cteArgs, nullID(f.UmzugID))
 		bedingungen = append(bedingungen, `ua.zielraum_id IS NULL
-			AND (i.raum_id IN (`+alteRaeume+`) OR i.lagerort_id IN (SELECT id FROM in_alter_wohnung))`)
+			AND (i.raum_id IN (SELECT id FROM alte_raeume) OR i.lagerort_id IN (SELECT id FROM in_alter_wohnung))`)
 	}
 
 	abfrage := ""
@@ -370,7 +380,7 @@ func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenE
 	abfrage += ` ORDER BY i.geaendert_am DESC, i.id DESC LIMIT ? OFFSET ?`
 	args = append(append(append(cteArgs, nullID(f.UmzugID)), args...), f.Anzahl+1, f.Versatz)
 
-	rows, err := s.db.QueryContext(ctx, abfrage, args...)
+	rows, err := q.QueryContext(ctx, abfrage, args...)
 	if err != nil {
 		return nil, false, err
 	}

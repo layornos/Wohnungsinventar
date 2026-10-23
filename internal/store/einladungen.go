@@ -34,6 +34,8 @@ type Einladung struct {
 	LaeuftAbAm     time.Time
 	Angenommen     bool
 	Zurueckgezogen bool
+	// PersonIstNutzer: Die verknüpfte Person hat inzwischen selbst einen Nutzerzugang.
+	PersonIstNutzer bool
 }
 
 func (e Einladung) Zustand(jetzt time.Time) EinladungsZustand {
@@ -70,7 +72,8 @@ type NeueEinladung struct {
 
 const einladungSelect = `
 	SELECT e.id, COALESCE(e.person_id, 0), COALESCE(p.name, e.name), ep.name, e.erstellt_am, e.laeuft_ab_am,
-		e.angenommen_am IS NOT NULL, e.zurueckgezogen_am IS NOT NULL
+		e.angenommen_am IS NOT NULL, e.zurueckgezogen_am IS NOT NULL,
+		EXISTS (SELECT 1 FROM nutzer n WHERE n.person_id = e.person_id)
 	FROM einladung e
 	LEFT JOIN person p ON p.id = e.person_id
 	JOIN person ep ON ep.id = e.ersteller_id`
@@ -78,7 +81,7 @@ const einladungSelect = `
 func einladungLesen(z zeile) (Einladung, error) {
 	var e Einladung
 	var erstellt, laeuftAb string
-	err := z.Scan(&e.ID, &e.PersonID, &e.Name, &e.Ersteller, &erstellt, &laeuftAb, &e.Angenommen, &e.Zurueckgezogen)
+	err := z.Scan(&e.ID, &e.PersonID, &e.Name, &e.Ersteller, &erstellt, &laeuftAb, &e.Angenommen, &e.Zurueckgezogen, &e.PersonIstNutzer)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Einladung{}, ErrNichtGefunden
 	}
@@ -177,6 +180,9 @@ func (s *Store) EinladungPerToken(ctx context.Context, tokenHash string, jetzt t
 	}
 	if err := e.zustandFehler(jetzt); err != nil {
 		return Einladung{}, err
+	}
+	if e.PersonIstNutzer {
+		return Einladung{}, ErrBereitsNutzer
 	}
 	return e, nil
 }

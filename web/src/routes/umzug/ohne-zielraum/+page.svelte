@@ -3,6 +3,7 @@
 	import { ladeUmzug, ladeUmzugsraeume } from '#lib/umzug.ts';
 
 	let items = $state<ItemListenEintrag[]>([]);
+	let weitere = $state(false);
 	let raeume = $state<Benannt[]>([]);
 	let zielraum = $state<Record<number, string>>({});
 	let fehler = $state('');
@@ -11,7 +12,7 @@
 		try {
 			const u = await ladeUmzug();
 			if (u) raeume = (await ladeUmzugsraeume(u)).neu;
-			items = (await api<{ items: ItemListenEintrag[] }>('GET', '/api/items?ohneZielraum=1&proSeite=100')).items;
+			({ items, weitere } = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', '/api/items?ohneZielraum=1&proSeite=100'));
 		} catch (e) {
 			fehler = fehlerText(e);
 		}
@@ -54,4 +55,5 @@
 			<li class="leise">Alle Items haben einen Zielraum.</li>
 		{/each}
 	</ul>
+	{#if weitere}<p class="leise">Es gibt weitere; nach dem Setzen erscheinen sie hier.</p>{/if}
 </main>

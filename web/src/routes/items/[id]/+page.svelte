@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, boxName, fehlerText, verbleibName, type Benannt, type Item, type Umzug, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
+	import { api, boxName, fehlerText, verbleibName, type Item, type Umzug, type Wohnung, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
 	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/plaetze.ts';
-	import { ladeUmzug, ladeUmzugsraeume } from '#lib/umzug.ts';
+	import { ladeUmzug, ladeWohnungen, type AngabenAenderung } from '#lib/umzug.ts';
 	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
 	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 	import { ladePersonen } from '#lib/personen.ts';
@@ -102,28 +102,36 @@
 
 	// Umzugsangaben, solange ein Umzug läuft.
 	let umzug = $state<Umzug | null>(null);
-	let umzugsraeume = $state<{ alt: Benannt[]; neu: Benannt[] }>({ alt: [], neu: [] });
+	let wohnungen = $state<Wohnung[]>([]);
+	const neueRaeume = $derived(wohnungen.find((w) => w.id === umzug?.neueWohnung.id)?.raeume ?? []);
 	let angaben = $state({ herkunft: '', ziel: '', box: '' });
+	let angabenVorher = { herkunft: '', ziel: '', box: '' };
 
 	ladeUmzug()
 		.then(async (u) => {
 			umzug = u;
-			if (u) umzugsraeume = await ladeUmzugsraeume(u);
+			if (u) wohnungen = await ladeWohnungen();
 		})
 		.catch((e) => (fehler = fehlerText(e)));
 
 	$effect(() => {
 		const a = item?.umzug;
-		angaben = {
+		angabenVorher = {
 			herkunft: a?.herkunftsraum ? String(a.herkunftsraum.id) : '',
 			ziel: a?.zielraum ? String(a.zielraum.id) : '',
 			box: a?.box ? String(a.box.id) : ''
 		};
+		angaben = { ...angabenVorher };
 	});
 
+	// Nur Geändertes schicken: Sonst würde ein leeres Feld den vorbelegten Herkunftsraum löschen.
 	function angabenSpeichern() {
 		const id = (v: string) => (v ? Number(v) : null);
-		aendern('PATCH', `${pfad}/umzug`, { herkunftsraumId: id(angaben.herkunft), zielraumId: id(angaben.ziel), boxId: id(angaben.box) });
+		const body: AngabenAenderung = {};
+		if (angaben.herkunft !== angabenVorher.herkunft) body.herkunftsraumId = id(angaben.herkunft);
+		if (angaben.ziel !== angabenVorher.ziel) body.zielraumId = id(angaben.ziel);
+		if (angaben.box !== angabenVorher.box) body.boxId = id(angaben.box);
+		if (Object.keys(body).length > 0) aendern('PATCH', `${pfad}/umzug`, body);
 	}
 
 	async function itemLoeschen() {
@@ -242,14 +250,18 @@
 						Herkunftsraum
 						<select bind:value={angaben.herkunft}>
 							<option value="">–</option>
-							{#each umzugsraeume.alt as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+							{#each wohnungen as w (w.id)}
+								<optgroup label={w.name}>
+									{#each w.raeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+								</optgroup>
+							{/each}
 						</select>
 					</label>
 					<label>
 						Zielraum
 						<select bind:value={angaben.ziel}>
 							<option value="">–</option>
-							{#each umzugsraeume.neu as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+							{#each neueRaeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 						</select>
 					</label>
 					<label class="ganz">

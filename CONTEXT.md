@@ -18,6 +18,10 @@ _Avoid_: Kontakt
 Eine Person, die Zugang zur Anwendung hat und Benachrichtigungen erhält.
 _Avoid_: User, Account, Konto
 
+**Einladung**:
+Ein Link, mit dem ein Nutzer eine Person in den Haushalt holt; nur so entsteht ein neuer Nutzer. Sie gilt sieben Tage, nur einmal und lässt sich zurückziehen.
+_Avoid_: Registrierung, Invite
+
 **Besitzer**:
 Eine Person, der ein Item gehört. Jedes Item hat mindestens einen Besitzer, kann aber mehrere haben.
 _Avoid_: Eigentümer, Owner

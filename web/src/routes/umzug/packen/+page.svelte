@@ -10,6 +10,7 @@
 	let herkunft = $state('');
 	let suche = $state('');
 	let items = $state<ItemListenEintrag[]>([]);
+	let weitere = $state(false);
 	let auswahl = $state<number[]>([]);
 	let zielraum = $state('');
 	let fehler = $state('');
@@ -32,7 +33,7 @@
 		if (herkunft) p.set('herkunftsraum', herkunft);
 		if (suche.trim()) p.set('q', suche.trim());
 		try {
-			items = (await api<{ items: ItemListenEintrag[] }>('GET', '/api/items?' + p)).items;
+			({ items, weitere } = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', '/api/items?' + p));
 		} catch (e) {
 			fehler = fehlerText(e);
 		}
@@ -138,6 +139,7 @@
 				<li class="leise">Keine Items.</li>
 			{/each}
 		</ul>
+		{#if weitere}<p class="leise">Es gibt weitere Items; grenze mit Raum oder Suche ein.</p>{/if}
 
 		{#if auswahl.length > 0}
 			<div class="leiste">

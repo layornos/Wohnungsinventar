@@ -441,7 +441,7 @@ func (s *Store) Zielraumuebersicht(ctx context.Context) ([]ZielraumEintrag, erro
 		if err != nil {
 			return nil, err
 		}
-		items, _, err := s.ItemsAuflisten(ctx, ItemFilter{ZielraumID: r.ID, Anzahl: 10_000})
+		items, _, err := s.ItemsAuflisten(ctx, ItemFilter{ZielraumID: r.ID, Anzahl: alleItems})
 		if err != nil {
 			return nil, err
 		}
@@ -451,13 +451,26 @@ func (s *Store) Zielraumuebersicht(ctx context.Context) ([]ZielraumEintrag, erro
 }
 
 // UmzugAbschliessen stellt alle Items mit Zielraum direkt in ihren Zielraum, ohne Lagerort, und schließt
-// den Umzug ab. Items ohne Zielraum behalten ihre Platzierung. Die Umzugsangaben bleiben als Verlauf.
-func (s *Store) UmzugAbschliessen(ctx context.Context, jetzt time.Time) (Umzug, error) {
-	var u Umzug
+// den Umzug ab. Items ohne Zielraum behalten ihre Platzierung; stehen solche noch in der alten Wohnung,
+// braucht es die Bestätigung, sonst kommen ErrItemsOhneZielraum und diese Items zurück.
+// Die Umzugsangaben bleiben als Verlauf.
+func (s *Store) UmzugAbschliessen(ctx context.Context, bestaetigt bool, jetzt time.Time) (Umzug, []ItemListenEintrag, error) {
+	var (
+		u    Umzug
+		ohne []ItemListenEintrag
+	)
 	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
 		laufend, err := umzugLesen(ctx, tx, 0)
 		if err != nil {
 			return err
+		}
+		if !bestaetigt {
+			if ohne, _, err = itemsAuflisten(ctx, tx, ItemFilter{UmzugID: laufend.ID, OhneZielraum: true, Anzahl: alleItems}); err != nil {
+				return err
+			}
+			if len(ohne) > 0 {
+				return ErrItemsOhneZielraum
+			}
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE item SET lagerort_id = NULL, geaendert_am = ?,
@@ -473,5 +486,8 @@ func (s *Store) UmzugAbschliessen(ctx context.Context, jetzt time.Time) (Umzug, 
 		u, err = umzugLesen(ctx, tx, laufend.ID)
 		return err
 	})
-	return u, err
+	if errors.Is(err, ErrItemsOhneZielraum) {
+		return Umzug{}, ohne, err
+	}
+	return u, nil, err
 }
