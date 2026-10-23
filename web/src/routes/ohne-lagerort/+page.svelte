@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, fehlerText, type ItemListenEintrag, type Platz, type PlatzEintrag } from '#lib/api.ts';
-	import { ladePlaetze, platzBody } from '#lib/orte.ts';
+	import { ladePlaetze, platzBody } from '#lib/plaetze.ts';
 	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 
 	let items = $state<ItemListenEintrag[]>([]);

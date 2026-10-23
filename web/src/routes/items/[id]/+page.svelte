@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import { api, fehlerText, verbleibName, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
-	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/orte.ts';
+	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/plaetze.ts';
 	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
 	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 	import { ladePersonen } from '#lib/personen.ts';

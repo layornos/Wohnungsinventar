@@ -42,7 +42,7 @@ type Item struct {
 	// Platzierung ist nil, solange das Item nicht platziert ist.
 	Platzierung *Pfad
 	// MoebelLagerorte sind die Lagerorte, die zu diesem Item als Möbelstück gehören.
-	MoebelLagerorte []Ort
+	MoebelLagerorte []Benannt
 }
 
 type Foto struct {
@@ -176,7 +176,7 @@ func itemLesen(ctx context.Context, q abfrager, id int64) (Item, error) {
 	if item.Platzierung, err = platzierungLesen(ctx, q, lagerortID.Int64, raumID.Int64); err != nil {
 		return Item{}, err
 	}
-	if item.MoebelLagerorte, err = orteLesen(q.QueryContext(ctx,
+	if item.MoebelLagerorte, err = benannteLesen(q.QueryContext(ctx,
 		`SELECT id, name FROM lagerort WHERE moebel_item_id = ? ORDER BY name, id`, id)); err != nil {
 		return Item{}, err
 	}
@@ -403,7 +403,7 @@ func (s *Store) ItemLoeschen(ctx context.Context, id int64, jetzt time.Time) ([]
 		if err != nil {
 			return err
 		}
-		eigene, err := orteLesen(tx.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE moebel_item_id = ?`, id))
+		eigene, err := benannteLesen(tx.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE moebel_item_id = ?`, id))
 		if err != nil {
 			return err
 		}

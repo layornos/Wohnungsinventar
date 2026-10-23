@@ -2,7 +2,7 @@
 	import { api, fehlerText, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import BesitzerAuswahl from '#lib/BesitzerAuswahl.svelte';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
-	import { ladePlaetze, letzterPlatz, letztenPlatzMerken } from '#lib/orte.ts';
+	import { ladePlaetze, letzterPlatz, letztenPlatzMerken } from '#lib/plaetze.ts';
 	import { ladePersonen } from '#lib/personen.ts';
 	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 	import { sitzung } from '#lib/sitzung.svelte.ts';

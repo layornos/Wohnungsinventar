@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { api, fehlerText, VERBLEIBE, zurAnmeldung, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
 	import ItemRaster from '#lib/ItemRaster.svelte';
-	import { ladePlaetze } from '#lib/orte.ts';
+	import { ladePlaetze } from '#lib/plaetze.ts';
 	import { ladePersonen } from '#lib/personen.ts';
 	import { abmelden } from '#lib/sitzung.svelte.ts';
 	import type { Snapshot } from './$types';

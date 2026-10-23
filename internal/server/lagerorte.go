@@ -9,27 +9,27 @@ import (
 )
 
 type pfadJSON struct {
-	Wohnung   ortJSON   `json:"wohnung"`
-	Raum      ortJSON   `json:"raum"`
-	Lagerorte []ortJSON `json:"lagerorte"`
+	Wohnung   benanntJSON   `json:"wohnung"`
+	Raum      benanntJSON   `json:"raum"`
+	Lagerorte []benanntJSON `json:"lagerorte"`
 }
 
 func alsPfadJSON(p store.Pfad) pfadJSON {
-	return pfadJSON{Wohnung: alsOrtJSON(p.Wohnung), Raum: alsOrtJSON(p.Raum), Lagerorte: alsOrteJSON(p.Lagerorte)}
+	return pfadJSON{Wohnung: alsBenanntJSON(p.Wohnung), Raum: alsBenanntJSON(p.Raum), Lagerorte: alsBenannteJSON(p.Lagerorte)}
 }
 
 type lagerortJSON struct {
-	ID     int64     `json:"id"`
-	Name   string    `json:"name"`
-	Pfad   pfadJSON  `json:"pfad"`
-	Moebel *ortJSON  `json:"moebel"`
-	Unter  []ortJSON `json:"unter"`
+	ID     int64         `json:"id"`
+	Name   string        `json:"name"`
+	Pfad   pfadJSON      `json:"pfad"`
+	Moebel *benanntJSON  `json:"moebel"`
+	Unter  []benanntJSON `json:"unter"`
 }
 
 func alsLagerortJSON(l store.LagerortDetail) lagerortJSON {
-	out := lagerortJSON{ID: l.ID, Name: l.Name, Pfad: alsPfadJSON(l.Pfad), Unter: alsOrteJSON(l.Unter)}
+	out := lagerortJSON{ID: l.ID, Name: l.Name, Pfad: alsPfadJSON(l.Pfad), Unter: alsBenannteJSON(l.Unter)}
 	if l.Moebel != nil {
-		m := alsOrtJSON(*l.Moebel)
+		m := alsBenanntJSON(*l.Moebel)
 		out.Moebel = &m
 	}
 	return out

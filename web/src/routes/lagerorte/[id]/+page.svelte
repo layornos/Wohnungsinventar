@@ -4,7 +4,7 @@
 	import { api, fehlerText, type ItemListenEintrag, type Lagerort, type Platz, type PlatzEintrag } from '#lib/api.ts';
 	import ItemRaster from '#lib/ItemRaster.svelte';
 	import ItemSuche from '#lib/ItemSuche.svelte';
-	import { elternBody, ladePlaetze, wegfallBestaetigen } from '#lib/orte.ts';
+	import { elternBody, ladePlaetze, wegfallBestaetigen } from '#lib/plaetze.ts';
 	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
 	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 

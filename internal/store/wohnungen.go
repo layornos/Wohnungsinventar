@@ -15,8 +15,8 @@ var (
 	ErrUnbekannterPlatz   = errors.New("unbekannter Raum oder Lagerort")
 )
 
-// Ort ist ein benanntes Element eines Pfads: Wohnung, Raum oder Lagerort.
-type Ort struct {
+// Benannt ist etwas mit ID und Namen, z. B. eine Wohnung, ein Raum oder Lagerort in einem Pfad.
+type Benannt struct {
 	ID   int64
 	Name string
 }
@@ -24,7 +24,7 @@ type Ort struct {
 type Wohnung struct {
 	ID     int64
 	Name   string
-	Raeume []Ort
+	Raeume []Benannt
 }
 
 func (s *Store) WohnungenAuflisten(ctx context.Context) ([]Wohnung, error) {
@@ -47,37 +47,37 @@ func (s *Store) WohnungenAuflisten(ctx context.Context) ([]Wohnung, error) {
 			return nil, err
 		}
 		if n := len(wohnungen); n == 0 || wohnungen[n-1].ID != w.ID {
-			w.Raeume = []Ort{}
+			w.Raeume = []Benannt{}
 			wohnungen = append(wohnungen, w)
 		}
 		if raumID.Valid {
 			letzte := &wohnungen[len(wohnungen)-1]
-			letzte.Raeume = append(letzte.Raeume, Ort{ID: raumID.Int64, Name: raumName.String})
+			letzte.Raeume = append(letzte.Raeume, Benannt{ID: raumID.Int64, Name: raumName.String})
 		}
 	}
 	return wohnungen, rows.Err()
 }
 
-func (s *Store) WohnungAnlegen(ctx context.Context, name string, jetzt time.Time) (Ort, error) {
-	o := Ort{Name: name}
+func (s *Store) WohnungAnlegen(ctx context.Context, name string, jetzt time.Time) (Benannt, error) {
+	o := Benannt{Name: name}
 	err := s.db.QueryRowContext(ctx, `INSERT INTO wohnung (name, erstellt_am) VALUES (?, ?) RETURNING id`, name, zeitText(jetzt)).Scan(&o.ID)
 	return o, err
 }
 
-func (s *Store) WohnungUmbenennen(ctx context.Context, id int64, name string) (Ort, error) {
+func (s *Store) WohnungUmbenennen(ctx context.Context, id int64, name string) (Benannt, error) {
 	return umbenennen(ctx, s.db, "wohnung", id, name)
 }
 
 // umbenennen setzt den Namen einer Zeile in einer der Tabellen wohnung, raum oder lagerort.
-func umbenennen(ctx context.Context, q abfrager, tabelle string, id int64, name string) (Ort, error) {
+func umbenennen(ctx context.Context, q abfrager, tabelle string, id int64, name string) (Benannt, error) {
 	res, err := q.ExecContext(ctx, `UPDATE `+tabelle+` SET name = ? WHERE id = ?`, name, id)
 	if err != nil {
-		return Ort{}, err
+		return Benannt{}, err
 	}
 	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		return Ort{}, errors.Join(err, ErrNichtGefunden)
+		return Benannt{}, errors.Join(err, ErrNichtGefunden)
 	}
-	return Ort{ID: id, Name: name}, nil
+	return Benannt{ID: id, Name: name}, nil
 }
 
 func (s *Store) WohnungLoeschen(ctx context.Context, id int64) error {
@@ -99,18 +99,18 @@ func (s *Store) WohnungLoeschen(ctx context.Context, id int64) error {
 	})
 }
 
-func (s *Store) RaumAnlegen(ctx context.Context, wohnungID int64, name string, jetzt time.Time) (Ort, error) {
-	o := Ort{Name: name}
+func (s *Store) RaumAnlegen(ctx context.Context, wohnungID int64, name string, jetzt time.Time) (Benannt, error) {
+	o := Benannt{Name: name}
 	err := s.db.QueryRowContext(ctx, `
 		INSERT INTO raum (wohnung_id, name, erstellt_am)
 		SELECT id, ?, ? FROM wohnung WHERE id = ? RETURNING id`, name, zeitText(jetzt), wohnungID).Scan(&o.ID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return Ort{}, ErrNichtGefunden
+		return Benannt{}, ErrNichtGefunden
 	}
 	return o, err
 }
 
-func (s *Store) RaumUmbenennen(ctx context.Context, id int64, name string) (Ort, error) {
+func (s *Store) RaumUmbenennen(ctx context.Context, id int64, name string) (Benannt, error) {
 	return umbenennen(ctx, s.db, "raum", id, name)
 }
 
@@ -137,15 +137,15 @@ func (s *Store) RaumLoeschen(ctx context.Context, id int64) error {
 
 // Raum ist ein Raum mit seiner Wohnung und dem Baum seiner Lagerorte.
 type Raum struct {
-	Ort
-	Wohnung   Ort
+	Benannt
+	Wohnung   Benannt
 	Lagerorte []Lagerort
 }
 
 // Lagerort ist ein Knoten im Lagerort-Baum.
 type Lagerort struct {
-	Ort
-	Moebel *Ort
+	Benannt
+	Moebel *Benannt
 	Unter  []Lagerort
 }
 
@@ -194,7 +194,7 @@ func lagerortBaum(ctx context.Context, q abfrager, raumID int64) ([]Lagerort, er
 			return nil, err
 		}
 		if moebelID.Valid {
-			k.l.Moebel = &Ort{ID: moebelID.Int64, Name: moebelName.String}
+			k.l.Moebel = &Benannt{ID: moebelID.Int64, Name: moebelName.String}
 		}
 		alle = append(alle, k)
 	}
@@ -227,9 +227,9 @@ func lagerortBaum(ctx context.Context, q abfrager, raumID int64) ([]Lagerort, er
 
 // Pfad beschreibt, wo etwas liegt: Wohnung › Raum › Lagerorte von außen nach innen.
 type Pfad struct {
-	Wohnung   Ort
-	Raum      Ort
-	Lagerorte []Ort
+	Wohnung   Benannt
+	Raum      Benannt
+	Lagerorte []Benannt
 }
 
 // Platz ist die Platzierung eines Items: ein Lagerort, ein Raum ohne Lagerort oder (beide 0) nichts.
@@ -247,7 +247,7 @@ func raumPfad(ctx context.Context, q abfrager, raumID int64) (Pfad, error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		return Pfad{}, ErrNichtGefunden
 	}
-	p.Lagerorte = []Ort{}
+	p.Lagerorte = []Benannt{}
 	return p, err
 }
 
@@ -264,12 +264,12 @@ func lagerortPfad(ctx context.Context, q abfrager, lagerortID int64) (Pfad, erro
 		return Pfad{}, err
 	}
 	var (
-		lagerorte []Ort
+		lagerorte []Benannt
 		raumID    sql.NullInt64
 	)
 	for rows.Next() {
 		var (
-			o Ort
+			o Benannt
 			r sql.NullInt64
 		)
 		if err := rows.Scan(&o.ID, &o.Name, &r); err != nil {
@@ -295,10 +295,10 @@ func lagerortPfad(ctx context.Context, q abfrager, lagerortID int64) (Pfad, erro
 
 // LagerortDetail ist ein Lagerort mit Pfad, Möbelstück und direkten Unterlagerorten.
 type LagerortDetail struct {
-	Ort
+	Benannt
 	Pfad   Pfad
-	Moebel *Ort
-	Unter  []Ort
+	Moebel *Benannt
+	Unter  []Benannt
 }
 
 type NeuerLagerort struct {
@@ -370,23 +370,23 @@ func lagerortLesen(ctx context.Context, q abfrager, id int64) (LagerortDetail, e
 		return LagerortDetail{}, err
 	}
 	if moebelID.Valid {
-		l.Moebel = &Ort{ID: moebelID.Int64, Name: moebelName.String}
+		l.Moebel = &Benannt{ID: moebelID.Int64, Name: moebelName.String}
 	}
 	if l.Pfad, err = lagerortPfad(ctx, q, id); err != nil {
 		return LagerortDetail{}, err
 	}
-	l.Unter, err = orteLesen(q.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE eltern_id = ? ORDER BY name, id`, id))
+	l.Unter, err = benannteLesen(q.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE eltern_id = ? ORDER BY name, id`, id))
 	return l, err
 }
 
-func orteLesen(rows *sql.Rows, err error) ([]Ort, error) {
+func benannteLesen(rows *sql.Rows, err error) ([]Benannt, error) {
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	orte := []Ort{}
+	orte := []Benannt{}
 	for rows.Next() {
-		var o Ort
+		var o Benannt
 		if err := rows.Scan(&o.ID, &o.Name); err != nil {
 			return nil, err
 		}
@@ -395,7 +395,7 @@ func orteLesen(rows *sql.Rows, err error) ([]Ort, error) {
 	return orte, rows.Err()
 }
 
-func (s *Store) LagerortUmbenennen(ctx context.Context, id int64, name string) (Ort, error) {
+func (s *Store) LagerortUmbenennen(ctx context.Context, id int64, name string) (Benannt, error) {
 	return umbenennen(ctx, s.db, "lagerort", id, name)
 }
 

@@ -7,31 +7,31 @@ import (
 	"inventar/internal/store"
 )
 
-type ortJSON struct {
+type benanntJSON struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-func alsOrtJSON(o store.Ort) ortJSON { return ortJSON{ID: o.ID, Name: o.Name} }
+func alsBenanntJSON(o store.Benannt) benanntJSON { return benanntJSON{ID: o.ID, Name: o.Name} }
 
-func alsOrteJSON(orte []store.Ort) []ortJSON {
-	out := make([]ortJSON, 0, len(orte))
+func alsBenannteJSON(orte []store.Benannt) []benanntJSON {
+	out := make([]benanntJSON, 0, len(orte))
 	for _, o := range orte {
-		out = append(out, alsOrtJSON(o))
+		out = append(out, alsBenanntJSON(o))
 	}
 	return out
 }
 
 type wohnungJSON struct {
-	ID     int64     `json:"id"`
-	Name   string    `json:"name"`
-	Raeume []ortJSON `json:"raeume"`
+	ID     int64         `json:"id"`
+	Name   string        `json:"name"`
+	Raeume []benanntJSON `json:"raeume"`
 }
 
 type lagerortKnotenJSON struct {
 	ID     int64                `json:"id"`
 	Name   string               `json:"name"`
-	Moebel *ortJSON             `json:"moebel"`
+	Moebel *benanntJSON         `json:"moebel"`
 	Unter  []lagerortKnotenJSON `json:"unter"`
 }
 
@@ -40,7 +40,7 @@ func alsBaumJSON(lagerorte []store.Lagerort) []lagerortKnotenJSON {
 	for _, l := range lagerorte {
 		k := lagerortKnotenJSON{ID: l.ID, Name: l.Name, Unter: alsBaumJSON(l.Unter)}
 		if l.Moebel != nil {
-			m := alsOrtJSON(*l.Moebel)
+			m := alsBenanntJSON(*l.Moebel)
 			k.Moebel = &m
 		}
 		out = append(out, k)
@@ -56,7 +56,7 @@ func (s *server) wohnungenAuflisten(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]wohnungJSON, 0, len(wohnungen))
 	for _, wo := range wohnungen {
-		out = append(out, wohnungJSON{ID: wo.ID, Name: wo.Name, Raeume: alsOrteJSON(wo.Raeume)})
+		out = append(out, wohnungJSON{ID: wo.ID, Name: wo.Name, Raeume: alsBenannteJSON(wo.Raeume)})
 	}
 	schreibeJSON(w, http.StatusOK, map[string]any{"wohnungen": out})
 }
@@ -71,7 +71,7 @@ func (s *server) wohnungAnlegen(w http.ResponseWriter, r *http.Request) {
 		s.internerFehler(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusCreated, alsOrtJSON(o))
+	schreibeJSON(w, http.StatusCreated, alsBenanntJSON(o))
 }
 
 func (s *server) raumAnlegen(w http.ResponseWriter, r *http.Request) {
@@ -88,11 +88,11 @@ func (s *server) raumAnlegen(w http.ResponseWriter, r *http.Request) {
 		s.storeFehler(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusCreated, alsOrtJSON(o))
+	schreibeJSON(w, http.StatusCreated, alsBenanntJSON(o))
 }
 
 // umbenennen benennt die Wohnung, den Raum oder Lagerort mit der ID im Pfad um.
-func (s *server) umbenennen(aendern func(ctx context.Context, id int64, name string) (store.Ort, error)) http.HandlerFunc {
+func (s *server) umbenennen(aendern func(ctx context.Context, id int64, name string) (store.Benannt, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pfadID(w, r, "id")
 		if !ok {
@@ -107,7 +107,7 @@ func (s *server) umbenennen(aendern func(ctx context.Context, id int64, name str
 			s.storeFehler(w, r, err)
 			return
 		}
-		schreibeJSON(w, http.StatusOK, alsOrtJSON(o))
+		schreibeJSON(w, http.StatusOK, alsBenanntJSON(o))
 	}
 }
 
@@ -137,6 +137,6 @@ func (s *server) raumAbrufen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	schreibeJSON(w, http.StatusOK, map[string]any{
-		"id": raum.ID, "name": raum.Name, "wohnung": alsOrtJSON(raum.Wohnung), "lagerorte": alsBaumJSON(raum.Lagerorte),
+		"id": raum.ID, "name": raum.Name, "wohnung": alsBenanntJSON(raum.Wohnung), "lagerorte": alsBaumJSON(raum.Lagerorte),
 	})
 }

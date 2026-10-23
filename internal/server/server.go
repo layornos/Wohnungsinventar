@@ -19,18 +19,30 @@ import (
 	"inventar/internal/webui"
 )
 
-// Store ist der Ausschnitt des Datenzugriffs, den die API braucht (ADR-0002).
+// Store ist der Ausschnitt des Datenzugriffs, den die API braucht (ADR-0002),
+// gegliedert nach den fachlichen Bereichen.
 type Store interface {
+	ZugangStore
+	PersonenStore
+	ItemStore
+	OrteStore
+}
+
+type ZugangStore interface {
 	NutzerPerEmail(ctx context.Context, email string) (store.Nutzer, error)
 	SitzungAnlegen(ctx context.Context, tokenHash string, personID int64, jetzt, laeuftAb time.Time) error
 	SitzungsNutzer(ctx context.Context, tokenHash string, jetzt time.Time) (store.Nutzer, error)
 	SitzungLoeschen(ctx context.Context, tokenHash string) error
+}
 
+type PersonenStore interface {
 	PersonenAuflisten(ctx context.Context) ([]store.Person, error)
 	PersonAnlegen(ctx context.Context, name string, jetzt time.Time) (store.Person, error)
 	PersonUmbenennen(ctx context.Context, id int64, name string) (store.Person, error)
 	PersonLoeschen(ctx context.Context, id int64) error
+}
 
+type ItemStore interface {
 	ItemAnlegen(ctx context.Context, neu store.NeuesItem, jetzt time.Time) (store.Item, error)
 	ItemAbrufen(ctx context.Context, id int64) (store.Item, error)
 	ItemsAuflisten(ctx context.Context, f store.ItemFilter) ([]store.ItemListenEintrag, bool, error)
@@ -42,23 +54,26 @@ type Store interface {
 	FotosHinzufuegen(ctx context.Context, itemID int64, fotos []store.NeuesFoto, jetzt time.Time) (store.Item, error)
 	HauptfotoSetzen(ctx context.Context, itemID, fotoID int64, jetzt time.Time) (store.Item, error)
 	FotoLoeschen(ctx context.Context, fotoID int64, jetzt time.Time) (string, store.Item, error)
+	PlatzierungSetzen(ctx context.Context, itemID int64, p store.Platz, jetzt time.Time) (store.Item, error)
+}
 
+// OrteStore umfasst Wohnungen, Räume und Lagerorte.
+type OrteStore interface {
 	WohnungenAuflisten(ctx context.Context) ([]store.Wohnung, error)
-	WohnungAnlegen(ctx context.Context, name string, jetzt time.Time) (store.Ort, error)
-	WohnungUmbenennen(ctx context.Context, id int64, name string) (store.Ort, error)
+	WohnungAnlegen(ctx context.Context, name string, jetzt time.Time) (store.Benannt, error)
+	WohnungUmbenennen(ctx context.Context, id int64, name string) (store.Benannt, error)
 	WohnungLoeschen(ctx context.Context, id int64) error
-	RaumAnlegen(ctx context.Context, wohnungID int64, name string, jetzt time.Time) (store.Ort, error)
+	RaumAnlegen(ctx context.Context, wohnungID int64, name string, jetzt time.Time) (store.Benannt, error)
 	RaumAbrufen(ctx context.Context, id int64) (store.Raum, error)
-	RaumUmbenennen(ctx context.Context, id int64, name string) (store.Ort, error)
+	RaumUmbenennen(ctx context.Context, id int64, name string) (store.Benannt, error)
 	RaumLoeschen(ctx context.Context, id int64) error
 	LagerortAnlegen(ctx context.Context, neu store.NeuerLagerort, jetzt time.Time) (store.LagerortDetail, error)
 	LagerortAbrufen(ctx context.Context, id int64) (store.LagerortDetail, error)
-	LagerortUmbenennen(ctx context.Context, id int64, name string) (store.Ort, error)
+	LagerortUmbenennen(ctx context.Context, id int64, name string) (store.Benannt, error)
 	LagerortVerschieben(ctx context.Context, id, raumID, elternID int64) (store.LagerortDetail, error)
 	LagerortLoeschen(ctx context.Context, id int64, jetzt time.Time) error
 	MoebelSetzen(ctx context.Context, lagerortID, itemID int64) (store.LagerortDetail, error)
 	PlaetzeAuflisten(ctx context.Context) ([]store.PlatzEintrag, error)
-	PlatzierungSetzen(ctx context.Context, itemID int64, p store.Platz, jetzt time.Time) (store.Item, error)
 }
 
 type Deps struct {

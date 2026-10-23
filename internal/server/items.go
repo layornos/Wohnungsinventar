@@ -33,8 +33,8 @@ type itemJSON struct {
 	Besitzer     []personJSON    `json:"besitzer"`
 	Fotos        []fotoJSON      `json:"fotos"`
 	// Platzierung ist null, solange das Item nicht platziert ist.
-	Platzierung     *pfadJSON `json:"platzierung"`
-	MoebelLagerorte []ortJSON `json:"moebelLagerorte"`
+	Platzierung     *pfadJSON     `json:"platzierung"`
+	MoebelLagerorte []benanntJSON `json:"moebelLagerorte"`
 }
 
 type fotoJSON struct {
@@ -65,7 +65,7 @@ func alsItemJSON(item store.Item) itemJSON {
 		GeaendertAm:     item.GeaendertAm,
 		Besitzer:        alsPersonenJSON(item.Besitzer),
 		Fotos:           []fotoJSON{},
-		MoebelLagerorte: alsOrteJSON(item.MoebelLagerorte),
+		MoebelLagerorte: alsBenannteJSON(item.MoebelLagerorte),
 	}
 	if item.Platzierung != nil {
 		p := alsPfadJSON(*item.Platzierung)

@@ -37,10 +37,10 @@ export function verbleibName(v: Verbleib | null): string {
 
 export type Foto = { id: number; hauptfoto: boolean; url: string; vorschauUrl: string };
 
-export type Ort = { id: number; name: string };
+export type Benannt = { id: number; name: string };
 
 /** Wo etwas liegt: Wohnung › Raum › Lagerorte von außen nach innen. */
-export type Pfad = { wohnung: Ort; raum: Ort; lagerorte: Ort[] };
+export type Pfad = { wohnung: Benannt; raum: Benannt; lagerorte: Benannt[] };
 
 export function pfadText(p: Pfad): string {
 	return [p.wohnung, p.raum, ...p.lagerorte].map((o) => o.name).join(' › ');
@@ -50,10 +50,10 @@ export function pfadText(p: Pfad): string {
 export type Platz = { art: 'raum' | 'lagerort'; id: number };
 export type PlatzEintrag = Platz & { pfad: string };
 
-export type LagerortKnoten = Ort & { moebel: Ort | null; unter: LagerortKnoten[] };
-export type Lagerort = Ort & { pfad: Pfad; moebel: Ort | null; unter: Ort[] };
-export type Raum = Ort & { wohnung: Ort; lagerorte: LagerortKnoten[] };
-export type Wohnung = Ort & { raeume: Ort[] };
+export type LagerortKnoten = Benannt & { moebel: Benannt | null; unter: LagerortKnoten[] };
+export type Lagerort = Benannt & { pfad: Pfad; moebel: Benannt | null; unter: Benannt[] };
+export type Raum = Benannt & { wohnung: Benannt; lagerorte: LagerortKnoten[] };
+export type Wohnung = Benannt & { raeume: Benannt[] };
 
 export type Item = {
 	id: number;
@@ -65,7 +65,7 @@ export type Item = {
 	besitzer: Person[];
 	fotos: Foto[];
 	platzierung: Pfad | null;
-	moebelLagerorte: Ort[];
+	moebelLagerorte: Benannt[];
 };
 
 export type ItemListenEintrag = {
