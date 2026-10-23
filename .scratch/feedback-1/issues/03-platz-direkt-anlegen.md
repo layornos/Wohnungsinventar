@@ -1,16 +1,16 @@
 # Platz direkt in der Platzauswahl anlegen
 
-Status: needs-triage
+Status: ready-for-agent
 Typ: Feature
 
 ## Was
 
 Findet die Suche in der Platzauswahl (Erfassen, Detailseite, „Ohne Lagerort“) keinen passenden Raum oder Lagerort, will der Nutzer ihn dort direkt anlegen, statt über „Wohnungen“ zu gehen.
 
-## Offen
+## Entschieden
 
-- Wo hängt der neue Platz? Vorschlag: „„<Suchtext>“ anlegen in …“ und dann einen vorhandenen Raum oder Lagerort als Eltern wählen (wieder über die Pfadliste). Für einen neuen Raum braucht es die Wohnung.
-- Soll auch ein Pfad wie „Arbeitszimmer › Regal › Fach 2“ in einem Rutsch angelegt werden können, inklusive fehlender Zwischenstufen?
+- Findet die Suche nichts, bietet die Auswahl „„<Suchtext>“ anlegen in …“ an. Der Nutzer wählt dann nur das übergeordnete Element (einen bestehenden Raum oder Lagerort) über dieselbe Pfadliste.
+- Ganze Pfade mit fehlenden Zwischenstufen in einem Rutsch anzulegen ist vorerst nicht vorgesehen.
 
 ## Fertig, wenn
 
