@@ -1,0 +1,104 @@
+:root {
+	--hintergrund: #f6f5f1;
+	--flaeche: #ffffff;
+	--text: #1d2421;
+	--text-leise: #5b645f;
+	--akzent: #2f5d50;
+	--akzent-text: #ffffff;
+	--rand: #d9dcd6;
+	--fehler: #a4262c;
+	--radius: 10px;
+	color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--hintergrund: #141816;
+		--flaeche: #1e2421;
+		--text: #e8ebe8;
+		--text-leise: #a3aca6;
+		--akzent: #7fbfa9;
+		--akzent-text: #0e1a15;
+		--rand: #34403a;
+		--fehler: #ff8a8f;
+	}
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	background: var(--hintergrund);
+	color: var(--text);
+	font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	font-size: 17px;
+	line-height: 1.45;
+}
+
+.seite {
+	max-width: 720px;
+	margin: 0 auto;
+	padding: max(16px, env(safe-area-inset-top)) 16px 32px;
+}
+
+.seite.schmal {
+	max-width: 420px;
+}
+
+.kopf {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+form {
+	display: grid;
+	gap: 16px;
+}
+
+label {
+	display: grid;
+	gap: 6px;
+	font-weight: 600;
+}
+
+input {
+	font: inherit;
+	min-height: 48px;
+	padding: 10px 12px;
+	border: 1px solid var(--rand);
+	border-radius: var(--radius);
+	background: var(--flaeche);
+	color: var(--text);
+}
+
+/* Große Tippflächen fürs Handy */
+button {
+	font: inherit;
+	font-weight: 600;
+	min-height: 48px;
+	padding: 10px 18px;
+	border: none;
+	border-radius: var(--radius);
+	background: var(--akzent);
+	color: var(--akzent-text);
+	cursor: pointer;
+}
+
+button:disabled {
+	opacity: 0.6;
+}
+
+button.sekundaer {
+	background: transparent;
+	color: var(--akzent);
+	border: 1px solid var(--rand);
+}
+
+.fehler {
+	color: var(--fehler);
+	margin: 0;
+}

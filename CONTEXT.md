@@ -1,0 +1,127 @@
+# Wohnungsinventarverwaltung
+
+Verwaltet die Gegenstände eines einzigen Haushalts: wo sie sich befinden, wem sie gehören, was mit ihnen passieren soll (behalten, verkaufen, verschenken) und wohin sie bei einem Umzug gebracht werden.
+
+## Language
+
+### Personen
+
+**Haushalt**:
+Die Gemeinschaft, deren Bestand verwaltet wird. Es gibt genau einen Haushalt; alle Nutzer sehen alle Items.
+_Avoid_: Familie, WG, Mandant
+
+**Person**:
+Ein Mensch, der als Besitzer von Items geführt wird. Eine Person muss kein Nutzer sein.
+_Avoid_: Kontakt
+
+**Nutzer**:
+Eine Person, die Zugang zur Anwendung hat und Benachrichtigungen erhält.
+_Avoid_: User, Account, Konto
+
+**Besitzer**:
+Eine Person, der ein Item gehört. Jedes Item hat mindestens einen Besitzer, kann aber mehrere haben.
+_Avoid_: Eigentümer, Owner
+
+### Bestand
+
+**Item**:
+Ein einzelner physischer Gegenstand im Bestand, mit mindestens einem Foto.
+_Avoid_: Gegenstand, Ding, Artikel, Sache
+
+**Wohnung**:
+Die Räumlichkeit, in der der Haushalt lebt oder bei einem Umzug leben wird. Sie besteht aus Räumen.
+_Avoid_: Adresse, Zuhause
+
+**Raum**:
+Ein Zimmer einer Wohnung, z. B. Küche oder Arbeitszimmer. Ein Item kann direkt in einem Raum stehen, z. B. ein Sofa.
+_Avoid_: Zimmer, Ort
+
+**Lagerort**:
+Der feste Platz, an den ein Item gehört – nicht, wo es gerade liegt. Etwas, in dem Items liegen, z. B. eine Schreibtisch-Schublade oder ein Regalfach. Lagerorte können verschachtelt sein und zu einem Item gehören (das Möbelstück, z. B. der Schreibtisch).
+_Avoid_: Container, Behälter, Fach
+
+**Ohne Lagerort**:
+Zustand eines Items, das noch keinen Lagerort hat oder dessen Lagerort weggefallen ist, z. B. weil das Möbelstück verkauft wurde oder ein Umzug abgeschlossen wurde. Das Item muss neu zugewiesen werden.
+_Avoid_: heimatlos, verwaist
+
+### Umzug
+
+**Umzug**:
+Ein zeitlich begrenzter Vorgang von einer alten in eine neue Wohnung, der angelegt und abgeschlossen wird. Während er läuft, hat ein Item einen Herkunftsraum, einen Zielraum und ggf. eine Box; beim Abschluss steht es im Zielraum, ohne Lagerort.
+_Avoid_: Wohnungswechsel
+
+**Herkunftsraum**:
+Der Raum, aus dem ein Item bei einem Umzug kommt.
+_Avoid_: Quellraum, alter Raum
+
+**Zielraum**:
+Der Raum der neuen Wohnung, in den ein Item bei einem Umzug gebracht werden soll.
+_Avoid_: neuer Raum, Bestimmungsort
+
+**Box**:
+Eine Umzugskiste, in die Items für einen Umzug gepackt werden. Der Transport wird nicht abgebildet; das Item ist einfach in der Box.
+_Avoid_: Kiste, Karton, Umzugskarton
+
+### Verbleib
+
+**Verbleib**:
+Was mit einem Item geschehen soll: Behalten, Verkaufen, Später verkaufen oder Verschenken.
+_Avoid_: Kategorie, Status, Entscheidung
+
+**Behalten**:
+Verbleib eines Items, das bleibt. Alle drei Jahre gibt es eine Behalte-Prüfung.
+
+**Behalte-Prüfung**:
+Erinnerung alle drei Jahre, ob ein behaltenes Item weiter behalten oder verkauft werden soll. Die Frist beginnt nach jeder Erinnerung neu, unabhängig von einer Reaktion.
+_Avoid_: Review, Überprüfung
+
+**Später verkaufen**:
+Verbleib eines Items, das erst in einem Jahr verkauft werden soll. Nach Ablauf gibt es eine Erinnerung.
+_Avoid_: in einem Jahr verkaufen, zurückgestellt
+
+**Verkaufen**:
+Verbleib eines Items, das zu einem Angebotspreis angeboten wird.
+
+**Verschenken**:
+Verbleib eines Items, das kostenlos abgegeben wird. Es durchläuft denselben Ablauf wie ein Verkauf, mit Angebotspreis 0 €.
+_Avoid_: spenden, abgeben
+
+### Verkauf
+
+**Angebotspreis**:
+Der Preis, zu dem ein Item aktuell angeboten wird.
+_Avoid_: Verkaufspreis, Wunschpreis
+
+**Verkaufserlös**:
+Der Betrag, zu dem ein Item tatsächlich verkauft wurde.
+_Avoid_: Verkaufspreis (für den tatsächlich erzielten Betrag)
+
+**Inserattext**:
+Ein Textbaustein für Verkaufsplattformen, der immer den Gewährleistungsausschluss enthält.
+_Avoid_: Anzeigentext, Beschreibung
+
+**Archiv**:
+Die Sammlung verkaufter und verschenkter Items, die mit Verkaufserlös erhalten bleiben.
+_Avoid_: Papierkorb, gelöscht
+
+**Erlösübersicht**:
+Die Summe der Verkaufserlöse in einem einstellbaren Zeitraum.
+_Avoid_: Statistik, Report
+
+**Gewährleistungsausschluss**:
+Der Hinweis in einem Inserattext, dass es sich um einen Privatverkauf ohne Garantie, Gewährleistung und Rücknahme handelt.
+_Avoid_: Haftungsausschluss
+
+**Preiserinnerung**:
+Eine einstellbare Erinnerung, den Angebotspreis eines Items zu überprüfen.
+_Avoid_: Preisalarm
+
+**Preisplan**:
+Eine vorab festgelegte Folge von Preissenkungen, z. B. „nach 14 Tagen um 10 % senken“. Jede Stufe löst nur eine Erinnerung aus; der Angebotspreis wird nicht automatisch gesenkt.
+_Avoid_: Preisstaffel, Rabattplan
+
+### Benachrichtigung
+
+**Erinnerung**:
+Ein Hinweis, der in der App angezeigt und jedem Besitzer, der Nutzer ist, per Mail geschickt wird. Besitzer ohne Nutzerzugang werden nicht benachrichtigt; ist keiner der Besitzer Nutzer, geht die Erinnerung an alle Nutzer.
+_Avoid_: Notification, Reminder, Alarm

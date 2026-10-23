@@ -1,0 +1,11 @@
+# Build-Ausgaben
+/bin/
+/web/node_modules/
+/web/.svelte-kit/
+/web/build/
+/internal/webui/dist/*
+!/internal/webui/dist/.gitkeep
+
+# Lokale Daten und Geheimnisse
+/data/
+.env
