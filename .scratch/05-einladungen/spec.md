@@ -1,6 +1,6 @@
 # Spec 05: Einladungen
 
-Status: ready-for-agent
+Status: erledigt
 Blocked by: 01-grundgeruest-und-anmeldung
 
 ## Problem Statement
@@ -86,12 +86,12 @@ Ein Nutzer erzeugt eine Einladung, optional für eine bestehende Person, und bek
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Uhr als Abhängigkeit des Servers einführen und in den Test-Helfern steuerbar machen.
-- [ ] R002: Migration für Einladung (Token-Hash, verknüpfte Person oder Name, Ersteller, angelegt, läuft ab, angenommen, zurückgezogen).
-- [ ] R003: Einladung anlegen: zufälliger, URL-sicherer Token mit mindestens 128 Bit, nur der Hash wird gespeichert, Ablauf +7 Tage, Link aus der aufgerufenen Adresse. Abgelehnt, wenn die Person schon Nutzer ist.
-- [ ] R004: Offene Einladungen auflisten (Name, Ersteller, Ablauf), Einladung zurückziehen, Nutzer auflisten.
-- [ ] R005: Öffentlich: Einladung per Token prüfen, mit fachlichem Fehler je Zustand.
-- [ ] R006: Öffentlich: Einladung annehmen in einer Transaktion. Verknüpfte Person wird Nutzer oder neue Person wird angelegt, E-Mail eindeutig, Passwort mit argon2id, Einladung angenommen, Sitzung angelegt.
-- [ ] R007: Client: Bereich „Nutzer“ mit Nutzerliste, offenen Einladungen, Zurückziehen und neuer Einladung (Person wählen oder Name). Link mit Kopieren und Teilen-Menü.
-- [ ] R008: Client: öffentliche Annehmen-Seite mit Ersteller-Hinweis, Formular für E-Mail und Passwort, verständlichen Meldungen je Zustand und Weiterleitung in die App nach dem Annehmen.
-- [ ] R009: API-Tests für alle Zustände inkl. Ablauf per gesteuerter Uhr, einmalige Verwendung, Verknüpfung mit bestehender Person (bleibt Besitzer), neue Person, E-Mail vergeben, bereits Nutzer, Zugriffsschutz.
+- [x] R001: Uhr als Abhängigkeit des Servers einführen und in den Test-Helfern steuerbar machen.
+- [x] R002: Migration für Einladung (Token-Hash, verknüpfte Person oder Name, Ersteller, angelegt, läuft ab, angenommen, zurückgezogen).
+- [x] R003: Einladung anlegen: zufälliger, URL-sicherer Token mit mindestens 128 Bit, nur der Hash wird gespeichert, Ablauf +7 Tage, Link aus der aufgerufenen Adresse. Abgelehnt, wenn die Person schon Nutzer ist.
+- [x] R004: Offene Einladungen auflisten (Name, Ersteller, Ablauf), Einladung zurückziehen, Nutzer auflisten.
+- [x] R005: Öffentlich: Einladung per Token prüfen, mit fachlichem Fehler je Zustand.
+- [x] R006: Öffentlich: Einladung annehmen in einer Transaktion. Verknüpfte Person wird Nutzer oder neue Person wird angelegt, E-Mail eindeutig, Passwort mit argon2id, Einladung angenommen, Sitzung angelegt.
+- [x] R007: Client: Bereich „Nutzer“ mit Nutzerliste, offenen Einladungen, Zurückziehen und neuer Einladung (Person wählen oder Name). Link mit Kopieren und Teilen-Menü.
+- [x] R008: Client: öffentliche Annehmen-Seite mit Ersteller-Hinweis, Formular für E-Mail und Passwort, verständlichen Meldungen je Zustand und Weiterleitung in die App nach dem Annehmen.
+- [x] R009: API-Tests für alle Zustände inkl. Ablauf per gesteuerter Uhr, einmalige Verwendung, Verknüpfung mit bestehender Person (bleibt Besitzer), neue Person, E-Mail vergeben, bereits Nutzer, Zugriffsschutz.

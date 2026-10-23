@@ -26,6 +26,7 @@ type Store interface {
 	PersonenStore
 	ItemStore
 	OrteStore
+	EinladungStore
 }
 
 type ZugangStore interface {
@@ -76,6 +77,16 @@ type OrteStore interface {
 	PlaetzeAuflisten(ctx context.Context) ([]store.PlatzEintrag, error)
 }
 
+// EinladungStore umfasst Einladungen und die Nutzerliste.
+type EinladungStore interface {
+	EinladungAnlegen(ctx context.Context, neu store.NeueEinladung, jetzt, laeuftAb time.Time) (store.Einladung, error)
+	EinladungenOffen(ctx context.Context, jetzt time.Time) ([]store.Einladung, error)
+	EinladungZurueckziehen(ctx context.Context, id int64, jetzt time.Time) error
+	EinladungPerToken(ctx context.Context, tokenHash string, jetzt time.Time) (store.Einladung, error)
+	EinladungAnnehmen(ctx context.Context, a store.Annahme, jetzt time.Time) (store.Nutzer, error)
+	NutzerAuflisten(ctx context.Context) ([]store.Nutzer, error)
+}
+
 type Deps struct {
 	Config config.Config
 	Store  Store
@@ -110,7 +121,7 @@ func New(d Deps) http.Handler {
 		MaxGroesse:  maxFoto,
 	}}
 
-	// Alles außer der Anmeldung braucht eine Sitzung, auch unbekannte Endpunkte.
+	// Alles außer Anmeldung und Annehmen einer Einladung braucht eine Sitzung, auch unbekannte Endpunkte.
 	geschuetzt := http.NewServeMux()
 	geschuetzt.HandleFunc("POST /api/abmeldung", s.abmelden)
 	geschuetzt.HandleFunc("GET /api/ich", s.ich)
@@ -148,12 +159,18 @@ func New(d Deps) http.Handler {
 	geschuetzt.HandleFunc("GET /api/items/{id}/wegfall", s.wegfallVorschau(func(f *store.ItemFilter, id int64) { f.MoebelID = id }))
 	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/moebel", s.moebelSetzen)
 	geschuetzt.HandleFunc("PUT /api/items/{id}/platzierung", s.platzierungSetzen)
+	geschuetzt.HandleFunc("GET /api/nutzer", s.nutzerAuflisten)
+	geschuetzt.HandleFunc("GET /api/einladungen", s.einladungenAuflisten)
+	geschuetzt.HandleFunc("POST /api/einladungen", s.einladungAnlegen)
+	geschuetzt.HandleFunc("DELETE /api/einladungen/{id}", s.einladungZurueckziehen)
 	geschuetzt.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		schreibeFehler(w, http.StatusNotFound, "nicht_gefunden", "Unbekannter Endpunkt")
 	})
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/anmeldung", s.anmelden)
+	mux.HandleFunc("POST /api/einladungen/pruefen", s.einladungPruefen)
+	mux.HandleFunc("POST /api/einladungen/annehmen", s.einladungAnnehmen)
 	mux.Handle("/api/", s.nurMitSitzung(geschuetzt))
 	mux.Handle("/", webui.Handler(d.Client))
 	return mux

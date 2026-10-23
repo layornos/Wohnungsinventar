@@ -88,6 +88,7 @@
 			<a class="knopf sekundaer" href="/wohnungen">Wohnungen</a>
 			<a class="knopf sekundaer" href="/ohne-lagerort">Ohne Lagerort</a>
 			<a class="knopf sekundaer" href="/personen">Personen</a>
+			<a class="knopf sekundaer" href="/nutzer">Nutzer</a>
 			<button class="sekundaer" onclick={abmeldenUndWeiter}>Abmelden</button>
 		</nav>
 	</header>
