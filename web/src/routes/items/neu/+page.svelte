@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { api, fehlerText, type Item, type Person, type Verbleib } from '#lib/api.ts';
+	import { api, fehlerText, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import BesitzerAuswahl from '#lib/BesitzerAuswahl.svelte';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
+	import { ladePlaetze, letzterPlatz, letztenPlatzMerken } from '#lib/orte.ts';
 	import { ladePersonen } from '#lib/personen.ts';
+	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 	import { sitzung } from '#lib/sitzung.svelte.ts';
 	import VerbleibAuswahl from '#lib/VerbleibAuswahl.svelte';
 
@@ -17,9 +19,20 @@
 	let fehler = $state('');
 	let laeuft = $state(false);
 	let gespeichert = $state<Item | null>(null);
+	let plaetze = $state<PlatzEintrag[]>([]);
+	let platz = $state<Platz | null>(null);
 
 	ladePersonen()
 		.then((p) => (personen = p))
+		.catch((e) => (fehler = fehlerText(e)));
+
+	// Der zuletzt gewählte Platz ist vorausgewählt, damit sich ein Regal schnell durcharbeiten lässt.
+	ladePlaetze()
+		.then((p) => {
+			plaetze = p;
+			const letzter = letzterPlatz();
+			platz = p.some((e) => e.art === letzter?.art && e.id === letzter?.id) ? letzter : null;
+		})
 		.catch((e) => (fehler = fehlerText(e)));
 
 	function hinzufuegen(dateien: File[]) {
@@ -46,13 +59,15 @@
 		form.set('name', name);
 		form.set('beschreibung', beschreibung);
 		if (verbleib) form.set('verbleib', verbleib);
+		if (platz) form.set(platz.art, String(platz.id));
 		for (const id of besitzer) form.append('besitzer', String(id));
 		for (const f of fotos) form.append('foto', f.datei);
 
 		laeuft = true;
 		try {
 			gespeichert = await api<Item>('POST', '/api/items', form);
-			// Bereit fürs nächste Item; Besitzer bleiben, weil oft mehrere Items derselben Person folgen.
+			letztenPlatzMerken(platz);
+			// Bereit fürs nächste Item; Besitzer und Platz bleiben, weil oft ähnliche Items folgen.
 			for (const f of fotos) URL.revokeObjectURL(f.vorschau);
 			fotos = [];
 			name = '';
@@ -100,6 +115,7 @@
 			<textarea bind:value={beschreibung} rows="2"></textarea>
 		</label>
 		<BesitzerAuswahl {personen} bind:ausgewaehlt={besitzer} />
+		<PlatzAuswahl {plaetze} bind:wert={platz} />
 		<VerbleibAuswahl bind:wert={verbleib} />
 
 		{#if fehler}

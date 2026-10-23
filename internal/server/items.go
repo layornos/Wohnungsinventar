@@ -20,6 +20,7 @@ const (
 	maxFeldLaenge      = 10_000
 	standardProSeite   = 50
 	maxProSeite        = 100
+	maxWegfallVorschau = 10_000
 )
 
 type itemJSON struct {
@@ -31,6 +32,9 @@ type itemJSON struct {
 	GeaendertAm  time.Time       `json:"geaendertAm"`
 	Besitzer     []personJSON    `json:"besitzer"`
 	Fotos        []fotoJSON      `json:"fotos"`
+	// Platzierung ist null, solange das Item nicht platziert ist.
+	Platzierung     *pfadJSON `json:"platzierung"`
+	MoebelLagerorte []ortJSON `json:"moebelLagerorte"`
 }
 
 type fotoJSON struct {
@@ -53,14 +57,19 @@ func vorschauURL(fotoID int64) string { return fotoURL(fotoID) + "/vorschau" }
 
 func alsItemJSON(item store.Item) itemJSON {
 	out := itemJSON{
-		ID:           item.ID,
-		Name:         item.Name,
-		Beschreibung: item.Beschreibung,
-		Verbleib:     verbleibJSON(item.Verbleib),
-		ErstelltAm:   item.ErstelltAm,
-		GeaendertAm:  item.GeaendertAm,
-		Besitzer:     alsPersonenJSON(item.Besitzer),
-		Fotos:        []fotoJSON{},
+		ID:              item.ID,
+		Name:            item.Name,
+		Beschreibung:    item.Beschreibung,
+		Verbleib:        verbleibJSON(item.Verbleib),
+		ErstelltAm:      item.ErstelltAm,
+		GeaendertAm:     item.GeaendertAm,
+		Besitzer:        alsPersonenJSON(item.Besitzer),
+		Fotos:           []fotoJSON{},
+		MoebelLagerorte: alsOrteJSON(item.MoebelLagerorte),
+	}
+	if item.Platzierung != nil {
+		p := alsPfadJSON(*item.Platzierung)
+		out.Platzierung = &p
 	}
 	for _, f := range item.Fotos {
 		out.Fotos = append(out.Fotos, fotoJSON{ID: f.ID, Hauptfoto: f.Hauptfoto, URL: fotoURL(f.ID), VorschauURL: vorschauURL(f.ID)})
@@ -197,7 +206,8 @@ func neuesItemLesen(w http.ResponseWriter, f formular) (store.NeuesItem, bool) {
 		fotoFehlt(w)
 		return neu, false
 	}
-	return neu, true
+	neu.Platz, ok = platzAusFormular(w, f)
+	return neu, ok
 }
 
 func (s *server) itemAnlegen(w http.ResponseWriter, r *http.Request) {
@@ -239,22 +249,29 @@ type itemListenJSON struct {
 	VorschauURL string          `json:"vorschauUrl"`
 }
 
-// itemsAuflisten filtert mit q (Text im Namen), besitzer (Person-ID) und verbleib (inkl. "offen")
-// und liefert seitenweise mit seite (ab 1) und proSeite.
+// itemsAuflisten filtert mit q (Text im Namen), besitzer (Person-ID), verbleib (inkl. "offen"),
+// raum, lagerort (beide inkl. verschachtelter Lagerorte) und ohneLagerort und liefert seitenweise
+// mit seite (ab 1) und proSeite.
 func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := store.ItemFilter{Text: strings.TrimSpace(q.Get("q")), Anzahl: standardProSeite}
 	ungueltig := func(meldung string) {
 		schreibeFehler(w, http.StatusBadRequest, "ungueltige_anfrage", meldung)
 	}
-	if b := q.Get("besitzer"); b != "" {
-		id, err := strconv.ParseInt(b, 10, 64)
-		if err != nil {
-			ungueltig("Ungültiger Besitzer")
-			return
+	for _, feld := range []struct {
+		name string
+		ziel *int64
+	}{{"besitzer", &filter.BesitzerID}, {"raum", &filter.RaumID}, {"lagerort", &filter.LagerortID}} {
+		if wert := q.Get(feld.name); wert != "" {
+			id, err := strconv.ParseInt(wert, 10, 64)
+			if err != nil {
+				ungueltig("Ungültige ID für " + feld.name)
+				return
+			}
+			*feld.ziel = id
 		}
-		filter.BesitzerID = id
 	}
+	filter.OhneLagerort = q.Get("ohneLagerort") != ""
 	if v := q.Get("verbleib"); v != "" {
 		verbleib := store.Offen
 		if v != "offen" {
@@ -284,6 +301,10 @@ func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 	}
 	filter.Versatz = (seite - 1) * filter.Anzahl
 
+	s.itemListeAntworten(w, r, filter)
+}
+
+func (s *server) itemListeAntworten(w http.ResponseWriter, r *http.Request, filter store.ItemFilter) {
 	eintraege, weitere, err := s.Store.ItemsAuflisten(r.Context(), filter)
 	if err != nil {
 		s.internerFehler(w, r, err)
@@ -294,6 +315,20 @@ func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
 		items = append(items, itemListenJSON{ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID)})
 	}
 	schreibeJSON(w, http.StatusOK, map[string]any{"items": items, "weitere": weitere})
+}
+
+// wegfallVorschau liefert alle Items, die beim Löschen ohne Lagerort dastünden;
+// filtern setzt im Filter den Lagerort oder das Möbelstück aus dem Pfad.
+func (s *server) wegfallVorschau(filtern func(*store.ItemFilter, int64)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pfadID(w, r, "id")
+		if !ok {
+			return
+		}
+		filter := store.ItemFilter{Anzahl: maxWegfallVorschau}
+		filtern(&filter, id)
+		s.itemListeAntworten(w, r, filter)
+	}
 }
 
 func (s *server) itemBearbeiten(w http.ResponseWriter, r *http.Request) {
@@ -339,7 +374,7 @@ func (s *server) itemLoeschen(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	dateien, err := s.Store.ItemLoeschen(r.Context(), id)
+	dateien, err := s.Store.ItemLoeschen(r.Context(), id, s.Jetzt())
 	if err != nil {
 		s.storeFehler(w, r, err)
 		return

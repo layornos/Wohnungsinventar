@@ -365,3 +365,94 @@ button.foto-wahl.aktiv {
 	flex: 1;
 	margin: 0;
 }
+
+.filter .ganz {
+	grid-column: 1 / -1;
+}
+
+.feldname {
+	font-weight: 600;
+}
+
+.platzwahl {
+	display: grid;
+	gap: 6px;
+}
+
+button.auswahl {
+	justify-content: flex-start;
+	text-align: left;
+	color: var(--text);
+	font-weight: 500;
+}
+
+.trefferliste {
+	display: grid;
+	gap: 4px;
+	max-height: 50vh;
+	overflow-y: auto;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.trefferliste button {
+	width: 100%;
+	text-align: left;
+	color: var(--text);
+	font-weight: 500;
+}
+
+.trefferliste button.aktiv {
+	outline: 2px solid var(--akzent);
+}
+
+.mit-bild {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--text);
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.mit-bild img {
+	width: 48px;
+	height: 48px;
+	object-fit: cover;
+	border-radius: 6px;
+	flex: none;
+}
+
+.einsortieren .breit {
+	flex-basis: 100%;
+	display: grid;
+	gap: 8px;
+}
+
+.pfad {
+	color: var(--text-leise);
+	overflow-wrap: anywhere;
+}
+
+ul.baum {
+	list-style: none;
+	margin: 0;
+	padding-left: 0;
+}
+
+ul.baum ul.baum {
+	padding-left: 18px;
+	border-left: 2px solid var(--rand);
+	margin-left: 6px;
+}
+
+ul.baum li {
+	padding: 6px 0;
+}
+
+ul.baum a {
+	display: inline-block;
+	min-height: 32px;
+	font-weight: 600;
+}

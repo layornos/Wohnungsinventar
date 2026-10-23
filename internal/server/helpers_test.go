@@ -235,3 +235,16 @@ func (e *testEnv) keineFotoDateien() {
 		e.t.Errorf("Datei %s liegt noch im Foto-Ordner", d.Name())
 	}
 }
+
+// keineVerwaistenFotos prüft, dass im Foto-Ordner nur die Dateien der angelegten Fotos liegen
+// (Original und Vorschau je Foto).
+func (e *testEnv) keineVerwaistenFotos(fotos int) {
+	e.t.Helper()
+	dateien, err := os.ReadDir(filepath.Join(e.dataDir, store.FotoVerzeichnis))
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if len(dateien) != 2*fotos {
+		e.t.Errorf("%d Dateien im Foto-Ordner, erwartet %d", len(dateien), 2*fotos)
+	}
+}

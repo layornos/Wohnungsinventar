@@ -39,6 +39,10 @@ type Item struct {
 	Besitzer     []Person
 	// Fotos in ihrer Reihenfolge; genau eines ist Hauptfoto.
 	Fotos []Foto
+	// Platzierung ist nil, solange das Item nicht platziert ist.
+	Platzierung *Pfad
+	// MoebelLagerorte sind die Lagerorte, die zu diesem Item als Möbelstück gehören.
+	MoebelLagerorte []Ort
 }
 
 type Foto struct {
@@ -61,6 +65,7 @@ type NeuesItem struct {
 	Verbleib     Verbleib
 	BesitzerIDs  []int64
 	Fotos        []NeuesFoto
+	Platz        Platz
 }
 
 // abfrager ist, was *sql.DB und *sql.Tx gemeinsam haben.
@@ -99,6 +104,9 @@ func (s *Store) ItemAnlegen(ctx context.Context, neu NeuesItem, jetzt time.Time)
 			}
 		}
 		if err := fotosEintragen(ctx, tx, id, neu.Fotos); err != nil {
+			return err
+		}
+		if err := platzSetzen(ctx, tx, id, neu.Platz); err != nil {
 			return err
 		}
 		item, err = itemLesen(ctx, tx, id)
@@ -144,10 +152,11 @@ func itemLesen(ctx context.Context, q abfrager, id int64) (Item, error) {
 		item                    Item
 		verbleib                sql.NullString
 		erstelltAm, geaendertAm string
+		lagerortID, raumID      sql.NullInt64
 	)
 	err := q.QueryRowContext(ctx, `
-		SELECT id, name, beschreibung, verbleib, erstellt_am, geaendert_am FROM item WHERE id = ?`, id).
-		Scan(&item.ID, &item.Name, &item.Beschreibung, &verbleib, &erstelltAm, &geaendertAm)
+		SELECT id, name, beschreibung, verbleib, erstellt_am, geaendert_am, lagerort_id, raum_id FROM item WHERE id = ?`, id).
+		Scan(&item.ID, &item.Name, &item.Beschreibung, &verbleib, &erstelltAm, &geaendertAm, &lagerortID, &raumID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Item{}, ErrNichtGefunden
 	}
@@ -164,8 +173,31 @@ func itemLesen(ctx context.Context, q abfrager, id int64) (Item, error) {
 	if item.Besitzer, err = besitzerLesen(ctx, q, id); err != nil {
 		return Item{}, err
 	}
+	if item.Platzierung, err = platzierungLesen(ctx, q, lagerortID.Int64, raumID.Int64); err != nil {
+		return Item{}, err
+	}
+	if item.MoebelLagerorte, err = orteLesen(q.QueryContext(ctx,
+		`SELECT id, name FROM lagerort WHERE moebel_item_id = ? ORDER BY name, id`, id)); err != nil {
+		return Item{}, err
+	}
 	item.Fotos, err = fotosLesen(ctx, q, id)
 	return item, err
+}
+
+func platzierungLesen(ctx context.Context, q abfrager, lagerortID, raumID int64) (*Pfad, error) {
+	var (
+		p   Pfad
+		err error
+	)
+	switch {
+	case lagerortID != 0:
+		p, err = lagerortPfad(ctx, q, lagerortID)
+	case raumID != 0:
+		p, err = raumPfad(ctx, q, raumID)
+	default:
+		return nil, nil
+	}
+	return &p, err
 }
 
 func besitzerLesen(ctx context.Context, q abfrager, itemID int64) ([]Person, error) {
@@ -215,36 +247,80 @@ type ItemFilter struct {
 	BesitzerID int64
 	// Verbleib filtert, wenn gesetzt; ein Zeiger auf Offen liefert die Items ohne Verbleib.
 	Verbleib *Verbleib
-	Anzahl   int
-	Versatz  int
+	// RaumID und LagerortID umfassen auch Items in verschachtelten Lagerorten.
+	RaumID     int64
+	LagerortID int64
+	// MoebelID liefert die Items in den Lagerorten dieses Möbelstücks.
+	MoebelID     int64
+	OhneLagerort bool
+	Anzahl       int
+	Versatz      int
+}
+
+// teilbaum ist ein rekursiver Teilausdruck, der ab den Lagerorten, die start erfüllen,
+// alle Unterlagerorte sammelt.
+func teilbaum(name, start string) string {
+	return name + ` (id) AS (
+		SELECT id FROM lagerort WHERE ` + start + `
+		UNION ALL
+		SELECT l.id FROM lagerort l JOIN ` + name + ` t ON l.eltern_id = t.id)`
 }
 
 // ItemsAuflisten liefert die passenden Items, zuletzt geänderte zuerst, und ob es weitere gibt.
 func (s *Store) ItemsAuflisten(ctx context.Context, f ItemFilter) ([]ItemListenEintrag, bool, error) {
-	abfrage := `
-		SELECT i.id, i.name, i.verbleib, f.id
-		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1
-		WHERE 1 = 1`
-	var args []any
+	var (
+		ctes, bedingungen []string
+		cteArgs, args     []any
+	)
 	if f.Text != "" {
-		abfrage += ` AND i.name_klein LIKE ? ESCAPE '\'`
+		bedingungen = append(bedingungen, `i.name_klein LIKE ? ESCAPE '\'`)
 		args = append(args, "%"+likeMaskieren(strings.ToLower(f.Text))+"%")
 	}
 	if f.BesitzerID != 0 {
-		abfrage += ` AND EXISTS (SELECT 1 FROM besitz b WHERE b.item_id = i.id AND b.person_id = ?)`
+		bedingungen = append(bedingungen, `EXISTS (SELECT 1 FROM besitz b WHERE b.item_id = i.id AND b.person_id = ?)`)
 		args = append(args, f.BesitzerID)
 	}
 	if f.Verbleib != nil {
 		if *f.Verbleib == Offen {
-			abfrage += ` AND i.verbleib IS NULL`
+			bedingungen = append(bedingungen, `i.verbleib IS NULL`)
 		} else {
-			abfrage += ` AND i.verbleib = ?`
+			bedingungen = append(bedingungen, `i.verbleib = ?`)
 			args = append(args, string(*f.Verbleib))
 		}
 	}
+	if f.RaumID != 0 {
+		ctes = append(ctes, teilbaum("im_raum", "raum_id = ?"))
+		cteArgs = append(cteArgs, f.RaumID)
+		bedingungen = append(bedingungen, `(i.raum_id = ? OR i.lagerort_id IN (SELECT id FROM im_raum))`)
+		args = append(args, f.RaumID)
+	}
+	if f.LagerortID != 0 {
+		ctes = append(ctes, teilbaum("im_lagerort", "id = ?"))
+		cteArgs = append(cteArgs, f.LagerortID)
+		bedingungen = append(bedingungen, `i.lagerort_id IN (SELECT id FROM im_lagerort)`)
+	}
+	if f.MoebelID != 0 {
+		ctes = append(ctes, teilbaum("im_moebel", "moebel_item_id = ?"))
+		cteArgs = append(cteArgs, f.MoebelID)
+		bedingungen = append(bedingungen, `i.lagerort_id IN (SELECT id FROM im_moebel)`)
+	}
+	if f.OhneLagerort {
+		bedingungen = append(bedingungen, `i.lagerort_id IS NULL`)
+	}
+
+	abfrage := ""
+	if len(ctes) > 0 {
+		abfrage = "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
+	}
+	abfrage += `
+		SELECT i.id, i.name, i.verbleib, f.id
+		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1`
+	if len(bedingungen) > 0 {
+		abfrage += " WHERE " + strings.Join(bedingungen, " AND ")
+	}
 	// Einer mehr als verlangt, um zu erkennen, ob es weitere gibt.
 	abfrage += ` ORDER BY i.geaendert_am DESC, i.id DESC LIMIT ? OFFSET ?`
-	args = append(args, f.Anzahl+1, f.Versatz)
+	args = append(append(cteArgs, args...), f.Anzahl+1, f.Versatz)
 
 	rows, err := s.db.QueryContext(ctx, abfrage, args...)
 	if err != nil {
@@ -319,13 +395,23 @@ func (s *Store) ItemBearbeiten(ctx context.Context, id int64, name, beschreibung
 }
 
 // ItemLoeschen löscht das Item samt Fotos und Besitz und liefert die Namen der Foto-Dateien,
-// die der Aufrufer danach entfernt.
-func (s *Store) ItemLoeschen(ctx context.Context, id int64) ([]string, error) {
+// die der Aufrufer danach entfernt. Lagerorte des Items als Möbelstück fallen weg.
+func (s *Store) ItemLoeschen(ctx context.Context, id int64, jetzt time.Time) ([]string, error) {
 	var dateien []string
 	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
 		fotos, err := fotosLesen(ctx, tx, id)
 		if err != nil {
 			return err
+		}
+		eigene, err := orteLesen(tx.QueryContext(ctx, `SELECT id, name FROM lagerort WHERE moebel_item_id = ?`, id))
+		if err != nil {
+			return err
+		}
+		for _, l := range eigene {
+			// Ein eigener Lagerort kann schon mit einem anderen weggefallen sein, wenn er darin lag.
+			if err := lagerortWegfall(ctx, tx, l.ID, jetzt); err != nil && !errors.Is(err, ErrNichtGefunden) {
+				return err
+			}
 		}
 		res, err := tx.ExecContext(ctx, `DELETE FROM item WHERE id = ?`, id)
 		if err != nil {

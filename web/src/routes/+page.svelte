@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { api, fehlerText, VERBLEIBE, verbleibName, zurAnmeldung, type ItemListenEintrag, type Person } from '#lib/api.ts';
+	import { api, fehlerText, VERBLEIBE, zurAnmeldung, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
+	import ItemRaster from '#lib/ItemRaster.svelte';
+	import { ladePlaetze } from '#lib/orte.ts';
 	import { ladePersonen } from '#lib/personen.ts';
 	import { abmelden } from '#lib/sitzung.svelte.ts';
 	import type { Snapshot } from './$types';
@@ -7,6 +9,9 @@
 	let suche = $state('');
 	let besitzer = $state('');
 	let verbleib = $state('');
+	// Platz als "raum:3" oder "lagerort:7", damit ein einziges Auswahlfeld beides kann.
+	let platz = $state('');
+	let plaetze = $state<PlatzEintrag[]>([]);
 	let personen = $state<Person[]>([]);
 	let items = $state<ItemListenEintrag[]>([]);
 	let weitere = $state(false);
@@ -15,13 +20,16 @@
 	let seite = 1;
 
 	// Suche und Filter bleiben erhalten, wenn man von einem Item zurückkommt.
-	export const snapshot: Snapshot<{ suche: string; besitzer: string; verbleib: string }> = {
-		capture: () => ({ suche, besitzer, verbleib }),
-		restore: (s) => ({ suche, besitzer, verbleib } = s)
+	export const snapshot: Snapshot<{ suche: string; besitzer: string; verbleib: string; platz: string }> = {
+		capture: () => ({ suche, besitzer, verbleib, platz }),
+		restore: (s) => ({ suche, besitzer, verbleib, platz } = s)
 	};
 
 	ladePersonen()
 		.then((p) => (personen = p))
+		.catch((e) => (fehler = fehlerText(e)));
+	ladePlaetze()
+		.then((p) => (plaetze = p))
 		.catch((e) => (fehler = fehlerText(e)));
 
 	function adresse(s: number) {
@@ -29,6 +37,8 @@
 		if (suche.trim()) p.set('q', suche.trim());
 		if (besitzer) p.set('besitzer', besitzer);
 		if (verbleib) p.set('verbleib', verbleib);
+		const [art, id] = platz.split(':');
+		if (id) p.set(art, id);
 		return '/api/items?' + p;
 	}
 
@@ -53,7 +63,7 @@
 	}
 
 	$effect(() => {
-		void [suche, besitzer, verbleib];
+		void [suche, besitzer, verbleib, platz];
 		const t = setTimeout(() => laden(true), 250);
 		return () => clearTimeout(t);
 	});
@@ -75,6 +85,8 @@
 	<header class="kopf">
 		<h1>Inventar</h1>
 		<nav class="knopfzeile">
+			<a class="knopf sekundaer" href="/wohnungen">Wohnungen</a>
+			<a class="knopf sekundaer" href="/ohne-lagerort">Ohne Lagerort</a>
 			<a class="knopf sekundaer" href="/personen">Personen</a>
 			<button class="sekundaer" onclick={abmeldenUndWeiter}>Abmelden</button>
 		</nav>
@@ -95,23 +107,19 @@
 				<option value={v.wert}>{v.name}</option>
 			{/each}
 		</select>
+		<select class="ganz" aria-label="Platz" bind:value={platz}>
+			<option value="">Überall</option>
+			{#each plaetze as p (p.art + p.id)}
+				<option value="{p.art}:{p.id}">{p.pfad}</option>
+			{/each}
+		</select>
 	</div>
 
 	{#if fehler}
 		<p class="fehler" role="alert">{fehler}</p>
 	{/if}
 
-	<ul class="raster">
-		{#each items as item (item.id)}
-			<li>
-				<a class="karte" href="/items/{item.id}">
-					<img src={item.vorschauUrl} alt="" loading="lazy" />
-					<span class="karte-name">{item.name}</span>
-					<span class="marke" class:offen={item.verbleib === null}>{verbleibName(item.verbleib)}</span>
-				</a>
-			</li>
-		{/each}
-	</ul>
+	<ItemRaster {items} />
 
 	{#if !laedt && items.length === 0 && !fehler}
 		<p class="leise">Keine Items gefunden.</p>

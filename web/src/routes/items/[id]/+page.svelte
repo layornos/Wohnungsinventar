@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, fehlerText, verbleibName, type Item, type Person, type Verbleib } from '#lib/api.ts';
+	import { api, fehlerText, verbleibName, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
+	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/orte.ts';
+	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
+	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
 	import { ladePersonen } from '#lib/personen.ts';
 	import VerbleibAuswahl from '#lib/VerbleibAuswahl.svelte';
 
@@ -75,10 +78,37 @@
 		if (await aendern('PUT', `${pfad}/besitzer/${neuerBesitzer}`)) neuerBesitzer = '';
 	}
 
+	let plaetze = $state<PlatzEintrag[]>([]);
+	let platzWaehlen = $state(false);
+	let platz = $state<Platz | null>(null);
+
+	async function platzAendernBeginnen() {
+		try {
+			plaetze = await ladePlaetze();
+		} catch (e) {
+			fehler = fehlerText(e);
+			return;
+		}
+		const p = item?.platzierung;
+		const innerster = p?.lagerorte.at(-1);
+		platz = innerster ? { art: 'lagerort', id: innerster.id } : p ? { art: 'raum', id: p.raum.id } : null;
+		platzWaehlen = true;
+	}
+
+	async function platzSpeichern() {
+		if (await aendern('PUT', `${pfad}/platzierung`, platzBody(platz))) platzWaehlen = false;
+	}
+
 	async function itemLoeschen() {
-		if (!item || !confirm(`„${item.name}“ mit allen Fotos löschen?`)) return;
+		if (!item) return;
 		fehler = '';
 		try {
+			const frage = `„${item.name}“ mit allen Fotos löschen?`;
+			const bestaetigt =
+				item.moebelLagerorte.length > 0
+					? await wegfallBestaetigen(`${pfad}/wegfall`, `${frage} Seine Lagerorte (${item.moebelLagerorte.map((l) => l.name).join(', ')}) fallen weg.`)
+					: confirm(frage);
+			if (!bestaetigt) return;
 			await api('DELETE', pfad);
 			await goto('/', { replaceState: true });
 		} catch (e) {
@@ -151,6 +181,31 @@
 			{/if}
 			<p>Verbleib: <span class="marke" class:offen={item.verbleib === null}>{verbleibName(item.verbleib)}</span></p>
 		{/if}
+
+		<section>
+			<h2>Platz</h2>
+			{#if platzWaehlen}
+				<PlatzAuswahl {plaetze} bind:wert={platz} />
+				<div class="knopfzeile">
+					<button disabled={laeuft} onclick={platzSpeichern}>Speichern</button>
+					<button class="sekundaer" onclick={() => (platzWaehlen = false)}>Abbrechen</button>
+				</div>
+			{:else}
+				{#if item.platzierung}
+					<PfadAnzeige pfad={item.platzierung} />
+					{#if item.platzierung.lagerorte.length === 0}<p class="leise">Direkt im Raum, ohne Lagerort.</p>{/if}
+				{:else}
+					<p class="leise">Noch nicht platziert.</p>
+				{/if}
+				<button class="sekundaer klein" onclick={platzAendernBeginnen}>Platz ändern</button>
+			{/if}
+			{#if item.moebelLagerorte.length > 0}
+				<p>
+					Lagerorte dieses Möbelstücks:
+					{#each item.moebelLagerorte as l, i (l.id)}{i > 0 ? ', ' : ''}<a href="/lagerorte/{l.id}">{l.name}</a>{/each}
+				</p>
+			{/if}
+		</section>
 
 		<section>
 			<h2>Besitzer</h2>

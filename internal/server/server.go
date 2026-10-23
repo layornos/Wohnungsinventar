@@ -35,13 +35,30 @@ type Store interface {
 	ItemAbrufen(ctx context.Context, id int64) (store.Item, error)
 	ItemsAuflisten(ctx context.Context, f store.ItemFilter) ([]store.ItemListenEintrag, bool, error)
 	ItemBearbeiten(ctx context.Context, id int64, name, beschreibung string, verbleib store.Verbleib, jetzt time.Time) (store.Item, error)
-	ItemLoeschen(ctx context.Context, id int64) ([]string, error)
+	ItemLoeschen(ctx context.Context, id int64, jetzt time.Time) ([]string, error)
 	BesitzerHinzufuegen(ctx context.Context, itemID, personID int64, jetzt time.Time) (store.Item, error)
 	BesitzerEntfernen(ctx context.Context, itemID, personID int64, jetzt time.Time) (store.Item, error)
 	FotoAbrufen(ctx context.Context, id int64) (store.Foto, error)
 	FotosHinzufuegen(ctx context.Context, itemID int64, fotos []store.NeuesFoto, jetzt time.Time) (store.Item, error)
 	HauptfotoSetzen(ctx context.Context, itemID, fotoID int64, jetzt time.Time) (store.Item, error)
 	FotoLoeschen(ctx context.Context, fotoID int64, jetzt time.Time) (string, store.Item, error)
+
+	WohnungenAuflisten(ctx context.Context) ([]store.Wohnung, error)
+	WohnungAnlegen(ctx context.Context, name string, jetzt time.Time) (store.Ort, error)
+	WohnungUmbenennen(ctx context.Context, id int64, name string) (store.Ort, error)
+	WohnungLoeschen(ctx context.Context, id int64) error
+	RaumAnlegen(ctx context.Context, wohnungID int64, name string, jetzt time.Time) (store.Ort, error)
+	RaumAbrufen(ctx context.Context, id int64) (store.Raum, error)
+	RaumUmbenennen(ctx context.Context, id int64, name string) (store.Ort, error)
+	RaumLoeschen(ctx context.Context, id int64) error
+	LagerortAnlegen(ctx context.Context, neu store.NeuerLagerort, jetzt time.Time) (store.LagerortDetail, error)
+	LagerortAbrufen(ctx context.Context, id int64) (store.LagerortDetail, error)
+	LagerortUmbenennen(ctx context.Context, id int64, name string) (store.Ort, error)
+	LagerortVerschieben(ctx context.Context, id, raumID, elternID int64) (store.LagerortDetail, error)
+	LagerortLoeschen(ctx context.Context, id int64, jetzt time.Time) error
+	MoebelSetzen(ctx context.Context, lagerortID, itemID int64) (store.LagerortDetail, error)
+	PlaetzeAuflisten(ctx context.Context) ([]store.PlatzEintrag, error)
+	PlatzierungSetzen(ctx context.Context, itemID int64, p store.Platz, jetzt time.Time) (store.Item, error)
 }
 
 type Deps struct {
@@ -98,6 +115,24 @@ func New(d Deps) http.Handler {
 	geschuetzt.HandleFunc("GET /api/fotos/{id}", s.fotoAusliefern(false))
 	geschuetzt.HandleFunc("DELETE /api/fotos/{id}", s.fotoLoeschen)
 	geschuetzt.HandleFunc("GET /api/fotos/{id}/vorschau", s.fotoAusliefern(true))
+	geschuetzt.HandleFunc("GET /api/wohnungen", s.wohnungenAuflisten)
+	geschuetzt.HandleFunc("POST /api/wohnungen", s.wohnungAnlegen)
+	geschuetzt.HandleFunc("PUT /api/wohnungen/{id}", s.umbenennen(s.Store.WohnungUmbenennen))
+	geschuetzt.HandleFunc("DELETE /api/wohnungen/{id}", s.loeschen(s.Store.WohnungLoeschen))
+	geschuetzt.HandleFunc("POST /api/wohnungen/{id}/raeume", s.raumAnlegen)
+	geschuetzt.HandleFunc("GET /api/raeume/{id}", s.raumAbrufen)
+	geschuetzt.HandleFunc("PUT /api/raeume/{id}", s.umbenennen(s.Store.RaumUmbenennen))
+	geschuetzt.HandleFunc("DELETE /api/raeume/{id}", s.loeschen(s.Store.RaumLoeschen))
+	geschuetzt.HandleFunc("GET /api/plaetze", s.plaetzeAuflisten)
+	geschuetzt.HandleFunc("POST /api/lagerorte", s.lagerortAnlegen)
+	geschuetzt.HandleFunc("GET /api/lagerorte/{id}", s.lagerortAbrufen)
+	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}", s.umbenennen(s.Store.LagerortUmbenennen))
+	geschuetzt.HandleFunc("DELETE /api/lagerorte/{id}", s.lagerortLoeschen)
+	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/eltern", s.lagerortVerschieben)
+	geschuetzt.HandleFunc("GET /api/lagerorte/{id}/wegfall", s.wegfallVorschau(func(f *store.ItemFilter, id int64) { f.LagerortID = id }))
+	geschuetzt.HandleFunc("GET /api/items/{id}/wegfall", s.wegfallVorschau(func(f *store.ItemFilter, id int64) { f.MoebelID = id }))
+	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/moebel", s.moebelSetzen)
+	geschuetzt.HandleFunc("PUT /api/items/{id}/platzierung", s.platzierungSetzen)
 	geschuetzt.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		schreibeFehler(w, http.StatusNotFound, "nicht_gefunden", "Unbekannter Endpunkt")
 	})
@@ -165,6 +200,16 @@ func (s *server) storeFehler(w http.ResponseWriter, r *http.Request, err error) 
 		schreibeFehler(w, http.StatusConflict, "letzter_besitzer", meldungBesitzerFehlt)
 	case errors.Is(err, store.ErrLetztesFoto):
 		schreibeFehler(w, http.StatusConflict, "letztes_foto", meldungFotoFehlt)
+	case errors.Is(err, store.ErrWohnungNichtLeer):
+		schreibeFehler(w, http.StatusConflict, "wohnung_nicht_leer", "Die Wohnung hat noch Räume")
+	case errors.Is(err, store.ErrRaumNichtLeer):
+		schreibeFehler(w, http.StatusConflict, "raum_nicht_leer", "Im Raum sind noch Lagerorte oder Items")
+	case errors.Is(err, store.ErrZyklus):
+		schreibeFehler(w, http.StatusConflict, "zyklus", "Ein Lagerort kann nicht in sich selbst oder einem seiner Unterlagerorte liegen")
+	case errors.Is(err, store.ErrMoebelInSichSelbst):
+		schreibeFehler(w, http.StatusConflict, "moebel_in_sich_selbst", "Ein Möbelstück kann nicht in einem eigenen Lagerort liegen")
+	case errors.Is(err, store.ErrUnbekannterPlatz):
+		schreibeFehler(w, http.StatusBadRequest, "unbekannter_platz", "Diesen Raum oder Lagerort gibt es nicht")
 	case errors.Is(err, store.ErrUnbekanntePerson):
 		schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", meldungUnbekanntePerson)
 	default:
