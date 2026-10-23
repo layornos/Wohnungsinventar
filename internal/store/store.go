@@ -18,6 +18,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// FotoVerzeichnis ist der Ordner im Datenverzeichnis, in dem Fotos als Dateien liegen (ADR-0002).
+const FotoVerzeichnis = "fotos"
+
 //go:embed migrations/*.sql
 var migrations embed.FS
 
@@ -25,19 +28,19 @@ type Store struct {
 	db *sql.DB
 }
 
-// Open öffnet die Datenbank im Datenverzeichnis und führt ausstehende Migrationen aus.
-func Open(ctx context.Context, dataDir string) (*Store, error) {
-	if err := os.MkdirAll(dataDir, 0o750); err != nil {
+// Open bereitet das Datenverzeichnis vor, öffnet die Datenbank und führt ausstehende Migrationen aus.
+func Open(ctx context.Context, datenverzeichnis string) (*Store, error) {
+	if err := os.MkdirAll(filepath.Join(datenverzeichnis, FotoVerzeichnis), 0o750); err != nil {
 		return nil, fmt.Errorf("Datenverzeichnis anlegen: %w", err)
 	}
-	dsn := "file:" + url.PathEscape(filepath.Join(dataDir, "inventar.db")) +
+	dsn := "file:" + url.PathEscape(filepath.Join(datenverzeichnis, "inventar.db")) +
 		"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
 	s := &Store{db: db}
-	if err := s.migrate(ctx); err != nil {
+	if err := s.migrieren(ctx); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -46,16 +49,16 @@ func Open(ctx context.Context, dataDir string) (*Store, error) {
 
 func (s *Store) Close() error { return s.db.Close() }
 
-func (s *Store) migrate(ctx context.Context) error {
+func (s *Store) migrieren(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS schema_migration (version TEXT PRIMARY KEY)`); err != nil {
 		return err
 	}
-	names, err := fs.Glob(migrations, "migrations/*.sql")
+	namen, err := fs.Glob(migrations, "migrations/*.sql")
 	if err != nil {
 		return err
 	}
-	sort.Strings(names)
-	for _, name := range names {
+	sort.Strings(namen)
+	for _, name := range namen {
 		version := strings.TrimSuffix(filepath.Base(name), ".sql")
 		var n int
 		if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM schema_migration WHERE version = ?`, version).Scan(&n); err != nil {
@@ -64,12 +67,12 @@ func (s *Store) migrate(ctx context.Context) error {
 		if n > 0 {
 			continue
 		}
-		body, err := migrations.ReadFile(name)
+		inhalt, err := migrations.ReadFile(name)
 		if err != nil {
 			return err
 		}
-		err = s.inTx(ctx, func(tx *sql.Tx) error {
-			if _, err := tx.ExecContext(ctx, string(body)); err != nil {
+		err = s.inTransaktion(ctx, func(tx *sql.Tx) error {
+			if _, err := tx.ExecContext(ctx, string(inhalt)); err != nil {
 				return err
 			}
 			_, err := tx.ExecContext(ctx, `INSERT INTO schema_migration (version) VALUES (?)`, version)
@@ -82,7 +85,7 @@ func (s *Store) migrate(ctx context.Context) error {
 	return nil
 }
 
-func (s *Store) inTx(ctx context.Context, fn func(*sql.Tx) error) error {
+func (s *Store) inTransaktion(ctx context.Context, fn func(*sql.Tx) error) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -95,4 +98,4 @@ func (s *Store) inTx(ctx context.Context, fn func(*sql.Tx) error) error {
 }
 
 // Zeitpunkte werden als RFC 3339 in UTC gespeichert, damit sie textuell sortierbar sind.
-func fmtTime(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
+func zeitText(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }

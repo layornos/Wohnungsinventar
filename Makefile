@@ -18,7 +18,7 @@ build-pi: web
 
 # Startet den Server lokal per HTTP auf localhost:8080 mit Daten in ./data.
 run: web
-	go run ./cmd/inventar serve
+	go run ./cmd/inventar starten
 
 # Alle Prüfungen: Go-Vet, Go-Tests, Typprüfung und Build des Clients.
 check:

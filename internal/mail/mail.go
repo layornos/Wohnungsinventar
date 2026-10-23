@@ -15,18 +15,18 @@ import (
 	"inventar/internal/config"
 )
 
-type Message struct {
-	To      string
-	Subject string
-	Body    string
+type Nachricht struct {
+	An      string
+	Betreff string
+	Text    string
 }
 
 type Mailer interface {
-	Send(ctx context.Context, m Message) error
+	Senden(ctx context.Context, n Nachricht) error
 }
 
-func New(cfg config.Config, log *slog.Logger) Mailer {
-	if cfg.SMTPEnabled() {
+func Neu(cfg config.Config, log *slog.Logger) Mailer {
+	if cfg.MitSMTP() {
 		return &SMTP{cfg: cfg.SMTP}
 	}
 	return &Log{Logger: log}
@@ -35,42 +35,42 @@ func New(cfg config.Config, log *slog.Logger) Mailer {
 // Log schreibt Mails nur ins Log.
 type Log struct{ Logger *slog.Logger }
 
-func (l *Log) Send(_ context.Context, m Message) error {
-	l.Logger.Info("Mail nicht versendet (SMTP nicht konfiguriert)", "an", m.To, "betreff", m.Subject, "text", m.Body)
+func (l *Log) Senden(_ context.Context, n Nachricht) error {
+	l.Logger.Info("Mail nicht versendet (SMTP nicht konfiguriert)", "an", n.An, "betreff", n.Betreff, "text", n.Text)
 	return nil
 }
 
 // SMTP versendet per STARTTLS, z. B. über Gmail mit App-Passwort.
 type SMTP struct{ cfg config.SMTP }
 
-func (s *SMTP) Send(_ context.Context, m Message) error {
-	addr := s.cfg.Host + ":" + strconv.Itoa(s.cfg.Port)
-	auth := smtp.PlainAuth("", s.cfg.User, s.cfg.Password, s.cfg.Host)
+func (s *SMTP) Senden(_ context.Context, n Nachricht) error {
+	adresse := s.cfg.Host + ":" + strconv.Itoa(s.cfg.Port)
+	auth := smtp.PlainAuth("", s.cfg.Nutzer, s.cfg.Passwort, s.cfg.Host)
 	var b strings.Builder
-	fmt.Fprintf(&b, "From: %s\r\n", s.cfg.From)
-	fmt.Fprintf(&b, "To: %s\r\n", m.To)
-	fmt.Fprintf(&b, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", m.Subject))
+	fmt.Fprintf(&b, "From: %s\r\n", s.cfg.Absender)
+	fmt.Fprintf(&b, "To: %s\r\n", n.An)
+	fmt.Fprintf(&b, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", n.Betreff))
 	fmt.Fprintf(&b, "Date: %s\r\n", time.Now().Format(time.RFC1123Z))
 	b.WriteString("MIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n")
-	b.WriteString(strings.ReplaceAll(m.Body, "\n", "\r\n"))
-	return smtp.SendMail(addr, auth, s.cfg.From, []string{m.To}, []byte(b.String()))
+	b.WriteString(strings.ReplaceAll(n.Text, "\n", "\r\n"))
+	return smtp.SendMail(adresse, auth, s.cfg.Absender, []string{n.An}, []byte(b.String()))
 }
 
-// Recorder zeichnet Mails für Tests auf.
-type Recorder struct {
-	mu   sync.Mutex
-	sent []Message
+// Aufzeichner merkt sich Mails, statt sie zu senden; für Tests.
+type Aufzeichner struct {
+	mu        sync.Mutex
+	gesendete []Nachricht
 }
 
-func (r *Recorder) Send(_ context.Context, m Message) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.sent = append(r.sent, m)
+func (a *Aufzeichner) Senden(_ context.Context, n Nachricht) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.gesendete = append(a.gesendete, n)
 	return nil
 }
 
-func (r *Recorder) Sent() []Message {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return append([]Message(nil), r.sent...)
+func (a *Aufzeichner) Gesendete() []Nachricht {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]Nachricht(nil), a.gesendete...)
 }

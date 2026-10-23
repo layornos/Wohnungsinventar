@@ -41,9 +41,15 @@ func TestUnbekannteEmailWirdWieFalschesPasswortBehandelt(t *testing.T) {
 
 func TestOhneSitzungIstDieAPIGesperrt(t *testing.T) {
 	e := newTestEnv(t)
-	res := e.client().mustStatus(http.StatusUnauthorized, "GET", "/api/ich", nil)
-	if res.errorCode() != "nicht_angemeldet" {
-		t.Fatalf("Fehlercode %q", res.errorCode())
+	for _, req := range []struct{ method, path string }{
+		{"GET", "/api/ich"},
+		{"POST", "/api/abmeldung"},
+		{"GET", "/api/gibt-es-nicht"},
+	} {
+		res := e.client().do(req.method, req.path, nil)
+		if res.Status != http.StatusUnauthorized || res.errorCode() != "nicht_angemeldet" {
+			t.Errorf("%s %s: Status %d, Fehlercode %q", req.method, req.path, res.Status, res.errorCode())
+		}
 	}
 }
 

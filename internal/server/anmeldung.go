@@ -21,7 +21,7 @@ type nutzerJSON struct {
 	Email    string `json:"email"`
 }
 
-func toNutzerJSON(n store.Nutzer) nutzerJSON {
+func alsNutzerJSON(n store.Nutzer) nutzerJSON {
 	return nutzerJSON{PersonID: n.PersonID, Name: n.Name, Email: n.Email}
 }
 
@@ -30,76 +30,75 @@ func (s *server) anmelden(w http.ResponseWriter, r *http.Request) {
 		Email    string `json:"email"`
 		Passwort string `json:"passwort"`
 	}
-	if !readJSON(w, r, &req) {
+	if !leseJSON(w, r, &req) {
 		return
 	}
-	n, err := s.Store.NutzerByEmail(r.Context(), req.Email)
+	n, err := s.Store.NutzerPerEmail(r.Context(), req.Email)
+	gefunden := err == nil
+	if err != nil && !errors.Is(err, store.ErrNichtGefunden) {
+		s.internerFehler(w, r, err)
+		return
+	}
 	hash := n.PasswortHash
-	if errors.Is(err, store.ErrNichtGefunden) {
+	if !gefunden {
 		hash = auth.DummyHash
-	} else if err != nil {
-		s.internalError(w, r, err)
-		return
 	}
-	ok, err := auth.PruefePasswort(hash, req.Passwort)
+	passt, err := auth.PasswortPruefen(hash, req.Passwort)
 	if err != nil {
-		s.internalError(w, r, err)
+		s.internerFehler(w, r, err)
 		return
 	}
-	if !ok || n.PersonID == 0 {
-		writeError(w, http.StatusUnauthorized, "anmeldung_fehlgeschlagen", "E-Mail oder Passwort falsch")
+	if !gefunden || !passt {
+		schreibeFehler(w, http.StatusUnauthorized, "anmeldung_fehlgeschlagen", "E-Mail oder Passwort falsch")
 		return
 	}
-	if err := s.starteSitzung(w, r, n.PersonID); err != nil {
-		s.internalError(w, r, err)
+	if err := s.sitzungStarten(w, r, n.PersonID); err != nil {
+		s.internerFehler(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, toNutzerJSON(n))
+	schreibeJSON(w, http.StatusOK, alsNutzerJSON(n))
 }
 
-// starteSitzung legt eine Sitzung an und setzt das Cookie.
-func (s *server) starteSitzung(w http.ResponseWriter, r *http.Request, personID int64) error {
+// sitzungStarten legt eine Sitzung an und setzt das Cookie.
+func (s *server) sitzungStarten(w http.ResponseWriter, r *http.Request, personID int64) error {
 	token, hash, err := auth.NeuesToken()
 	if err != nil {
 		return err
 	}
-	now := s.Now()
-	if err := s.Store.CreateSitzung(r.Context(), hash, personID, now, now.Add(sitzungsDauer)); err != nil {
+	jetzt := s.Jetzt()
+	if err := s.Store.SitzungAnlegen(r.Context(), hash, personID, jetzt, jetzt.Add(sitzungsDauer)); err != nil {
 		return err
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sitzungsCookie,
-		Value:    token,
-		Path:     "/",
-		MaxAge:   int(sitzungsDauer.Seconds()),
-		HttpOnly: true,
-		Secure:   s.Config.TLSEnabled(),
-		SameSite: http.SameSiteStrictMode,
-	})
+	s.sitzungsCookieSetzen(w, token, int(sitzungsDauer.Seconds()))
 	return nil
 }
 
 func (s *server) abmelden(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sitzungsCookie); err == nil {
-		if err := s.Store.DeleteSitzung(r.Context(), auth.TokenHash(c.Value)); err != nil {
-			s.internalError(w, r, err)
+		if err := s.Store.SitzungLoeschen(r.Context(), auth.TokenHash(c.Value)); err != nil {
+			s.internerFehler(w, r, err)
 			return
 		}
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sitzungsCookie,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   s.Config.TLSEnabled(),
-		SameSite: http.SameSiteStrictMode,
-	})
+	s.sitzungsCookieSetzen(w, "", -1)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// sitzungsCookieSetzen setzt das Cookie; maxAge -1 löscht es im Browser.
+func (s *server) sitzungsCookieSetzen(w http.ResponseWriter, wert string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sitzungsCookie,
+		Value:    wert,
+		Path:     "/",
+		MaxAge:   maxAge,
+		HttpOnly: true,
+		Secure:   s.Config.MitTLS(),
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
 func (s *server) ich(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, toNutzerJSON(nutzerAus(r.Context())))
+	schreibeJSON(w, http.StatusOK, alsNutzerJSON(nutzerAus(r.Context())))
 }
 
 type nutzerKey struct{}
@@ -109,21 +108,24 @@ func nutzerAus(ctx context.Context) store.Nutzer {
 	return n
 }
 
-// requireNutzer lässt nur Anfragen mit gültiger Sitzung durch.
-func (s *server) requireNutzer(next http.Handler) http.Handler {
+// nurMitSitzung lässt nur Anfragen mit gültiger Sitzung durch.
+func (s *server) nurMitSitzung(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nichtAngemeldet := func() {
+			schreibeFehler(w, http.StatusUnauthorized, "nicht_angemeldet", "Nicht angemeldet")
+		}
 		c, err := r.Cookie(sitzungsCookie)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, "nicht_angemeldet", "Nicht angemeldet")
+			nichtAngemeldet()
 			return
 		}
-		n, err := s.Store.SitzungNutzer(r.Context(), auth.TokenHash(c.Value), s.Now())
+		n, err := s.Store.SitzungsNutzer(r.Context(), auth.TokenHash(c.Value), s.Jetzt())
 		if errors.Is(err, store.ErrNichtGefunden) {
-			writeError(w, http.StatusUnauthorized, "nicht_angemeldet", "Nicht angemeldet")
+			nichtAngemeldet()
 			return
 		}
 		if err != nil {
-			s.internalError(w, r, err)
+			s.internerFehler(w, r, err)
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), nutzerKey{}, n)))

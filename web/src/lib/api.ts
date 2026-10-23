@@ -11,6 +11,12 @@ export class ApiError extends Error {
 	}
 }
 
+export const ANMELDUNG = '/anmeldung';
+
+export function zurAnmeldung() {
+	return goto(ANMELDUNG, { replaceState: true });
+}
+
 export type Nutzer = { personId: number; name: string; email: string };
 
 /**
@@ -31,7 +37,7 @@ export async function api<T>(
 	const data = await res.json().catch(() => ({}));
 	if (!res.ok) {
 		if (res.status === 401 && !opts.ohneUmleitung) {
-			await goto('/anmeldung', { replaceState: true });
+			await zurAnmeldung();
 		}
 		throw new ApiError(res.status, data.code ?? 'unbekannt', data.meldung ?? res.statusText);
 	}

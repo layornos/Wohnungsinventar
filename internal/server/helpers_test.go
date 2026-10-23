@@ -25,7 +25,7 @@ import (
 type testEnv struct {
 	t       *testing.T
 	dataDir string
-	mailer  *mail.Recorder
+	mailer  *mail.Aufzeichner
 	srv     *httptest.Server
 }
 
@@ -43,9 +43,9 @@ func newTestEnvWith(t *testing.T, client fs.FS) *testEnv {
 	}
 	t.Cleanup(func() { st.Close() })
 
-	rec := &mail.Recorder{}
+	rec := &mail.Aufzeichner{}
 	h := server.New(server.Deps{
-		Config: config.Config{DataDir: dataDir},
+		Config: config.Config{Datenverzeichnis: dataDir},
 		Store:  st,
 		Mailer: rec,
 		Client: client,

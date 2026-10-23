@@ -17,7 +17,7 @@ Ersten Nutzer anlegen (fragt das Passwort ab):
 go run ./cmd/inventar nutzer-anlegen --name "Alex" --email alex@example.org
 ```
 
-Für die Arbeit am Client mit Hot Reload laufen Go-Server (`go run ./cmd/inventar serve`) und `npm run dev` in `web/` nebeneinander. Vite leitet `/api` an `localhost:8080` weiter.
+Für die Arbeit am Client mit Hot Reload laufen Go-Server (`go run ./cmd/inventar starten`) und `npm run dev` in `web/` nebeneinander. Vite leitet `/api` an `localhost:8080` weiter.
 
 Ohne DuckDNS-Angaben läuft der Server per HTTP. Browser behandeln `localhost` als sichere Umgebung, PWA und Kamera funktionieren dort also auch ohne Zertifikat. Ohne SMTP-Angaben schreibt der Server Mails nur ins Log.
 
@@ -48,7 +48,7 @@ Mit DuckDNS holt der Server das Let's-Encrypt-Zertifikat per DNS-01 selbst und e
 Befehle:
 
 ```sh
-inventar serve
+inventar starten
 inventar nutzer-anlegen --name NAME --email EMAIL
 inventar passwort-zuruecksetzen --email EMAIL   # beendet alle Sitzungen des Nutzers
 ```

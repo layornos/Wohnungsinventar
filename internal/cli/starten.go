@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,50 +11,50 @@ import (
 	"syscall"
 	"time"
 
-	"inventar/internal/config"
 	"inventar/internal/mail"
 	"inventar/internal/server"
 	"inventar/internal/store"
 )
 
-func serve(ctx context.Context, cfg config.Config, stdout io.Writer) error {
+func starten(ctx context.Context, b befehl) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	log := slog.New(slog.NewTextHandler(stdout, nil))
-	st, err := store.Open(ctx, cfg.DataDir)
+	cfg := b.cfg
+	log := slog.New(slog.NewTextHandler(b.stdout, nil))
+	st, err := store.Open(ctx, cfg.Datenverzeichnis)
 	if err != nil {
 		return err
 	}
 	defer st.Close()
 
 	srv := &http.Server{
-		Addr: cfg.Addr,
+		Addr: cfg.Adresse,
 		Handler: server.New(server.Deps{
 			Config: cfg,
 			Store:  st,
-			Mailer: mail.New(cfg, log),
+			Mailer: mail.Neu(cfg, log),
 			Logger: log,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	errc := make(chan error, 1)
-	if cfg.TLSEnabled() {
-		tlsCfg, err := tlsConfig(ctx, cfg, log)
+	fehler := make(chan error, 1)
+	if cfg.MitTLS() {
+		tlsCfg, err := tlsKonfiguration(ctx, cfg, log)
 		if err != nil {
 			return err
 		}
 		srv.TLSConfig = tlsCfg
-		log.Info("Server startet mit HTTPS", "adresse", cfg.Addr, "domain", cfg.DuckDNS.Domain)
-		go func() { errc <- srv.ListenAndServeTLS("", "") }()
+		log.Info("Server startet mit HTTPS", "adresse", cfg.Adresse, "domain", cfg.DuckDNS.Domain)
+		go func() { fehler <- srv.ListenAndServeTLS("", "") }()
 	} else {
-		log.Info("Server startet ohne TLS", "url", fmt.Sprintf("http://%s", cfg.Addr))
-		go func() { errc <- srv.ListenAndServe() }()
+		log.Info("Server startet ohne TLS", "url", fmt.Sprintf("http://%s", cfg.Adresse))
+		go func() { fehler <- srv.ListenAndServe() }()
 	}
 
 	select {
-	case err := <-errc:
+	case err := <-fehler:
 		if !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}

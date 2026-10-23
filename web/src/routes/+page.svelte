@@ -1,10 +1,19 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { zurAnmeldung } from '#lib/api.ts';
 	import { abmelden, sitzung } from '#lib/sitzung.svelte.ts';
 
+	let fehler = $state('');
+
 	async function abmeldenUndWeiter() {
-		await abmelden();
-		await goto('/anmeldung', { replaceState: true });
+		fehler = '';
+		try {
+			await abmelden();
+		} catch {
+			// Ohne Antwort des Servers bleibt die Sitzung dort bestehen; nicht so tun, als wäre man abgemeldet.
+			fehler = 'Abmelden nicht möglich. Ist der Server erreichbar?';
+			return;
+		}
+		await zurAnmeldung();
 	}
 </script>
 
@@ -13,5 +22,8 @@
 		<h1>Inventar</h1>
 		<button class="sekundaer" onclick={abmeldenUndWeiter}>Abmelden</button>
 	</header>
+	{#if fehler}
+		<p class="fehler" role="alert">{fehler}</p>
+	{/if}
 	<p>Hallo {sitzung.nutzer?.name}!</p>
 </main>

@@ -1,6 +1,6 @@
 # Spec 01: Grundgerüst und Anmeldung
 
-Status: ready-for-agent
+Status: erledigt
 
 ## Problem Statement
 
@@ -70,14 +70,14 @@ Ein einzelnes Go-Programm, das eine JSON-API und eine eingebettete SvelteKit-PWA
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Go-Modul und Projektgerüst anlegen. Ein Befehl startet den Server lokal, ein Befehl baut das Binary für linux/arm64 inklusive Client-Build.
-- [ ] R002: Konfiguration aus Umgebungsvariablen laden und prüfen: Datenverzeichnis, Adresse, optional DuckDNS (Domain und Token), optional SMTP. Unvollständige Gruppen führen zu einem klaren Startfehler.
-- [ ] R003: SQLite mit reinem Go-Treiber anbinden (WAL, Fremdschlüssel an). Eingebettete Migrationen beim Start ausführen. Erste Migration mit Person, Nutzer (eindeutige E-Mail ohne Beachtung der Groß- und Kleinschreibung) und Sitzung.
-- [ ] R004: Mailer-Schnittstelle mit SMTP-Implementierung und Log-Implementierung. Ist SMTP nicht konfiguriert, wird die Log-Implementierung gewählt.
-- [ ] R005: Unterbefehle für Server starten, Nutzer anlegen und Passwort zurücksetzen. Der Reset beendet alle Sitzungen des Nutzers.
-- [ ] R006: Anmeldung, Abmeldung und Abruf des angemeldeten Nutzers. Passwörter mit argon2id, Sitzungs-Cookie HttpOnly, `SameSite=Strict`, 90 Tage, `Secure` bei HTTPS, Token nur gehasht gespeichert. Middleware, die ohne Sitzung 401 liefert. JSON-Fehlerformat mit fachlichem Code.
-- [ ] R007: TLS: ohne DuckDNS-Angaben HTTP, mit Angaben automatisches Zertifikat per DNS-01 über DuckDNS und Betrieb per HTTPS.
-- [ ] R008: SvelteKit-Client mit statischem Adapter: Anmeldeseite, Startseite mit Nutzernamen und Abmelden, Weiterleitung bei 401. PWA-Manifest mit Icons und Service Worker für die App-Hülle.
-- [ ] R009: Client ins Binary einbetten und ausliefern. Nicht-API-Pfade liefern die App-Hülle.
-- [ ] R010: Test-Helfer (Server im temporären Verzeichnis, angemeldeter Nutzer, aufzeichnender Mailer) und API-Tests: erfolgreiche und fehlgeschlagene Anmeldung, Abmelden, 401 ohne Sitzung, Passwort-Reset macht alte Sitzungen ungültig, per Unterbefehl angelegter Nutzer kann sich anmelden.
-- [ ] R011: Ein Prüfbefehl führt Go-Tests, svelte-check und den Client-Build aus. Eine kurze Betriebsanleitung beschreibt die Umgebungsvariablen und den Start auf dem Pi.
+- [x] R001: Go-Modul und Projektgerüst anlegen. Ein Befehl startet den Server lokal, ein Befehl baut das Binary für linux/arm64 inklusive Client-Build.
+- [x] R002: Konfiguration aus Umgebungsvariablen laden und prüfen: Datenverzeichnis, Adresse, optional DuckDNS (Domain und Token), optional SMTP. Unvollständige Gruppen führen zu einem klaren Startfehler.
+- [x] R003: SQLite mit reinem Go-Treiber anbinden (WAL, Fremdschlüssel an). Eingebettete Migrationen beim Start ausführen. Erste Migration mit Person, Nutzer (eindeutige E-Mail ohne Beachtung der Groß- und Kleinschreibung) und Sitzung.
+- [x] R004: Mailer-Schnittstelle mit SMTP-Implementierung und Log-Implementierung. Ist SMTP nicht konfiguriert, wird die Log-Implementierung gewählt.
+- [x] R005: Unterbefehle für Server starten, Nutzer anlegen und Passwort zurücksetzen. Der Reset beendet alle Sitzungen des Nutzers.
+- [x] R006: Anmeldung, Abmeldung und Abruf des angemeldeten Nutzers. Passwörter mit argon2id, Sitzungs-Cookie HttpOnly, `SameSite=Strict`, 90 Tage, `Secure` bei HTTPS, Token nur gehasht gespeichert. Middleware, die ohne Sitzung 401 liefert. JSON-Fehlerformat mit fachlichem Code.
+- [x] R007: TLS: ohne DuckDNS-Angaben HTTP, mit Angaben automatisches Zertifikat per DNS-01 über DuckDNS und Betrieb per HTTPS.
+- [x] R008: SvelteKit-Client mit statischem Adapter: Anmeldeseite, Startseite mit Nutzernamen und Abmelden, Weiterleitung bei 401. PWA-Manifest mit Icons und Service Worker für die App-Hülle.
+- [x] R009: Client ins Binary einbetten und ausliefern. Nicht-API-Pfade liefern die App-Hülle.
+- [x] R010: Test-Helfer (Server im temporären Verzeichnis, angemeldeter Nutzer, aufzeichnender Mailer) und API-Tests: erfolgreiche und fehlgeschlagene Anmeldung, Abmelden, 401 ohne Sitzung, Passwort-Reset macht alte Sitzungen ungültig, per Unterbefehl angelegter Nutzer kann sich anmelden.
+- [x] R011: Ein Prüfbefehl führt Go-Tests, svelte-check und den Client-Build aus. Eine kurze Betriebsanleitung beschreibt die Umgebungsvariablen und den Start auf dem Pi.
