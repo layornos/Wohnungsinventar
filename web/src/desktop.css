@@ -32,7 +32,7 @@ label.chip:has(input:focus-visible) {
 @media (hover: hover) {
 	/* Hauptknöpfe (Fläche in Akzentfarbe) mischen etwas Seitenfarbe hinein statt durchsichtig zu werden:
 	   passt zu Schwarz und Weiß in Minimal wie zu Mint in Neon und Violett in Weich (Neon leuchtet, Weich schattet stärker). */
-	button:not(:disabled, .sekundaer, .gefahr, .klein, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button):hover,
+	button:not(:disabled, .sekundaer, .menuelink, .menue-schliessen, .gefahr, .klein, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button):hover,
 	a.knopf:not(.sekundaer):hover {
 		background-color: color-mix(in srgb, var(--akzent) 86%, var(--hintergrund));
 		box-shadow: var(--leuchten-stark);
@@ -78,7 +78,7 @@ label.chip:has(input:focus-visible) {
 	}
 
 	nav.seitenleiste {
-		display: grid;
+		display: flex;
 		position: sticky;
 		top: 0;
 		height: 100vh;

@@ -7,7 +7,7 @@
 	import { page } from '$app/state';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { zurAnmeldung } from './api.ts';
-	import { abmelden } from './sitzung.svelte.ts';
+	import { abmelden, sitzung } from './sitzung.svelte.ts';
 
 	let { art = 'dialog' }: { art?: 'dialog' | 'leiste' } = $props();
 
@@ -73,24 +73,74 @@
 	}
 </script>
 
-{#snippet eintrag(href: string, name: string)}
-	<a class={['knopf', !aktiv(href) && 'sekundaer']} {href} aria-current={aktiv(href) ? 'page' : undefined} onclick={schliessen}>{name}</a>
+{#snippet symbol(name: string)}
+	<svg class="menuesymbol" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+		{#if name === 'inventar'}<rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+		{:else if name === 'ohne-lagerort'}<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><path d="M9.5 9.5l5 5M14.5 9.5l-5 5" />
+		{:else if name === 'wohnungen'}<path d="M3 10.5 12 3l9 7.5" /><path d="M5 9v12h14V9" /><path d="M10 21v-6h4v6" />
+		{:else if name === 'umzug'}<path d="M3 7h11v10H3z" /><path d="M14 10h4l3 3v4h-7" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" />
+		{:else if name === 'personen'}<circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2a6.5 6.5 0 0 1 3.5 5.8" />
+		{:else if name === 'nutzer'}<rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
+		{:else if name === 'einstellungen'}<circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+		{:else if name === 'abmelden'}<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 17l-5-5 5-5M5 12h11" />
+		{/if}
+	</svg>
+{/snippet}
+
+{#snippet eintrag(href: string, name: string, icon: string)}
+	<li>
+		<a class="menuelink" {href} aria-current={aktiv(href) ? 'page' : undefined} onclick={schliessen}>
+			{@render symbol(icon)}<span>{name}</span>
+		</a>
+	</li>
 {/snippet}
 
 {#snippet menueinhalt()}
-	{#if art === 'leiste'}
-		{@render eintrag('/', 'Inventar')}
-	{/if}
-	{@render eintrag('/umzug', 'Umzug')}
-	{@render eintrag('/wohnungen', 'Wohnungen')}
-	{@render eintrag('/ohne-lagerort', 'Ohne Lagerort')}
-	{@render eintrag('/personen', 'Personen')}
-	{@render eintrag('/nutzer', 'Nutzer')}
-	{@render eintrag('/einstellungen', 'Einstellungen')}
-	<button type="button" class="sekundaer" onclick={abmeldenUndWeiter}>Abmelden</button>
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
-	{/if}
+	<div class="menuekopf">
+		<span class="menuemarke">Inventar</span>
+		{#if art === 'dialog'}
+			<button type="button" class="menue-schliessen" aria-label="Menü schließen" onclick={schliessen}>
+				<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+			</button>
+		{/if}
+	</div>
+
+	<ul class="menuegruppe">
+		{@render eintrag('/', 'Alle Items', 'inventar')}
+		{@render eintrag('/ohne-lagerort', 'Ohne Lagerort', 'ohne-lagerort')}
+	</ul>
+
+	<h2 class="menuetitel" id="menue-{art}-orte">Orte</h2>
+	<ul class="menuegruppe" aria-labelledby="menue-{art}-orte">
+		{@render eintrag('/wohnungen', 'Wohnungen', 'wohnungen')}
+		{@render eintrag('/umzug', 'Umzug', 'umzug')}
+	</ul>
+
+	<h2 class="menuetitel" id="menue-{art}-haushalt">Haushalt</h2>
+	<ul class="menuegruppe" aria-labelledby="menue-{art}-haushalt">
+		{@render eintrag('/personen', 'Personen', 'personen')}
+		{@render eintrag('/nutzer', 'Nutzer', 'nutzer')}
+	</ul>
+
+	<div class="menuefuss">
+		{#if sitzung.nutzer}
+			<p class="menuekonto">
+				<span class="menuekonto-name">{sitzung.nutzer.name}</span>
+				<span class="menuekonto-email">{sitzung.nutzer.email}</span>
+			</p>
+		{/if}
+		<ul class="menuegruppe">
+			{@render eintrag('/einstellungen', 'Einstellungen', 'einstellungen')}
+			<li>
+				<button type="button" class="menuelink" onclick={abmeldenUndWeiter}>
+					{@render symbol('abmelden')}<span>Abmelden</span>
+				</button>
+			</li>
+		</ul>
+		{#if fehler}
+			<p class="fehler" role="alert">{fehler}</p>
+		{/if}
+	</div>
 {/snippet}
 
 <svelte:window

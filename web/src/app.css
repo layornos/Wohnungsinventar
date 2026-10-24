@@ -182,12 +182,135 @@ nav.seitenleiste {
 	backdrop-filter: var(--glas);
 }
 
+/* Menüinhalt: Kopf mit Marke, Gruppen mit kleinen Titeln, unten Konto, Einstellungen und Abmelden. */
 .menueinhalt {
-	display: grid;
-	align-content: start;
-	gap: 8px;
+	display: flex;
+	flex-direction: column;
 	min-height: 100%;
-	padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+	padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
+}
+
+.menuekopf {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	min-height: 48px;
+	padding: 0 4px 0 12px;
+	margin-bottom: 12px;
+}
+
+.menuemarke {
+	font-size: 1.15rem;
+	font-weight: 700;
+	letter-spacing: -0.01em;
+}
+
+nav.menueinhalt button.menue-schliessen {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	width: 44px;
+	padding: 0;
+	border-radius: var(--radius);
+	background: transparent;
+	color: var(--text-leise);
+	box-shadow: none;
+}
+
+nav.menueinhalt .menuetitel {
+	margin: 20px 0 4px;
+	padding: 0 12px;
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--text-leise);
+}
+
+.menuegruppe {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	gap: 2px;
+}
+
+nav.menueinhalt .menuelink {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 44px;
+	padding: 8px 12px;
+	border: none;
+	border-radius: var(--radius);
+	background: transparent;
+	color: var(--text);
+	box-shadow: none;
+	font: inherit;
+	font-size: 0.95rem;
+	font-weight: 500;
+	text-align: left;
+	text-decoration: none;
+	cursor: pointer;
+	transition:
+		background-color 0.15s,
+		color 0.15s;
+}
+
+nav.menueinhalt .menuelink .menuesymbol {
+	flex-shrink: 0;
+	color: var(--text-leise);
+	transition: color 0.15s;
+}
+
+nav.menueinhalt .menuelink[aria-current='page'] {
+	background: color-mix(in srgb, var(--akzent) 10%, transparent);
+	font-weight: 600;
+}
+
+nav.menueinhalt .menuelink[aria-current='page'] .menuesymbol {
+	color: var(--akzent);
+}
+
+@media (hover: hover) {
+	nav.menueinhalt .menuelink:hover,
+	nav.menueinhalt button.menue-schliessen:hover {
+		background: color-mix(in srgb, var(--text) 6%, transparent);
+	}
+
+	nav.menueinhalt .menuelink:hover .menuesymbol {
+		color: var(--text);
+	}
+}
+
+.menuefuss {
+	margin-top: auto;
+	padding-top: 16px;
+	border-top: 1px solid var(--rand);
+	display: grid;
+	gap: 8px;
+}
+
+.menuekonto {
+	margin: 0;
+	padding: 0 12px;
+	display: grid;
+	min-width: 0;
+}
+
+.menuekonto-name {
+	font-weight: 600;
+	font-size: 0.95rem;
+}
+
+.menuekonto-email {
+	font-size: 0.8rem;
+	color: var(--text-leise);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 form {
@@ -1172,7 +1295,7 @@ label.designkarte:has(input:checked) {
 }
 
 /* Pillen für Knöpfe; was eher Feld, Listenzeile oder Teil eines Fotos ist, behält seine Form. */
-[data-design='weich'] :is(button, a.knopf):not(.menueknopf, .auswahl, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button) {
+[data-design='weich'] :is(button, a.knopf):not(.menueknopf, .menuelink, .menue-schliessen, .auswahl, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button) {
 	border-radius: 999px;
 	font-weight: 700;
 }
@@ -1330,4 +1453,30 @@ label.designkarte:has(input:checked) {
 [data-design='weich'] .verbleib[data-verbleib='spaeter_verkaufen'] {
 	--grund: #fff1c2;
 	--schrift-farbe: #854d0e;
+}
+
+/* Seitenmenü je Design: Neon mit leuchtender aktiver Zeile und Versalien-Marke, Weich mit runderen Zeilen. */
+[data-design='neon'] .menuemarke {
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+[data-design='neon'] nav.menueinhalt .menuelink[aria-current='page'] {
+	color: var(--akzent);
+	background: rgb(125 249 200 / 0.1);
+	box-shadow: inset 0 0 0 1px rgb(125 249 200 / 0.35);
+}
+
+[data-design='weich'] .menuemarke {
+	font-size: 1.35rem;
+	font-weight: 800;
+}
+
+[data-design='weich'] nav.menueinhalt :is(.menuelink, button.menue-schliessen) {
+	border-radius: 14px;
+}
+
+[data-design='weich'] nav.menueinhalt .menuelink[aria-current='page'] {
+	background: #ece8f8;
+	font-weight: 700;
 }
