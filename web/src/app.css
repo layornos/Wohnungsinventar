@@ -1728,3 +1728,37 @@ label.theme-card:has(input:checked) {
 	background: #ece8f8;
 	font-weight: 700;
 }
+
+/* ===== Storage location labels and "Hier einräumen" (feedback-2, ticket 06) ===== */
+
+/* The label reuses the box label sheet; instead of the large number it shows the path and the name large. */
+.storage-location-label .label-path {
+	font-size: 6mm;
+	font-weight: 600;
+}
+
+.storage-location-label .label-location {
+	font-size: 12mm;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+/* "Hier einräumen": the confirmation of the last placed item stands out until the next one. */
+.stow {
+	display: grid;
+	gap: 8px;
+}
+
+.stow .header h2 {
+	margin: 0;
+}
+
+.stow-done {
+	margin: 0;
+	padding: 10px 12px;
+	border-radius: 8px;
+	background: color-mix(in srgb, var(--accent) 14%, transparent);
+	font-weight: 600;
+}
+
+/* ===== End of storage location labels ===== */

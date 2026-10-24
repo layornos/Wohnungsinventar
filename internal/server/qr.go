@@ -18,6 +18,11 @@ func (s *server) unpackLink(r *http.Request, boxID int64) string {
 	return fmt.Sprintf("%s://%s/boxen/%d/auspacken", s.scheme(r), r.Host, boxID)
 }
 
+// storageLocationLink builds the link to the page of a storage location, the same way as unpackLink.
+func (s *server) storageLocationLink(r *http.Request, storageLocationID int64) string {
+	return fmt.Sprintf("%s://%s/lagerorte/%d", s.scheme(r), r.Host, storageLocationID)
+}
+
 // boxQRCode returns the QR code of the unpack link of a box as SVG, e.g. for the label.
 func (s *server) boxQRCode(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r, "id")
@@ -28,7 +33,25 @@ func (s *server) boxQRCode(w http.ResponseWriter, r *http.Request) {
 		s.storeError(w, r, err)
 		return
 	}
-	svg, err := qrSVG(s.unpackLink(r, id))
+	s.writeQRCode(w, r, s.unpackLink(r, id))
+}
+
+// storageLocationQRCode returns the QR code of the link to a storage location as SVG, for its label.
+func (s *server) storageLocationQRCode(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	if _, err := s.Store.GetStorageLocation(r.Context(), id); err != nil {
+		s.storeError(w, r, err)
+		return
+	}
+	s.writeQRCode(w, r, s.storageLocationLink(r, id))
+}
+
+// writeQRCode answers with the QR code of link as SVG.
+func (s *server) writeQRCode(w http.ResponseWriter, r *http.Request, link string) {
+	svg, err := qrSVG(link)
 	if err != nil {
 		s.internalError(w, r, err)
 		return

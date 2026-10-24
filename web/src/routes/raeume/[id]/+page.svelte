@@ -100,6 +100,7 @@
 			<h2>Lagerorte</h2>
 			{#if room.storageLocations.length > 0}
 				<StorageLocationTree nodes={room.storageLocations} />
+				<a class="button secondary small" href="/raeume/{id}/etiketten">Alle Etiketten drucken</a>
 			{:else}
 				<p class="muted">Noch keine Lagerorte.</p>
 			{/if}

@@ -22,6 +22,10 @@
 	let target = $state<Place | null>(null);
 	let error = $state('');
 	let busy = $state(false);
+	let stowing = $state(false);
+	// Items placed here in the current "Hier einräumen" round, newest first, as immediate feedback.
+	let stowed = $state<{ id: number; name: string }[]>([]);
+	let stowError = $state('');
 
 	// It can't be moved into itself or one of its nested storage locations.
 	const inOwnTree = (p: PlaceEntry) => p.kind === 'storageLocation' && !!location?.subtree.includes(p.id);
@@ -53,6 +57,8 @@
 
 	$effect(() => {
 		load(id);
+		stowing = false;
+		stowed = [];
 	});
 
 	async function run(action: () => Promise<unknown>) {
@@ -100,6 +106,24 @@
 		if (await run(() => api('PUT', `/api/storage-locations/${id}/furniture`, { itemId }))) choosingFurniture = false;
 	}
 
+	function startStowing() {
+		stowed = [];
+		stowError = '';
+		stowing = true;
+	}
+
+	// Puts the tapped item into this storage location and stays in the mode for the next one.
+	async function stow(item: ItemListEntry) {
+		stowError = '';
+		try {
+			await api('PUT', `/api/items/${item.id}/placement`, { storageLocationId: id });
+			stowed = [{ id: item.id, name: item.name }, ...stowed.filter((s) => s.id !== item.id)];
+			await loadItems(id, 1);
+		} catch (e) {
+			stowError = `„${item.name}“: ${errorText(e)}`;
+		}
+	}
+
 	async function remove() {
 		if (!location) return;
 		error = '';
@@ -142,8 +166,31 @@
 				<button class="secondary small" onclick={() => (name = location?.name ?? '')}>Umbenennen</button>
 				<button class="secondary small" onclick={startMoving}>Verschieben</button>
 				<button class="secondary small" onclick={remove}>Löschen</button>
+				<a class="button secondary small" href="/lagerorte/{id}/etikett">Etikett</a>
 			</div>
 		{/if}
+
+		<section class="stow">
+			{#if stowing}
+				<div class="header">
+					<h2>Hier einräumen</h2>
+					<button class="secondary small" onclick={() => (stowing = false)}>Fertig</button>
+				</div>
+				<p class="muted small-text">Item suchen und antippen: Es liegt dann in „{location.name}“.</p>
+				<ItemSearch chosen={stow} clearOnChoose />
+				{#if stowError}
+					<p class="error" role="alert">{stowError}</p>
+				{/if}
+				{#if stowed.length > 0}
+					<p class="stow-done" role="status">✓ „{stowed[0].name}“ liegt jetzt hier.</p>
+					{#if stowed.length > 1}
+						<p class="muted small-text">Eingeräumt: {stowed.map((s) => s.name).join(', ')}</p>
+					{/if}
+				{/if}
+			{:else}
+				<button class="full-width" onclick={startStowing}>Hier einräumen</button>
+			{/if}
+		</section>
 
 		{#if moving}
 			<section>
