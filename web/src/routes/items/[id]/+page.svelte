@@ -168,6 +168,11 @@
 		{#if foto}
 			<figure class="grossfoto">
 				<a href={foto.url} target="_blank" rel="noopener"><img src={foto.vorschauUrl} alt={item.name} /></a>
+				{#if item.fotos.length > 1}
+					<button type="button" class="foto-loeschen" aria-label="Foto löschen" disabled={laeuft} onclick={() => fotoLoeschen(foto.id)}>
+						×
+					</button>
+				{/if}
 			</figure>
 		{/if}
 		<ul class="fotoleiste">
@@ -188,7 +193,6 @@
 				{:else}
 					<span class="marke">Hauptfoto</span>
 				{/if}
-				<button class="sekundaer" disabled={laeuft} onclick={() => fotoLoeschen(foto.id)}>Foto löschen</button>
 			</div>
 		{/if}
 		<FotoEingabe gewaehlt={fotosHochladen} deaktiviert={laeuft} />
