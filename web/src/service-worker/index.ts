@@ -52,3 +52,11 @@ async function cacheOnFirstUse(request: Request): Promise<Response> {
 	}
 	return response;
 }
+
+// A new version waits until the user taps "Neu laden" in the update notice (lib/appUpdate.svelte.ts), so an
+// open page never switches to new code on its own, e.g. in the middle of editing.
+sw.addEventListener('message', (event) => {
+	if (event.data?.type === 'skip-waiting') {
+		sw.skipWaiting();
+	}
+});

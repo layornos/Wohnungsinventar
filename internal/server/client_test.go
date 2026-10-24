@@ -16,6 +16,7 @@ func TestClientRoutesReturnTheAppShell(t *testing.T) {
 			"index.html":                {Data: []byte("<html>app-shell</html>")},
 			"manifest.webmanifest":      {Data: []byte(`{"name":"Inventar"}`)},
 			"_app/immutable/entry/a.js": {Data: []byte("console.log(1)")},
+			"service-worker.js":         {Data: []byte("self.skipWaiting")},
 		}
 	})
 
@@ -24,6 +25,7 @@ func TestClientRoutesReturnTheAppShell(t *testing.T) {
 		"/items/42":                  "app-shell",
 		"/manifest.webmanifest":      `"Inventar"`,
 		"/_app/immutable/entry/a.js": "console.log",
+		"/service-worker.js":         "skipWaiting",
 	} {
 		res, err := http.Get(e.srv.URL + path)
 		if err != nil {
@@ -37,8 +39,15 @@ func TestClientRoutesReturnTheAppShell(t *testing.T) {
 		if path == "/manifest.webmanifest" && res.Header.Get("Content-Type") != "application/manifest+json" {
 			t.Errorf("%s: Content-Type %q", path, res.Header.Get("Content-Type"))
 		}
-		if strings.HasPrefix(path, "/_app/immutable/") && !strings.Contains(res.Header.Get("Cache-Control"), "immutable") {
-			t.Errorf("%s: Cache-Control %q", path, res.Header.Get("Cache-Control"))
+		// Only hashed files may be cached for long; the app shell and the service worker must be revalidated on
+		// every request, or an installed app keeps the old version after a deploy.
+		cacheControl := res.Header.Get("Cache-Control")
+		if strings.HasPrefix(path, "/_app/immutable/") {
+			if !strings.Contains(cacheControl, "immutable") {
+				t.Errorf("%s: Cache-Control %q", path, cacheControl)
+			}
+		} else if cacheControl != "no-cache" {
+			t.Errorf("%s: Cache-Control %q, want no-cache", path, cacheControl)
 		}
 	}
 }

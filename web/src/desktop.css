@@ -92,6 +92,11 @@ label.chip:has(input:focus-visible) {
 		display: none;
 	}
 
+	/* Without the bottom bar the update notice sits at the screen edge. */
+	.update-notice.above-bottom-bar {
+		bottom: calc(16px + env(safe-area-inset-bottom));
+	}
+
 	/* What the bottom bar held on narrow screens goes back into the page. */
 	input.on-wide {
 		display: block;
