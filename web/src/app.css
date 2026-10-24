@@ -291,7 +291,26 @@ label.chip input {
 }
 
 .grossfoto {
+	position: relative;
 	margin: 0 0 12px;
+}
+
+/* Dunkler Kreis mit hellem Rand: bleibt auf hellen wie dunklen Fotos sichtbar. */
+.grossfoto button.foto-loeschen {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	width: 44px;
+	min-height: 44px;
+	height: 44px;
+	padding: 0;
+	border: 2px solid rgb(255 255 255 / 0.9);
+	border-radius: 50%;
+	background: rgb(0 0 0 / 0.55);
+	color: #ffffff;
+	font-size: 26px;
+	line-height: 1;
+	box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
 
 .grossfoto img {
