@@ -60,7 +60,7 @@
 		busy = true;
 		try {
 			const s = await api<StorageLocation>('POST', '/api/storage-locations', { name: newName, ...parentBody(parent) });
-			const entry: PlaceEntry = { kind: 'storageLocation', id: s.id, path: pathText(s.path) };
+			const entry: PlaceEntry = { kind: 'storageLocation', id: s.id, apartmentId: s.path.apartment.id, path: pathText(s.path) };
 			places = [...places, entry].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 			choose(entry);
 		} catch (e) {

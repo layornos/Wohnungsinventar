@@ -25,7 +25,6 @@
 	let order = new Map<number, number>();
 
 	const inMove = $derived(!!box && !!move?.boxes.some((b) => b.id === box?.id));
-	const newApartmentPrefix = $derived(move ? `${move.newApartment.name} › ` : '');
 	const chosenPath = $derived(places.find((p) => p.kind === place?.kind && p.id === place?.id)?.path ?? '');
 	const nextBox = $derived.by(() => {
 		if (!move || !box) return null;
@@ -133,7 +132,7 @@
 				title="Einräumen in"
 				noneAllowed={false}
 				create
-				hide={(p) => !p.path.startsWith(newApartmentPrefix)}
+				hide={(p) => p.apartmentId !== move?.newApartment.id}
 			/>
 		</div>
 
