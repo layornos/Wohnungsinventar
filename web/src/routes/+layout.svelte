@@ -5,6 +5,8 @@
 	import { updateThemeColor } from '#lib/theme.svelte.ts';
 	import BottomBar from '#lib/BottomBar.svelte';
 	import SideMenu from '#lib/SideMenu.svelte';
+	import UpdateNotice from '#lib/UpdateNotice.svelte';
+	import { watchForUpdates } from '#lib/appUpdate.svelte.ts';
 	import { loadSession, session } from '#lib/session.svelte.ts';
 	import '../app.css';
 	import '../desktop.css';
@@ -23,6 +25,9 @@
 		dark.addEventListener('change', updateThemeColor);
 		return () => dark.removeEventListener('change', updateThemeColor);
 	});
+
+	// After a deploy the open app offers "Neu laden" instead of showing the old version until it is closed.
+	$effect(() => watchForUpdates());
 
 	$effect(() => {
 		if (session.loaded && !session.user && !isPublic(page.url.pathname)) {
@@ -53,3 +58,4 @@
 		<SideMenu kind="dialog" />
 	{/if}
 {/if}
+<UpdateNotice aboveBottomBar={!!session.user && !isPublic(page.url.pathname)} />

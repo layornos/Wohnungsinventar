@@ -33,3 +33,11 @@ sw.addEventListener('fetch', (event) => {
 	}
 	event.respondWith(caches.match(event.request).then((hit) => hit ?? fetch(event.request)));
 });
+
+// A new version waits until the user taps "Neu laden" in the update notice (lib/appUpdate.svelte.ts), so an
+// open page never switches to new code on its own, e.g. in the middle of editing.
+sw.addEventListener('message', (event) => {
+	if (event.data?.type === 'skip-waiting') {
+		sw.skipWaiting();
+	}
+});

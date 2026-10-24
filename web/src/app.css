@@ -1529,3 +1529,46 @@ label.theme-card:has(input:checked) {
 	background: #ece8f8;
 	font-weight: 700;
 }
+
+/*
+ * Update notice ("Neue Version verfügbar", lib/UpdateNotice.svelte): a small floating strip at the bottom, on
+ * narrow screens just above the bottom bar so it never covers it. All colours via the theme tokens.
+ */
+.update-notice {
+	position: fixed;
+	left: 16px;
+	right: 16px;
+	bottom: calc(16px + env(safe-area-inset-bottom));
+	z-index: 11;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	max-width: 420px;
+	margin: 0 auto;
+	padding: 8px 8px 8px 16px;
+	background: var(--surface-solid);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-large);
+	box-shadow: var(--shadow-floating);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
+	font-size: 0.95rem;
+}
+
+.update-notice.above-bottom-bar {
+	bottom: calc(var(--bottom-bar-height) + 12px);
+}
+
+.update-notice button {
+	flex-shrink: 0;
+}
+
+[data-theme='neon'] .update-notice {
+	box-shadow: var(--glow);
+}
+
+[data-theme='soft'] .update-notice {
+	border-color: transparent;
+}
