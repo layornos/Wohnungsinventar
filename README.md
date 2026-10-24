@@ -14,10 +14,10 @@ make run     # Client bauen, Server auf http://localhost:8080 starten, Daten in 
 Ersten Nutzer anlegen (fragt das Passwort ab):
 
 ```sh
-go run ./cmd/inventar nutzer-anlegen --name "Alex" --email alex@example.org
+go run ./cmd/inventar create-user --name "Alex" --email alex@example.org
 ```
 
-Für die Arbeit am Client mit Hot Reload laufen Go-Server (`go run ./cmd/inventar starten`) und `npm run dev` in `web/` nebeneinander. Vite leitet `/api` an `localhost:8080` weiter.
+Für die Arbeit am Client mit Hot Reload laufen Go-Server (`go run ./cmd/inventar serve`) und `npm run dev` in `web/` nebeneinander. Vite leitet `/api` an `localhost:8080` weiter.
 
 Ohne DuckDNS-Angaben läuft der Server per HTTP. Browser behandeln `localhost` als sichere Umgebung, PWA und Kamera funktionieren dort also auch ohne Zertifikat. Ohne SMTP-Angaben schreibt der Server Mails nur ins Log.
 
@@ -33,7 +33,7 @@ Das Binary auf den Pi kopieren. Es enthält den Client und alle Migrationen.
 |---|---|---|
 | `INVENTAR_DATA_DIR` | Verzeichnis für Datenbank, Fotos (Ordner `fotos`) und Zertifikate. Sollte auf der SSD liegen und gehört komplett ins Backup. | `./data` |
 | `INVENTAR_ADDR` | Adresse und Port | `:443` mit DuckDNS, sonst `localhost:8080` |
-| `INVENTAR_MAX_FOTO_MB` | Größte erlaubte Fotodatei in MB | `20` |
+| `INVENTAR_MAX_PHOTO_MB` | Größte erlaubte Fotodatei in MB | `20` |
 | `INVENTAR_DUCKDNS_DOMAIN` | z. B. `inventar-xyz.duckdns.org`. Aktiviert HTTPS (ADR-0004). | – |
 | `INVENTAR_DUCKDNS_TOKEN` | DuckDNS-Token, Pflicht zusammen mit der Domain | – |
 | `INVENTAR_SMTP_HOST` | z. B. `smtp.gmail.com`. Aktiviert den Mailversand. | – |
@@ -49,7 +49,9 @@ Mit DuckDNS holt der Server das Let's-Encrypt-Zertifikat per DNS-01 selbst und e
 Befehle:
 
 ```sh
-inventar starten
-inventar nutzer-anlegen --name NAME --email EMAIL
-inventar passwort-zuruecksetzen --email EMAIL   # beendet alle Sitzungen des Nutzers
+inventar serve
+inventar create-user --name NAME --email EMAIL
+inventar reset-password --email EMAIL           # beendet alle Sitzungen des Nutzers
 ```
+
+Beim Update von einer Version mit deutschen Befehlen (`starten`, `nutzer-anlegen`, `passwort-zuruecksetzen`) Aufrufe und Dienstdatei anpassen und `INVENTAR_MAX_FOTO_MB` in `INVENTAR_MAX_PHOTO_MB` umbenennen. Die Datenbank wird beim Start automatisch migriert (englische Tabellennamen, Daten bleiben erhalten); alle Nutzer müssen sich danach einmal neu anmelden.

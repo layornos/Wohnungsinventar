@@ -1,4 +1,4 @@
-// Package config lädt die Server-Konfiguration aus Umgebungsvariablen.
+// Package config loads the server configuration from environment variables.
 package config
 
 import (
@@ -7,70 +7,70 @@ import (
 	"strconv"
 )
 
-const StandardMaxFotoGroesse = 20 << 20
+const DefaultMaxPhotoSize = 20 << 20
 
 type Config struct {
-	Datenverzeichnis string
-	Adresse          string
-	// MaxFotoGroesse ist die größte erlaubte Fotodatei in Bytes.
-	MaxFotoGroesse int64
-	DuckDNS        DuckDNS
-	SMTP           SMTP
+	DataDir string
+	Addr    string
+	// MaxPhotoSize is the largest allowed photo file in bytes.
+	MaxPhotoSize int64
+	DuckDNS      DuckDNS
+	SMTP         SMTP
 }
 
-// DuckDNS aktiviert HTTPS mit Zertifikat per DNS-01 (ADR-0004), wenn Domain und Token gesetzt sind.
+// DuckDNS enables HTTPS with a certificate via DNS-01 (ADR-0004) when domain and token are set.
 type DuckDNS struct {
 	Domain string
 	Token  string
 }
 
-// SMTP aktiviert echten Mailversand; ohne Host landen Mails nur im Log.
+// SMTP enables real mail delivery; without a host, mails only end up in the log.
 type SMTP struct {
 	Host     string
 	Port     int
-	Nutzer   string
-	Passwort string
-	Absender string
+	User     string
+	Password string
+	From     string
 }
 
-func (c Config) MitTLS() bool  { return c.DuckDNS.Domain != "" }
-func (c Config) MitSMTP() bool { return c.SMTP.Host != "" }
+func (c Config) WithTLS() bool  { return c.DuckDNS.Domain != "" }
+func (c Config) WithSMTP() bool { return c.SMTP.Host != "" }
 
-func Laden(getenv func(string) string) (Config, error) {
+func Load(getenv func(string) string) (Config, error) {
 	c := Config{
-		Datenverzeichnis: getenv("INVENTAR_DATA_DIR"),
-		Adresse:          getenv("INVENTAR_ADDR"),
+		DataDir: getenv("INVENTAR_DATA_DIR"),
+		Addr:    getenv("INVENTAR_ADDR"),
 		DuckDNS: DuckDNS{
 			Domain: getenv("INVENTAR_DUCKDNS_DOMAIN"),
 			Token:  getenv("INVENTAR_DUCKDNS_TOKEN"),
 		},
 		SMTP: SMTP{
 			Host:     getenv("INVENTAR_SMTP_HOST"),
-			Nutzer:   getenv("INVENTAR_SMTP_USER"),
-			Passwort: getenv("INVENTAR_SMTP_PASSWORD"),
-			Absender: getenv("INVENTAR_SMTP_FROM"),
+			User:     getenv("INVENTAR_SMTP_USER"),
+			Password: getenv("INVENTAR_SMTP_PASSWORD"),
+			From:     getenv("INVENTAR_SMTP_FROM"),
 		},
 	}
-	if c.Datenverzeichnis == "" {
-		c.Datenverzeichnis = "data"
+	if c.DataDir == "" {
+		c.DataDir = "data"
 	}
-	c.MaxFotoGroesse = StandardMaxFotoGroesse
-	if mb := getenv("INVENTAR_MAX_FOTO_MB"); mb != "" {
+	c.MaxPhotoSize = DefaultMaxPhotoSize
+	if mb := getenv("INVENTAR_MAX_PHOTO_MB"); mb != "" {
 		n, err := strconv.Atoi(mb)
 		if err != nil || n <= 0 {
-			return Config{}, fmt.Errorf("INVENTAR_MAX_FOTO_MB ist keine positive Zahl: %q", mb)
+			return Config{}, fmt.Errorf("INVENTAR_MAX_PHOTO_MB is not a positive number: %q", mb)
 		}
-		c.MaxFotoGroesse = int64(n) << 20
+		c.MaxPhotoSize = int64(n) << 20
 	}
 
 	if (c.DuckDNS.Domain == "") != (c.DuckDNS.Token == "") {
-		return Config{}, errors.New("INVENTAR_DUCKDNS_DOMAIN und INVENTAR_DUCKDNS_TOKEN müssen zusammen gesetzt sein")
+		return Config{}, errors.New("INVENTAR_DUCKDNS_DOMAIN and INVENTAR_DUCKDNS_TOKEN must be set together")
 	}
-	if c.Adresse == "" {
-		if c.MitTLS() {
-			c.Adresse = ":443"
+	if c.Addr == "" {
+		if c.WithTLS() {
+			c.Addr = ":443"
 		} else {
-			c.Adresse = "localhost:8080"
+			c.Addr = "localhost:8080"
 		}
 	}
 
@@ -78,22 +78,22 @@ func Laden(getenv func(string) string) (Config, error) {
 	if port != "" {
 		p, err := strconv.Atoi(port)
 		if err != nil {
-			return Config{}, fmt.Errorf("INVENTAR_SMTP_PORT ist keine Zahl: %q", port)
+			return Config{}, fmt.Errorf("INVENTAR_SMTP_PORT is not a number: %q", port)
 		}
 		c.SMTP.Port = p
 	}
-	if c.MitSMTP() {
-		if c.SMTP.Nutzer == "" || c.SMTP.Passwort == "" {
-			return Config{}, errors.New("INVENTAR_SMTP_HOST gesetzt, aber INVENTAR_SMTP_USER oder INVENTAR_SMTP_PASSWORD fehlt")
+	if c.WithSMTP() {
+		if c.SMTP.User == "" || c.SMTP.Password == "" {
+			return Config{}, errors.New("INVENTAR_SMTP_HOST is set, but INVENTAR_SMTP_USER or INVENTAR_SMTP_PASSWORD is missing")
 		}
 		if c.SMTP.Port == 0 {
 			c.SMTP.Port = 587
 		}
-		if c.SMTP.Absender == "" {
-			c.SMTP.Absender = c.SMTP.Nutzer
+		if c.SMTP.From == "" {
+			c.SMTP.From = c.SMTP.User
 		}
-	} else if c.SMTP.Nutzer != "" || c.SMTP.Passwort != "" || c.SMTP.Absender != "" || port != "" {
-		return Config{}, errors.New("SMTP-Angaben gesetzt, aber INVENTAR_SMTP_HOST fehlt")
+	} else if c.SMTP.User != "" || c.SMTP.Password != "" || c.SMTP.From != "" || port != "" {
+		return Config{}, errors.New("SMTP settings are set, but INVENTAR_SMTP_HOST is missing")
 	}
 	return c, nil
 }

@@ -24,43 +24,43 @@ import (
 	"inventar/internal/store"
 )
 
-// testEnv ist ein echter Server mit echter SQLite-Datei in einem temporären Datenverzeichnis.
+// testEnv is a real server with a real SQLite file in a temporary data directory.
 type testEnv struct {
 	t       *testing.T
 	dataDir string
-	mailer  *mail.Aufzeichner
+	mailer  *mail.Recorder
 	srv     *httptest.Server
 }
 
 func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
-	return newTestEnvMit(t, func(*server.Deps) {})
+	return newTestEnvWith(t, func(*server.Deps) {})
 }
 
-// newTestEnvMit startet den Server mit angepassten Abhängigkeiten, z. B. einem eigenen Client.
-func newTestEnvMit(t *testing.T, anpassen func(*server.Deps)) *testEnv {
+// newTestEnvWith starts the server with adjusted dependencies, e.g. a client of its own.
+func newTestEnvWith(t *testing.T, adjust func(*server.Deps)) *testEnv {
 	t.Helper()
 	dataDir := t.TempDir()
 	st, err := store.Open(context.Background(), dataDir)
 	if err != nil {
-		t.Fatalf("store öffnen: %v", err)
+		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { st.Close() })
 
-	rec := &mail.Aufzeichner{}
+	rec := &mail.Recorder{}
 	d := server.Deps{
-		Config: config.Config{Datenverzeichnis: dataDir},
+		Config: config.Config{DataDir: dataDir},
 		Store:  st,
 		Mailer: rec,
 		Client: fstest.MapFS{},
 	}
-	anpassen(&d)
+	adjust(&d)
 	srv := httptest.NewServer(server.New(d))
 	t.Cleanup(srv.Close)
 	return &testEnv{t: t, dataDir: dataDir, mailer: rec, srv: srv}
 }
 
-// runCLI führt einen Unterbefehl gegen dasselbe Datenverzeichnis aus.
+// runCLI runs a subcommand against the same data directory.
 func (e *testEnv) runCLI(stdin string, args ...string) (string, error) {
 	e.t.Helper()
 	var out bytes.Buffer
@@ -69,10 +69,10 @@ func (e *testEnv) runCLI(stdin string, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func (e *testEnv) createNutzer(name, email, password string) {
+func (e *testEnv) createUser(name, email, password string) {
 	e.t.Helper()
-	if out, err := e.runCLI(password+"\n", "nutzer-anlegen", "--name", name, "--email", email); err != nil {
-		e.t.Fatalf("nutzer-anlegen: %v\n%s", err, out)
+	if out, err := e.runCLI(password+"\n", "create-user", "--name", name, "--email", email); err != nil {
+		e.t.Fatalf("create-user: %v\n%s", err, out)
 	}
 }
 
@@ -87,12 +87,19 @@ func (e *testEnv) client() *apiClient {
 	return &apiClient{t: e.t, base: e.srv.URL, http: &http.Client{Jar: jar}}
 }
 
-// loggedIn legt einen Nutzer an und liefert einen angemeldeten Client.
+// loginAs logs in a new client with the given credentials and returns it with the login response.
+func (e *testEnv) loginAs(email, password string) (*apiClient, response) {
+	e.t.Helper()
+	c := e.client()
+	res := c.mustStatus(http.StatusOK, "POST", "/api/login", map[string]any{"email": email, "password": password})
+	return c, res
+}
+
+// loggedIn creates a user and returns a logged-in client.
 func (e *testEnv) loggedIn() *apiClient {
 	e.t.Helper()
-	e.createNutzer("Alex", "alex@example.org", "geheim-geheim")
-	c := e.client()
-	c.mustStatus(http.StatusOK, "POST", "/api/anmeldung", map[string]any{"email": "alex@example.org", "passwort": "geheim-geheim"})
+	e.createUser("Alex", "alex@example.org", "geheim-geheim")
+	c, _ := e.loginAs("alex@example.org", "geheim-geheim")
 	return c
 }
 
@@ -136,25 +143,25 @@ func (c *apiClient) send(req *http.Request) response {
 	return out
 }
 
-// formular ist der Inhalt einer multipart-Anfrage: Textfelder (auch mehrfach) und Fotos.
-type formular struct {
-	felder [][2]string
-	fotos  [][]byte
+// form is the content of a multipart request: text fields (also repeated) and photos.
+type form struct {
+	fields [][2]string
+	photos [][]byte
 }
 
-func (c *apiClient) multipart(method, path string, f formular) response {
+func (c *apiClient) multipart(method, path string, f form) response {
 	c.t.Helper()
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
-	for _, feld := range f.felder {
-		w.WriteField(feld[0], feld[1])
+	for _, field := range f.fields {
+		w.WriteField(field[0], field[1])
 	}
-	for i, foto := range f.fotos {
-		part, err := w.CreateFormFile("foto", fmt.Sprintf("foto%d.jpg", i))
+	for i, p := range f.photos {
+		part, err := w.CreateFormFile("photo", fmt.Sprintf("photo%d.jpg", i))
 		if err != nil {
 			c.t.Fatal(err)
 		}
-		part.Write(foto)
+		part.Write(p)
 	}
 	w.Close()
 	req, err := http.NewRequest(method, c.base+path, &b)
@@ -165,21 +172,21 @@ func (c *apiClient) multipart(method, path string, f formular) response {
 	return c.send(req)
 }
 
-// itemAnlegen legt ein Item mit den Besitzern und Fotos an und liefert seine Darstellung.
-func (c *apiClient) itemAnlegen(name string, besitzer []int64, fotos ...[]byte) response {
+// createItem creates an item with the owners and photos and returns its representation.
+func (c *apiClient) createItem(name string, owners []int64, photos ...[]byte) response {
 	c.t.Helper()
-	f := formular{felder: [][2]string{{"name", name}}, fotos: fotos}
-	for _, id := range besitzer {
-		f.felder = append(f.felder, [2]string{"besitzer", fmt.Sprint(id)})
+	f := form{fields: [][2]string{{"name", name}}, photos: photos}
+	for _, id := range owners {
+		f.fields = append(f.fields, [2]string{"owner", fmt.Sprint(id)})
 	}
 	res := c.multipart("POST", "/api/items", f)
 	if res.Status != http.StatusCreated {
-		c.t.Fatalf("Item anlegen: Status %d: %s", res.Status, res.Raw)
+		c.t.Fatalf("create item: status %d: %s", res.Status, res.Raw)
 	}
 	return res
 }
 
-// get ruft eine Adresse ab, z. B. ein Foto, und liefert die rohe Antwort.
+// get fetches an address, e.g. a photo, and returns the raw response.
 func (c *apiClient) get(path string) response {
 	c.t.Helper()
 	req, err := http.NewRequest("GET", c.base+path, nil)
@@ -193,23 +200,23 @@ func (c *apiClient) mustStatus(want int, method, path string, body any) response
 	c.t.Helper()
 	res := c.do(method, path, body)
 	if res.Status != want {
-		c.t.Fatalf("%s %s: Status %d, erwartet %d: %s", method, path, res.Status, want, res.Raw)
+		c.t.Fatalf("%s %s: status %d, want %d: %s", method, path, res.Status, want, res.Raw)
 	}
 	return res
 }
 
-// ich liefert die Person-ID des angemeldeten Nutzers.
-func (c *apiClient) ich() int64 {
+// me returns the person ID of the logged-in user.
+func (c *apiClient) me() int64 {
 	c.t.Helper()
-	return int64(c.mustStatus(http.StatusOK, "GET", "/api/ich", nil).Body["personId"].(float64))
+	return int64(c.mustStatus(http.StatusOK, "GET", "/api/me", nil).Body["personId"].(float64))
 }
 
-func (c *apiClient) personAnlegen(name string) int64 {
+func (c *apiClient) createPerson(name string) int64 {
 	c.t.Helper()
-	return int64(c.mustStatus(http.StatusCreated, "POST", "/api/personen", map[string]any{"name": name}).Body["id"].(float64))
+	return int64(c.mustStatus(http.StatusCreated, "POST", "/api/persons", map[string]any{"name": name}).Body["id"].(float64))
 }
 
-// errorCode liefert den fachlichen Fehlercode einer Fehlerantwort.
+// errorCode returns the domain error code of an error response.
 func (r response) errorCode() string {
 	s, _ := r.Body["code"].(string)
 	return s
@@ -224,27 +231,27 @@ func mustURL(t *testing.T, raw string) *url.URL {
 	return u
 }
 
-// keineFotoDateien prüft, dass im Foto-Ordner keine Dateien liegen, z. B. nach dem Löschen.
-func (e *testEnv) keineFotoDateien() {
+// noPhotoFiles checks that there are no files in the photo folder, e.g. after deleting.
+func (e *testEnv) noPhotoFiles() {
 	e.t.Helper()
-	dateien, err := os.ReadDir(filepath.Join(e.dataDir, store.FotoVerzeichnis))
+	files, err := os.ReadDir(filepath.Join(e.dataDir, store.PhotoDir))
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	for _, d := range dateien {
-		e.t.Errorf("Datei %s liegt noch im Foto-Ordner", d.Name())
+	for _, f := range files {
+		e.t.Errorf("file %s is still in the photo folder", f.Name())
 	}
 }
 
-// keineVerwaistenFotos prüft, dass im Foto-Ordner nur die Dateien der angelegten Fotos liegen
-// (Original und Vorschau je Foto).
-func (e *testEnv) keineVerwaistenFotos(fotos int) {
+// noOrphanedPhotos checks that the photo folder only holds the files of the created photos
+// (original and thumbnail per photo).
+func (e *testEnv) noOrphanedPhotos(photos int) {
 	e.t.Helper()
-	dateien, err := os.ReadDir(filepath.Join(e.dataDir, store.FotoVerzeichnis))
+	files, err := os.ReadDir(filepath.Join(e.dataDir, store.PhotoDir))
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	if len(dateien) != 2*fotos {
-		e.t.Errorf("%d Dateien im Foto-Ordner, erwartet %d", len(dateien), 2*fotos)
+	if len(files) != 2*photos {
+		e.t.Errorf("%d files in the photo folder, want %d", len(files), 2*photos)
 	}
 }

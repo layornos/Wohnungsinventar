@@ -1,4 +1,4 @@
-// Package webui liefert den statisch gebauten SvelteKit-Client aus, der ins Binary eingebettet ist.
+// Package webui serves the statically built SvelteKit client that is embedded in the binary.
 package webui
 
 import (
@@ -10,23 +10,23 @@ import (
 	"strings"
 )
 
-// dist wird vom Client-Build befüllt; im Repo liegt nur ein Platzhalter.
+// dist is filled by the client build; the repo only holds a placeholder.
 //
 //go:embed all:dist
 var dist embed.FS
 
 func init() {
-	// Ohne diesen Typ bieten manche Browser die Installation der PWA nicht an.
+	// Without this type some browsers do not offer to install the PWA.
 	mime.AddExtensionType(".webmanifest", "application/manifest+json")
 }
 
-// Dist liefert die eingebetteten Client-Dateien.
+// Dist returns the embedded client files.
 func Dist() fs.FS {
 	root, _ := fs.Sub(dist, "dist")
 	return root
 }
 
-// Handler liefert Dateien aus root aus; unbekannte Pfade bekommen die App-Hülle.
+// Handler serves files from root; unknown paths get the app shell.
 func Handler(root fs.FS) http.Handler {
 	files := http.FileServerFS(root)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +42,7 @@ func Handler(root fs.FS) http.Handler {
 				return
 			}
 		}
-		// Unbekannte Pfade liefern die App-Hülle, damit das Client-Routing greift.
+		// Unknown paths return the app shell so that client-side routing takes over.
 		index, err := fs.ReadFile(root, "index.html")
 		if err != nil {
 			http.Error(w, "Client ist nicht gebaut. Bitte zuerst den Client bauen.", http.StatusServiceUnavailable)

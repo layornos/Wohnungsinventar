@@ -1,4 +1,4 @@
-// Package server stellt die JSON-API und den eingebetteten Client bereit.
+// Package server provides the JSON API and the embedded client.
 package server
 
 import (
@@ -13,97 +13,96 @@ import (
 	"time"
 
 	"inventar/internal/config"
-	"inventar/internal/foto"
 	"inventar/internal/mail"
+	"inventar/internal/photo"
 	"inventar/internal/store"
 	"inventar/internal/webui"
 )
 
-// Store ist der Ausschnitt des Datenzugriffs, den die API braucht (ADR-0002),
-// gegliedert nach den fachlichen Bereichen.
+// Store is the part of data access the API needs (ADR-0002), grouped by domain area.
 type Store interface {
-	ZugangStore
-	PersonenStore
+	AccessStore
+	PersonStore
 	ItemStore
-	OrteStore
-	UmzugStore
-	EinladungStore
+	PlaceStore
+	MoveStore
+	InvitationStore
 }
 
-type UmzugStore interface {
-	LaufenderUmzug(ctx context.Context) (store.Umzug, error)
-	UmzugAbrufen(ctx context.Context, id int64) (store.Umzug, error)
-	UmzuegeAuflisten(ctx context.Context) ([]store.Umzug, error)
-	UmzugAnlegen(ctx context.Context, alteWohnungID, neueWohnungID int64, jetzt time.Time) (store.Umzug, error)
-	BoxAnlegen(ctx context.Context, bezeichnung string, jetzt time.Time) (store.Box, error)
-	BoxAbrufen(ctx context.Context, id int64) (store.Box, error)
-	BoxPerNummer(ctx context.Context, nummer int) (store.Box, error)
-	BoxUmbenennen(ctx context.Context, id int64, bezeichnung string) (store.Box, error)
-	BoxLoeschen(ctx context.Context, id int64) error
-	UmzugsangabenSetzen(ctx context.Context, itemID int64, a store.AngabenAenderung, jetzt time.Time) (store.Item, error)
-	UmzugsangabenSammeln(ctx context.Context, itemIDs []int64, a store.AngabenAenderung, jetzt time.Time) error
-	Zielraumuebersicht(ctx context.Context) ([]store.ZielraumEintrag, error)
-	UmzugAbschliessen(ctx context.Context, bestaetigt bool, jetzt time.Time) (store.Umzug, []store.ItemListenEintrag, error)
+type MoveStore interface {
+	ActiveMove(ctx context.Context) (store.Move, error)
+	GetMove(ctx context.Context, id int64) (store.Move, error)
+	ListMoves(ctx context.Context) ([]store.Move, error)
+	CreateMove(ctx context.Context, oldApartmentID, newApartmentID int64, now time.Time) (store.Move, error)
+	CreateBox(ctx context.Context, label string, now time.Time) (store.Box, error)
+	GetBox(ctx context.Context, id int64) (store.Box, error)
+	BoxByNumber(ctx context.Context, number int) (store.Box, error)
+	RenameBox(ctx context.Context, id int64, label string) (store.Box, error)
+	DeleteBox(ctx context.Context, id int64) error
+	SetMoveDetails(ctx context.Context, itemID int64, c store.MoveDetailsChange, now time.Time) (store.Item, error)
+	SetMoveDetailsBulk(ctx context.Context, itemIDs []int64, c store.MoveDetailsChange, now time.Time) error
+	TargetRoomOverview(ctx context.Context) ([]store.TargetRoomEntry, error)
+	CompleteMove(ctx context.Context, confirmed bool, now time.Time) (store.Move, []store.ItemListEntry, error)
 }
 
-type ZugangStore interface {
-	NutzerPerEmail(ctx context.Context, email string) (store.Nutzer, error)
-	SitzungAnlegen(ctx context.Context, tokenHash string, personID int64, jetzt, laeuftAb time.Time) error
-	SitzungsNutzer(ctx context.Context, tokenHash string, jetzt time.Time) (store.Nutzer, error)
-	SitzungLoeschen(ctx context.Context, tokenHash string) error
-	DesignSetzen(ctx context.Context, personID int64, d store.Design) (store.Nutzer, error)
+type AccessStore interface {
+	UserByEmail(ctx context.Context, email string) (store.User, error)
+	CreateSession(ctx context.Context, tokenHash string, personID int64, now, expiresAt time.Time) error
+	SessionUser(ctx context.Context, tokenHash string, now time.Time) (store.User, error)
+	DeleteSession(ctx context.Context, tokenHash string) error
+	SetTheme(ctx context.Context, personID int64, t store.Theme) (store.User, error)
 }
 
-type PersonenStore interface {
-	PersonenAuflisten(ctx context.Context) ([]store.Person, error)
-	PersonAnlegen(ctx context.Context, name string, jetzt time.Time) (store.Person, error)
-	PersonUmbenennen(ctx context.Context, id int64, name string) (store.Person, error)
-	PersonLoeschen(ctx context.Context, id int64) error
+type PersonStore interface {
+	ListPersons(ctx context.Context) ([]store.Person, error)
+	CreatePerson(ctx context.Context, name string, now time.Time) (store.Person, error)
+	RenamePerson(ctx context.Context, id int64, name string) (store.Person, error)
+	DeletePerson(ctx context.Context, id int64) error
 }
 
 type ItemStore interface {
-	ItemAnlegen(ctx context.Context, neu store.NeuesItem, jetzt time.Time) (store.Item, error)
-	ItemAbrufen(ctx context.Context, id int64) (store.Item, error)
-	ItemsAuflisten(ctx context.Context, f store.ItemFilter) ([]store.ItemListenEintrag, bool, error)
-	ItemBearbeiten(ctx context.Context, id int64, name, beschreibung string, verbleib store.Verbleib, jetzt time.Time) (store.Item, error)
-	ItemLoeschen(ctx context.Context, id int64, jetzt time.Time) ([]string, error)
-	BesitzerHinzufuegen(ctx context.Context, itemID, personID int64, jetzt time.Time) (store.Item, error)
-	BesitzerEntfernen(ctx context.Context, itemID, personID int64, jetzt time.Time) (store.Item, error)
-	FotoAbrufen(ctx context.Context, id int64) (store.Foto, error)
-	FotosHinzufuegen(ctx context.Context, itemID int64, fotos []store.NeuesFoto, jetzt time.Time) (store.Item, error)
-	HauptfotoSetzen(ctx context.Context, itemID, fotoID int64, jetzt time.Time) (store.Item, error)
-	FotoErsetzen(ctx context.Context, fotoID int64, neu store.NeuesFoto, jetzt time.Time) (string, store.Item, error)
-	FotoLoeschen(ctx context.Context, fotoID int64, jetzt time.Time) (string, store.Item, error)
-	PlatzierungSetzen(ctx context.Context, itemID int64, p store.Platz, jetzt time.Time) (store.Item, error)
+	CreateItem(ctx context.Context, n store.NewItem, now time.Time) (store.Item, error)
+	GetItem(ctx context.Context, id int64) (store.Item, error)
+	ListItems(ctx context.Context, f store.ItemFilter) ([]store.ItemListEntry, bool, error)
+	EditItem(ctx context.Context, id int64, name, description string, disposition store.Disposition, now time.Time) (store.Item, error)
+	DeleteItem(ctx context.Context, id int64, now time.Time) ([]string, error)
+	AddOwner(ctx context.Context, itemID, personID int64, now time.Time) (store.Item, error)
+	RemoveOwner(ctx context.Context, itemID, personID int64, now time.Time) (store.Item, error)
+	GetPhoto(ctx context.Context, id int64) (store.Photo, error)
+	AddPhotos(ctx context.Context, itemID int64, photos []store.NewPhoto, now time.Time) (store.Item, error)
+	SetMainPhoto(ctx context.Context, itemID, photoID int64, now time.Time) (store.Item, error)
+	ReplacePhoto(ctx context.Context, photoID int64, n store.NewPhoto, now time.Time) (string, store.Item, error)
+	DeletePhoto(ctx context.Context, photoID int64, now time.Time) (string, store.Item, error)
+	SetPlacement(ctx context.Context, itemID int64, p store.Place, now time.Time) (store.Item, error)
 }
 
-// OrteStore umfasst Wohnungen, Räume und Lagerorte.
-type OrteStore interface {
-	WohnungenAuflisten(ctx context.Context) ([]store.Wohnung, error)
-	WohnungAnlegen(ctx context.Context, name string, jetzt time.Time) (store.Benannt, error)
-	WohnungUmbenennen(ctx context.Context, id int64, name string) (store.Benannt, error)
-	WohnungLoeschen(ctx context.Context, id int64) error
-	RaumAnlegen(ctx context.Context, wohnungID int64, name string, jetzt time.Time) (store.Benannt, error)
-	RaumAbrufen(ctx context.Context, id int64) (store.Raum, error)
-	RaumUmbenennen(ctx context.Context, id int64, name string) (store.Benannt, error)
-	RaumLoeschen(ctx context.Context, id int64) error
-	LagerortAnlegen(ctx context.Context, neu store.NeuerLagerort, jetzt time.Time) (store.LagerortDetail, error)
-	LagerortAbrufen(ctx context.Context, id int64) (store.LagerortDetail, error)
-	LagerortUmbenennen(ctx context.Context, id int64, name string) (store.Benannt, error)
-	LagerortVerschieben(ctx context.Context, id, raumID, elternID int64) (store.LagerortDetail, error)
-	LagerortLoeschen(ctx context.Context, id int64, jetzt time.Time) error
-	MoebelSetzen(ctx context.Context, lagerortID, itemID int64) (store.LagerortDetail, error)
-	PlaetzeAuflisten(ctx context.Context) ([]store.PlatzEintrag, error)
+// PlaceStore covers apartments, rooms and storage locations.
+type PlaceStore interface {
+	ListApartments(ctx context.Context) ([]store.Apartment, error)
+	CreateApartment(ctx context.Context, name string, now time.Time) (store.Named, error)
+	RenameApartment(ctx context.Context, id int64, name string) (store.Named, error)
+	DeleteApartment(ctx context.Context, id int64) error
+	CreateRoom(ctx context.Context, apartmentID int64, name string, now time.Time) (store.Named, error)
+	GetRoom(ctx context.Context, id int64) (store.Room, error)
+	RenameRoom(ctx context.Context, id int64, name string) (store.Named, error)
+	DeleteRoom(ctx context.Context, id int64) error
+	CreateStorageLocation(ctx context.Context, n store.NewStorageLocation, now time.Time) (store.StorageLocationDetail, error)
+	GetStorageLocation(ctx context.Context, id int64) (store.StorageLocationDetail, error)
+	RenameStorageLocation(ctx context.Context, id int64, name string) (store.Named, error)
+	MoveStorageLocation(ctx context.Context, id, roomID, parentID int64) (store.StorageLocationDetail, error)
+	DeleteStorageLocation(ctx context.Context, id int64, now time.Time) error
+	SetFurniture(ctx context.Context, storageLocationID, itemID int64) (store.StorageLocationDetail, error)
+	ListPlaces(ctx context.Context) ([]store.PlaceEntry, error)
 }
 
-// EinladungStore umfasst Einladungen und die Nutzerliste.
-type EinladungStore interface {
-	EinladungAnlegen(ctx context.Context, neu store.NeueEinladung, jetzt, laeuftAb time.Time) (store.Einladung, error)
-	EinladungenOffen(ctx context.Context, jetzt time.Time) ([]store.Einladung, error)
-	EinladungZurueckziehen(ctx context.Context, id int64, jetzt time.Time) error
-	EinladungPerToken(ctx context.Context, tokenHash string, jetzt time.Time) (store.Einladung, error)
-	EinladungAnnehmen(ctx context.Context, a store.Annahme, jetzt time.Time) (store.Nutzer, error)
-	NutzerAuflisten(ctx context.Context) ([]store.Nutzer, error)
+// InvitationStore covers invitations and the user list.
+type InvitationStore interface {
+	CreateInvitation(ctx context.Context, n store.NewInvitation, now, expiresAt time.Time) (store.Invitation, error)
+	OpenInvitations(ctx context.Context, now time.Time) ([]store.Invitation, error)
+	RevokeInvitation(ctx context.Context, id int64, now time.Time) error
+	InvitationByToken(ctx context.Context, tokenHash string, now time.Time) (store.Invitation, error)
+	AcceptInvitation(ctx context.Context, a store.Acceptance, now time.Time) (store.User, error)
+	ListUsers(ctx context.Context) ([]store.User, error)
 }
 
 type Deps struct {
@@ -111,14 +110,14 @@ type Deps struct {
 	Store  Store
 	Mailer mail.Mailer
 	Logger *slog.Logger
-	Jetzt  func() time.Time
-	// Client sind die Dateien des gebauten Clients; ohne Angabe die eingebetteten.
+	Now    func() time.Time
+	// Client holds the files of the built client; the embedded ones if not set.
 	Client fs.FS
 }
 
 type server struct {
 	Deps
-	fotos foto.Speicher
+	photos photo.Storage
 }
 
 func New(d Deps) http.Handler {
@@ -128,183 +127,184 @@ func New(d Deps) http.Handler {
 	if d.Client == nil {
 		d.Client = webui.Dist()
 	}
-	if d.Jetzt == nil {
-		d.Jetzt = time.Now
+	if d.Now == nil {
+		d.Now = time.Now
 	}
-	maxFoto := d.Config.MaxFotoGroesse
-	if maxFoto == 0 {
-		maxFoto = config.StandardMaxFotoGroesse
+	maxPhoto := d.Config.MaxPhotoSize
+	if maxPhoto == 0 {
+		maxPhoto = config.DefaultMaxPhotoSize
 	}
-	s := &server{Deps: d, fotos: foto.Speicher{
-		Verzeichnis: filepath.Join(d.Config.Datenverzeichnis, store.FotoVerzeichnis),
-		MaxGroesse:  maxFoto,
+	s := &server{Deps: d, photos: photo.Storage{
+		Dir:     filepath.Join(d.Config.DataDir, store.PhotoDir),
+		MaxSize: maxPhoto,
 	}}
 
-	// Alles außer Anmeldung und Annehmen einer Einladung braucht eine Sitzung, auch unbekannte Endpunkte.
-	geschuetzt := http.NewServeMux()
-	geschuetzt.HandleFunc("POST /api/abmeldung", s.abmelden)
-	geschuetzt.HandleFunc("GET /api/ich", s.ich)
-	geschuetzt.HandleFunc("PUT /api/ich/design", s.designSetzen)
-	geschuetzt.HandleFunc("GET /api/personen", s.personenAuflisten)
-	geschuetzt.HandleFunc("POST /api/personen", s.personAnlegen)
-	geschuetzt.HandleFunc("PUT /api/personen/{id}", s.personUmbenennen)
-	geschuetzt.HandleFunc("DELETE /api/personen/{id}", s.personLoeschen)
-	geschuetzt.HandleFunc("GET /api/items", s.itemsAuflisten)
-	geschuetzt.HandleFunc("POST /api/items", s.itemAnlegen)
-	geschuetzt.HandleFunc("GET /api/items/{id}", s.itemAbrufen)
-	geschuetzt.HandleFunc("PUT /api/items/{id}", s.itemBearbeiten)
-	geschuetzt.HandleFunc("DELETE /api/items/{id}", s.itemLoeschen)
-	geschuetzt.HandleFunc("PUT /api/items/{id}/besitzer/{personId}", s.besitzerAendern(s.Store.BesitzerHinzufuegen))
-	geschuetzt.HandleFunc("DELETE /api/items/{id}/besitzer/{personId}", s.besitzerAendern(s.Store.BesitzerEntfernen))
-	geschuetzt.HandleFunc("POST /api/items/{id}/fotos", s.fotosHinzufuegen)
-	geschuetzt.HandleFunc("PUT /api/items/{id}/hauptfoto", s.hauptfotoSetzen)
-	geschuetzt.HandleFunc("GET /api/fotos/{id}/{datei}", s.fotoAusliefern(false))
-	geschuetzt.HandleFunc("PUT /api/fotos/{id}", s.fotoErsetzen)
-	geschuetzt.HandleFunc("DELETE /api/fotos/{id}", s.fotoLoeschen)
-	geschuetzt.HandleFunc("GET /api/fotos/{id}/{datei}/vorschau", s.fotoAusliefern(true))
-	geschuetzt.HandleFunc("GET /api/wohnungen", s.wohnungenAuflisten)
-	geschuetzt.HandleFunc("POST /api/wohnungen", s.wohnungAnlegen)
-	geschuetzt.HandleFunc("PUT /api/wohnungen/{id}", s.umbenennen(s.Store.WohnungUmbenennen))
-	geschuetzt.HandleFunc("DELETE /api/wohnungen/{id}", s.loeschen(s.Store.WohnungLoeschen))
-	geschuetzt.HandleFunc("POST /api/wohnungen/{id}/raeume", s.raumAnlegen)
-	geschuetzt.HandleFunc("GET /api/raeume/{id}", s.raumAbrufen)
-	geschuetzt.HandleFunc("PUT /api/raeume/{id}", s.umbenennen(s.Store.RaumUmbenennen))
-	geschuetzt.HandleFunc("DELETE /api/raeume/{id}", s.loeschen(s.Store.RaumLoeschen))
-	geschuetzt.HandleFunc("GET /api/plaetze", s.plaetzeAuflisten)
-	geschuetzt.HandleFunc("POST /api/lagerorte", s.lagerortAnlegen)
-	geschuetzt.HandleFunc("GET /api/lagerorte/{id}", s.lagerortAbrufen)
-	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}", s.umbenennen(s.Store.LagerortUmbenennen))
-	geschuetzt.HandleFunc("DELETE /api/lagerorte/{id}", s.lagerortLoeschen)
-	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/eltern", s.lagerortVerschieben)
-	geschuetzt.HandleFunc("GET /api/lagerorte/{id}/wegfall", s.wegfallVorschau(
-		func(ctx context.Context, id int64) error { _, err := s.Store.LagerortAbrufen(ctx, id); return err },
-		func(f *store.ItemFilter, id int64) { f.LagerortID = id }))
-	geschuetzt.HandleFunc("GET /api/items/{id}/wegfall", s.wegfallVorschau(
-		func(ctx context.Context, id int64) error { _, err := s.Store.ItemAbrufen(ctx, id); return err },
-		func(f *store.ItemFilter, id int64) { f.MoebelID = id }))
-	geschuetzt.HandleFunc("PUT /api/lagerorte/{id}/moebel", s.moebelSetzen)
-	geschuetzt.HandleFunc("PUT /api/items/{id}/platzierung", s.platzierungSetzen)
-	geschuetzt.HandleFunc("GET /api/umzug", s.laufenderUmzug)
-	geschuetzt.HandleFunc("POST /api/umzug", s.umzugAnlegen)
-	geschuetzt.HandleFunc("POST /api/umzug/boxen", s.boxAnlegen)
-	geschuetzt.HandleFunc("GET /api/umzug/boxen/{nummer}", s.boxPerNummer)
-	geschuetzt.HandleFunc("GET /api/umzug/zielraeume", s.zielraeume)
-	geschuetzt.HandleFunc("POST /api/umzug/abschluss", s.umzugAbschliessen)
-	geschuetzt.HandleFunc("GET /api/boxen/{id}", s.boxAbrufen)
-	geschuetzt.HandleFunc("PUT /api/boxen/{id}", s.boxUmbenennen)
-	geschuetzt.HandleFunc("DELETE /api/boxen/{id}", s.loeschen(s.Store.BoxLoeschen))
-	geschuetzt.HandleFunc("PATCH /api/items/{id}/umzug", s.umzugsangabenSetzen)
-	geschuetzt.HandleFunc("POST /api/umzug/sammeln", s.umzugsangabenSammeln)
-	geschuetzt.HandleFunc("GET /api/umzuege", s.umzuegeAuflisten)
-	geschuetzt.HandleFunc("GET /api/umzuege/{id}", s.umzugAbrufen)
-	geschuetzt.HandleFunc("GET /api/nutzer", s.nutzerAuflisten)
-	geschuetzt.HandleFunc("GET /api/einladungen", s.einladungenAuflisten)
-	geschuetzt.HandleFunc("POST /api/einladungen", s.einladungAnlegen)
-	geschuetzt.HandleFunc("DELETE /api/einladungen/{id}", s.einladungZurueckziehen)
-	geschuetzt.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
-		schreibeFehler(w, http.StatusNotFound, "nicht_gefunden", "Unbekannter Endpunkt")
+	// Everything except logging in and accepting an invitation needs a session, unknown endpoints too.
+	protected := http.NewServeMux()
+	protected.HandleFunc("POST /api/logout", s.logout)
+	protected.HandleFunc("GET /api/me", s.me)
+	protected.HandleFunc("PUT /api/me/theme", s.setTheme)
+	protected.HandleFunc("GET /api/persons", s.listPersons)
+	protected.HandleFunc("POST /api/persons", s.createPerson)
+	protected.HandleFunc("PUT /api/persons/{id}", s.renamePerson)
+	protected.HandleFunc("DELETE /api/persons/{id}", s.deletePerson)
+	protected.HandleFunc("GET /api/items", s.listItems)
+	protected.HandleFunc("POST /api/items", s.createItem)
+	protected.HandleFunc("GET /api/items/{id}", s.getItem)
+	protected.HandleFunc("PUT /api/items/{id}", s.editItem)
+	protected.HandleFunc("DELETE /api/items/{id}", s.deleteItem)
+	protected.HandleFunc("PUT /api/items/{id}/owners/{personId}", s.changeOwner(s.Store.AddOwner))
+	protected.HandleFunc("DELETE /api/items/{id}/owners/{personId}", s.changeOwner(s.Store.RemoveOwner))
+	protected.HandleFunc("POST /api/items/{id}/photos", s.addPhotos)
+	protected.HandleFunc("PUT /api/items/{id}/main-photo", s.setMainPhoto)
+	protected.HandleFunc("GET /api/photos/{id}/{file}", s.servePhoto(false))
+	protected.HandleFunc("PUT /api/photos/{id}", s.replacePhoto)
+	protected.HandleFunc("DELETE /api/photos/{id}", s.deletePhoto)
+	protected.HandleFunc("GET /api/photos/{id}/{file}/thumbnail", s.servePhoto(true))
+	protected.HandleFunc("GET /api/apartments", s.listApartments)
+	protected.HandleFunc("POST /api/apartments", s.createApartment)
+	protected.HandleFunc("PUT /api/apartments/{id}", s.rename(s.Store.RenameApartment))
+	protected.HandleFunc("DELETE /api/apartments/{id}", s.delete(s.Store.DeleteApartment))
+	protected.HandleFunc("POST /api/apartments/{id}/rooms", s.createRoom)
+	protected.HandleFunc("GET /api/rooms/{id}", s.getRoom)
+	protected.HandleFunc("PUT /api/rooms/{id}", s.rename(s.Store.RenameRoom))
+	protected.HandleFunc("DELETE /api/rooms/{id}", s.delete(s.Store.DeleteRoom))
+	protected.HandleFunc("GET /api/places", s.listPlaces)
+	protected.HandleFunc("POST /api/storage-locations", s.createStorageLocation)
+	protected.HandleFunc("GET /api/storage-locations/{id}", s.getStorageLocation)
+	protected.HandleFunc("PUT /api/storage-locations/{id}", s.rename(s.Store.RenameStorageLocation))
+	protected.HandleFunc("DELETE /api/storage-locations/{id}", s.deleteStorageLocation)
+	protected.HandleFunc("PUT /api/storage-locations/{id}/parent", s.moveStorageLocation)
+	protected.HandleFunc("GET /api/storage-locations/{id}/removal", s.removalPreview(
+		func(ctx context.Context, id int64) error { _, err := s.Store.GetStorageLocation(ctx, id); return err },
+		func(f *store.ItemFilter, id int64) { f.StorageLocationID = id }))
+	protected.HandleFunc("GET /api/items/{id}/removal", s.removalPreview(
+		func(ctx context.Context, id int64) error { _, err := s.Store.GetItem(ctx, id); return err },
+		func(f *store.ItemFilter, id int64) { f.FurnitureID = id }))
+	protected.HandleFunc("PUT /api/storage-locations/{id}/furniture", s.setFurniture)
+	protected.HandleFunc("PUT /api/items/{id}/placement", s.setPlacement)
+	protected.HandleFunc("GET /api/move", s.activeMove)
+	protected.HandleFunc("POST /api/move", s.createMove)
+	protected.HandleFunc("POST /api/move/boxes", s.createBox)
+	protected.HandleFunc("GET /api/move/boxes/{number}", s.boxByNumber)
+	protected.HandleFunc("GET /api/move/target-rooms", s.targetRooms)
+	protected.HandleFunc("POST /api/move/completion", s.completeMove)
+	protected.HandleFunc("GET /api/boxes/{id}", s.getBox)
+	protected.HandleFunc("PUT /api/boxes/{id}", s.renameBox)
+	protected.HandleFunc("DELETE /api/boxes/{id}", s.delete(s.Store.DeleteBox))
+	protected.HandleFunc("PATCH /api/items/{id}/move", s.setMoveDetails)
+	protected.HandleFunc("POST /api/move/bulk", s.setMoveDetailsBulk)
+	protected.HandleFunc("GET /api/moves", s.listMoves)
+	protected.HandleFunc("GET /api/moves/{id}", s.getMove)
+	protected.HandleFunc("GET /api/users", s.listUsers)
+	protected.HandleFunc("GET /api/invitations", s.listInvitations)
+	protected.HandleFunc("POST /api/invitations", s.createInvitation)
+	protected.HandleFunc("DELETE /api/invitations/{id}", s.revokeInvitation)
+	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		writeError(w, http.StatusNotFound, "not_found", "Unbekannter Endpunkt")
 	})
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/anmeldung", s.anmelden)
-	mux.HandleFunc("POST /api/einladungen/pruefen", s.einladungPruefen)
-	mux.HandleFunc("POST /api/einladungen/annehmen", s.einladungAnnehmen)
-	mux.Handle("/api/", s.nurMitSitzung(geschuetzt))
+	mux.HandleFunc("POST /api/login", s.login)
+	mux.HandleFunc("POST /api/invitations/check", s.checkInvitation)
+	mux.HandleFunc("POST /api/invitations/accept", s.acceptInvitation)
+	mux.Handle("/api/", s.requireSession(protected))
 	mux.Handle("/", webui.Handler(d.Client))
 	return mux
 }
 
-type apiFehler struct {
+type apiError struct {
 	Code    string `json:"code"`
-	Meldung string `json:"meldung"`
+	Message string `json:"message"`
 }
 
-func schreibeJSON(w http.ResponseWriter, status int, v any) {
+func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-func schreibeFehler(w http.ResponseWriter, status int, code, meldung string) {
-	schreibeJSON(w, status, apiFehler{Code: code, Meldung: meldung})
+// writeError answers with an error code for the client and a German message for the UI.
+func writeError(w http.ResponseWriter, status int, code, message string) {
+	writeJSON(w, status, apiError{Code: code, Message: message})
 }
 
-func (s *server) internerFehler(w http.ResponseWriter, r *http.Request, err error) {
-	s.Logger.Error("interner Fehler", "pfad", r.URL.Path, "fehler", err)
-	schreibeFehler(w, http.StatusInternalServerError, "intern", "Interner Fehler")
+func (s *server) internalError(w http.ResponseWriter, r *http.Request, err error) {
+	s.Logger.Error("internal error", "path", r.URL.Path, "error", err)
+	writeError(w, http.StatusInternalServerError, "internal", "Interner Fehler")
 }
 
-// leseJSON liest einen kleinen JSON-Body und antwortet bei Fehlern selbst.
-func leseJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+// readJSON reads a small JSON body and answers errors itself.
+func readJSON(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20))
 	if err := dec.Decode(v); err != nil {
-		var zuGross *http.MaxBytesError
-		if errors.As(err, &zuGross) {
-			schreibeFehler(w, http.StatusRequestEntityTooLarge, "zu_gross", "Anfrage zu groß")
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeError(w, http.StatusRequestEntityTooLarge, "too_large", "Anfrage zu groß")
 		} else {
-			schreibeFehler(w, http.StatusBadRequest, "ungueltige_anfrage", "Ungültiges JSON")
+			writeError(w, http.StatusBadRequest, "invalid_request", "Ungültiges JSON")
 		}
 		return false
 	}
 	return true
 }
 
-// pfadID liest eine numerische ID aus dem Pfad; unbrauchbare IDs gelten als nicht gefunden.
-func pfadID(w http.ResponseWriter, r *http.Request, name string) (int64, bool) {
+// pathID reads a numeric ID from the path; unusable IDs count as not found.
+func pathID(w http.ResponseWriter, r *http.Request, name string) (int64, bool) {
 	id, err := strconv.ParseInt(r.PathValue(name), 10, 64)
 	if err != nil {
-		schreibeFehler(w, http.StatusNotFound, "nicht_gefunden", "Nicht gefunden")
+		writeError(w, http.StatusNotFound, "not_found", "Nicht gefunden")
 		return 0, false
 	}
 	return id, true
 }
 
-// storeFehler übersetzt fachliche Fehler des Stores in API-Fehler.
-func (s *server) storeFehler(w http.ResponseWriter, r *http.Request, err error) {
+// storeError translates domain errors of the store into API errors.
+func (s *server) storeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, store.ErrNichtGefunden):
-		schreibeFehler(w, http.StatusNotFound, "nicht_gefunden", "Nicht gefunden")
-	case errors.Is(err, store.ErrHatNutzerzugang):
-		schreibeFehler(w, http.StatusConflict, "hat_nutzerzugang", "Personen mit Nutzerzugang können nicht gelöscht werden")
-	case errors.Is(err, store.ErrLetzterBesitzer):
-		schreibeFehler(w, http.StatusConflict, "letzter_besitzer", meldungBesitzerFehlt)
-	case errors.Is(err, store.ErrLetztesFoto):
-		schreibeFehler(w, http.StatusConflict, "letztes_foto", meldungFotoFehlt)
-	case errors.Is(err, store.ErrWohnungNichtLeer):
-		schreibeFehler(w, http.StatusConflict, "wohnung_nicht_leer", "Die Wohnung hat noch Räume")
-	case errors.Is(err, store.ErrRaumNichtLeer):
-		schreibeFehler(w, http.StatusConflict, "raum_nicht_leer", "Im Raum sind noch Lagerorte oder Items")
-	case errors.Is(err, store.ErrZyklus):
-		schreibeFehler(w, http.StatusConflict, "zyklus", "Ein Lagerort kann nicht in sich selbst oder einem seiner Unterlagerorte liegen")
-	case errors.Is(err, store.ErrMoebelInSichSelbst):
-		schreibeFehler(w, http.StatusConflict, "moebel_in_sich_selbst", "Ein Möbelstück kann nicht in einem eigenen Lagerort liegen")
-	case errors.Is(err, store.ErrUnbekannterPlatz):
-		schreibeFehler(w, http.StatusBadRequest, "unbekannter_platz", "Diesen Raum oder Lagerort gibt es nicht")
-	case errors.Is(err, store.ErrKeinUmzug):
-		schreibeFehler(w, http.StatusConflict, "kein_umzug", "Es läuft kein Umzug")
-	case errors.Is(err, store.ErrUmzugLaeuft):
-		schreibeFehler(w, http.StatusConflict, "umzug_laeuft", "Es läuft schon ein Umzug")
-	case errors.Is(err, store.ErrUmzugAbgeschlossen):
-		schreibeFehler(w, http.StatusConflict, "umzug_abgeschlossen", "Der Umzug ist abgeschlossen und lässt sich nicht mehr ändern")
-	case errors.Is(err, store.ErrGleicheWohnung):
-		schreibeFehler(w, http.StatusBadRequest, "gleiche_wohnung", "Alte und neue Wohnung müssen verschieden sein")
-	case errors.Is(err, store.ErrUnbekannteWohnung):
-		schreibeFehler(w, http.StatusBadRequest, "unbekannte_wohnung", "Diese Wohnung gibt es nicht")
-	case errors.Is(err, store.ErrWohnungImUmzug):
-		schreibeFehler(w, http.StatusConflict, "wohnung_im_umzug", "Die Wohnung gehört zu einem Umzug")
-	case errors.Is(err, store.ErrRaumImUmzug):
-		schreibeFehler(w, http.StatusConflict, "raum_im_umzug", "Der Raum ist Herkunfts- oder Zielraum in einem Umzug")
-	case errors.Is(err, store.ErrBoxNichtLeer):
-		schreibeFehler(w, http.StatusConflict, "box_nicht_leer", "Nur leere Boxen lassen sich löschen")
-	case errors.Is(err, store.ErrUnbekannteBox):
-		schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", meldungUnbekannteBox)
-	case errors.Is(err, store.ErrZielraumFalsch):
-		schreibeFehler(w, http.StatusBadRequest, "zielraum_nicht_in_neuer_wohnung", "Der Zielraum muss in der neuen Wohnung liegen")
-	case errors.Is(err, store.ErrUnbekanntesItem):
-		schreibeFehler(w, http.StatusBadRequest, "unbekanntes_item", "Dieses Item gibt es nicht")
-	case errors.Is(err, store.ErrUnbekanntePerson):
-		schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", meldungUnbekanntePerson)
+	case errors.Is(err, store.ErrNotFound):
+		writeError(w, http.StatusNotFound, "not_found", "Nicht gefunden")
+	case errors.Is(err, store.ErrHasUserAccess):
+		writeError(w, http.StatusConflict, "has_user_access", "Personen mit Nutzerzugang können nicht gelöscht werden")
+	case errors.Is(err, store.ErrLastOwner):
+		writeError(w, http.StatusConflict, "last_owner", msgOwnerMissing)
+	case errors.Is(err, store.ErrLastPhoto):
+		writeError(w, http.StatusConflict, "last_photo", msgPhotoMissing)
+	case errors.Is(err, store.ErrApartmentNotEmpty):
+		writeError(w, http.StatusConflict, "apartment_not_empty", "Die Wohnung hat noch Räume")
+	case errors.Is(err, store.ErrRoomNotEmpty):
+		writeError(w, http.StatusConflict, "room_not_empty", "Im Raum sind noch Lagerorte oder Items")
+	case errors.Is(err, store.ErrCycle):
+		writeError(w, http.StatusConflict, "cycle", "Ein Lagerort kann nicht in sich selbst oder einem seiner Unterlagerorte liegen")
+	case errors.Is(err, store.ErrFurnitureInsideItself):
+		writeError(w, http.StatusConflict, "furniture_inside_itself", "Ein Möbelstück kann nicht in einem eigenen Lagerort liegen")
+	case errors.Is(err, store.ErrUnknownPlace):
+		writeError(w, http.StatusBadRequest, "unknown_place", "Diesen Raum oder Lagerort gibt es nicht")
+	case errors.Is(err, store.ErrNoMove):
+		writeError(w, http.StatusConflict, "no_move", "Es läuft kein Umzug")
+	case errors.Is(err, store.ErrMoveInProgress):
+		writeError(w, http.StatusConflict, "move_in_progress", "Es läuft schon ein Umzug")
+	case errors.Is(err, store.ErrMoveCompleted):
+		writeError(w, http.StatusConflict, "move_completed", "Der Umzug ist abgeschlossen und lässt sich nicht mehr ändern")
+	case errors.Is(err, store.ErrSameApartment):
+		writeError(w, http.StatusBadRequest, "same_apartment", "Alte und neue Wohnung müssen verschieden sein")
+	case errors.Is(err, store.ErrUnknownApartment):
+		writeError(w, http.StatusBadRequest, "unknown_apartment", "Diese Wohnung gibt es nicht")
+	case errors.Is(err, store.ErrApartmentInMove):
+		writeError(w, http.StatusConflict, "apartment_in_move", "Die Wohnung gehört zu einem Umzug")
+	case errors.Is(err, store.ErrRoomInMove):
+		writeError(w, http.StatusConflict, "room_in_move", "Der Raum ist Herkunfts- oder Zielraum in einem Umzug")
+	case errors.Is(err, store.ErrBoxNotEmpty):
+		writeError(w, http.StatusConflict, "box_not_empty", "Nur leere Boxen lassen sich löschen")
+	case errors.Is(err, store.ErrUnknownBox):
+		writeError(w, http.StatusBadRequest, "unknown_box", msgUnknownBox)
+	case errors.Is(err, store.ErrTargetRoomNotInNewApartment):
+		writeError(w, http.StatusBadRequest, "target_room_not_in_new_apartment", "Der Zielraum muss in der neuen Wohnung liegen")
+	case errors.Is(err, store.ErrUnknownItem):
+		writeError(w, http.StatusBadRequest, "unknown_item", "Dieses Item gibt es nicht")
+	case errors.Is(err, store.ErrUnknownPerson):
+		writeError(w, http.StatusBadRequest, "unknown_person", msgUnknownPerson)
 	default:
-		s.internerFehler(w, r, err)
+		s.internalError(w, r, err)
 	}
 }

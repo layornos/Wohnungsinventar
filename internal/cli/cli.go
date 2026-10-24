@@ -1,4 +1,4 @@
-// Package cli enthält die Unterbefehle des Binarys.
+// Package cli contains the subcommands of the binary.
 package cli
 
 import (
@@ -19,18 +19,18 @@ import (
 	"inventar/internal/store"
 )
 
-const hilfe = `Verwendung: inventar <befehl> [optionen]
+const usage = `Usage: inventar <command> [options]
 
-Befehle:
-  starten                                  Server starten
-  nutzer-anlegen --name NAME --email EMAIL  Nutzer anlegen (Passwort wird abgefragt)
-  passwort-zuruecksetzen --email EMAIL      Passwort neu setzen und alle Sitzungen beenden
+Commands:
+  serve                                     Start the server
+  create-user --name NAME --email EMAIL     Create a user (asks for the password)
+  reset-password --email EMAIL              Set a new password and end all sessions
 
-Konfiguration über Umgebungsvariablen, siehe README.
+Configuration via environment variables, see README.
 `
 
-// befehl bündelt, was jeder Unterbefehl braucht.
-type befehl struct {
+// command bundles what every subcommand needs.
+type command struct {
 	cfg    config.Config
 	args   []string
 	stdin  io.Reader
@@ -39,97 +39,97 @@ type befehl struct {
 
 func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, getenv func(string) string) error {
 	if len(args) == 0 {
-		fmt.Fprint(stdout, hilfe)
-		return errors.New("kein Befehl angegeben")
+		fmt.Fprint(stdout, usage)
+		return errors.New("no command given")
 	}
-	cfg, err := config.Laden(getenv)
+	cfg, err := config.Load(getenv)
 	if err != nil {
 		return err
 	}
-	b := befehl{cfg: cfg, args: args[1:], stdin: stdin, stdout: stdout}
+	c := command{cfg: cfg, args: args[1:], stdin: stdin, stdout: stdout}
 	switch args[0] {
-	case "starten":
-		return starten(ctx, b)
-	case "nutzer-anlegen":
-		return nutzerAnlegen(ctx, b)
-	case "passwort-zuruecksetzen":
-		return passwortZuruecksetzen(ctx, b)
-	case "help", "hilfe", "-h", "--help":
-		fmt.Fprint(stdout, hilfe)
+	case "serve":
+		return serve(ctx, c)
+	case "create-user":
+		return createUser(ctx, c)
+	case "reset-password":
+		return resetPassword(ctx, c)
+	case "help", "-h", "--help":
+		fmt.Fprint(stdout, usage)
 		return nil
 	default:
-		fmt.Fprint(stdout, hilfe)
-		return fmt.Errorf("unbekannter Befehl %q", args[0])
+		fmt.Fprint(stdout, usage)
+		return fmt.Errorf("unknown command %q", args[0])
 	}
 }
 
-func nutzerAnlegen(ctx context.Context, b befehl) error {
+func createUser(ctx context.Context, c command) error {
 	var name, email string
-	err := b.optionenLesen("nutzer-anlegen", func(f *flag.FlagSet) {
-		f.StringVar(&name, "name", "", "Name der Person")
-		f.StringVar(&email, "email", "", "E-Mail-Adresse für die Anmeldung")
+	err := c.parseFlags("create-user", func(f *flag.FlagSet) {
+		f.StringVar(&name, "name", "", "name of the person")
+		f.StringVar(&email, "email", "", "email address for logging in")
 	}, &name, &email)
 	if err != nil {
 		return err
 	}
-	return b.mitPasswortUndStore(ctx, func(st *store.Store, hash string) error {
-		n, err := st.NutzerAnlegen(ctx, strings.TrimSpace(name), email, hash, time.Now())
-		if errors.Is(err, store.ErrEmailVergeben) {
-			return fmt.Errorf("die E-Mail %s ist bereits vergeben", store.EmailNormalisieren(email))
+	return c.withPasswordAndStore(ctx, func(st *store.Store, hash string) error {
+		u, err := st.CreateUser(ctx, strings.TrimSpace(name), email, hash, time.Now())
+		if errors.Is(err, store.ErrEmailTaken) {
+			return fmt.Errorf("the email %s is already taken", store.NormalizeEmail(email))
 		}
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(b.stdout, "Nutzer %s <%s> angelegt.\n", n.Name, n.Email)
+		fmt.Fprintf(c.stdout, "User %s <%s> created.\n", u.Name, u.Email)
 		return nil
 	})
 }
 
-func passwortZuruecksetzen(ctx context.Context, b befehl) error {
+func resetPassword(ctx context.Context, c command) error {
 	var email string
-	err := b.optionenLesen("passwort-zuruecksetzen", func(f *flag.FlagSet) {
-		f.StringVar(&email, "email", "", "E-Mail-Adresse des Nutzers")
+	err := c.parseFlags("reset-password", func(f *flag.FlagSet) {
+		f.StringVar(&email, "email", "", "email address of the user")
 	}, &email)
 	if err != nil {
 		return err
 	}
-	return b.mitPasswortUndStore(ctx, func(st *store.Store, hash string) error {
-		err := st.PasswortSetzen(ctx, email, hash)
-		if errors.Is(err, store.ErrNichtGefunden) {
-			return fmt.Errorf("kein Nutzer mit der E-Mail %s", store.EmailNormalisieren(email))
+	return c.withPasswordAndStore(ctx, func(st *store.Store, hash string) error {
+		err := st.SetPassword(ctx, email, hash)
+		if errors.Is(err, store.ErrNotFound) {
+			return fmt.Errorf("no user with the email %s", store.NormalizeEmail(email))
 		}
 		if err != nil {
 			return err
 		}
-		fmt.Fprintln(b.stdout, "Passwort gesetzt, alle Sitzungen wurden beendet.")
+		fmt.Fprintln(c.stdout, "Password set, all sessions have been ended.")
 		return nil
 	})
 }
 
-// optionenLesen liest die Optionen eines Unterbefehls; alle übergebenen Pflichtwerte müssen gesetzt sein.
-func (b befehl) optionenLesen(name string, definieren func(*flag.FlagSet), pflicht ...*string) error {
-	optionen := flag.NewFlagSet(name, flag.ContinueOnError)
-	optionen.SetOutput(b.stdout)
-	definieren(optionen)
-	if err := optionen.Parse(b.args); err != nil {
+// parseFlags reads the options of a subcommand; all required values passed must be set.
+func (c command) parseFlags(name string, define func(*flag.FlagSet), required ...*string) error {
+	flags := flag.NewFlagSet(name, flag.ContinueOnError)
+	flags.SetOutput(c.stdout)
+	define(flags)
+	if err := flags.Parse(c.args); err != nil {
 		return err
 	}
-	for _, p := range pflicht {
-		if strings.TrimSpace(*p) == "" {
-			optionen.Usage()
-			return errors.New("Pflichtangabe fehlt")
+	for _, r := range required {
+		if strings.TrimSpace(*r) == "" {
+			flags.Usage()
+			return errors.New("required option missing")
 		}
 	}
 	return nil
 }
 
-// mitPasswortUndStore liest das Passwort ein, öffnet den Store und ruft fn mit dem Passwort-Hash auf.
-func (b befehl) mitPasswortUndStore(ctx context.Context, fn func(st *store.Store, hash string) error) error {
-	hash, err := passwortHashEinlesen(b.stdin, b.stdout)
+// withPasswordAndStore reads the password, opens the store and calls fn with the password hash.
+func (c command) withPasswordAndStore(ctx context.Context, fn func(st *store.Store, hash string) error) error {
+	hash, err := readPasswordHash(c.stdin, c.stdout)
 	if err != nil {
 		return err
 	}
-	st, err := store.Open(ctx, b.cfg.Datenverzeichnis)
+	st, err := store.Open(ctx, c.cfg.DataDir)
 	if err != nil {
 		return err
 	}
@@ -137,23 +137,23 @@ func (b befehl) mitPasswortUndStore(ctx context.Context, fn func(st *store.Store
 	return fn(st, hash)
 }
 
-// passwortHashEinlesen liest das Passwort verdeckt vom Terminal oder zeilenweise von stdin.
-func passwortHashEinlesen(stdin io.Reader, stdout io.Writer) (string, error) {
-	fmt.Fprint(stdout, "Passwort: ")
-	var passwort string
+// readPasswordHash reads the password hidden from the terminal or line by line from stdin.
+func readPasswordHash(stdin io.Reader, stdout io.Writer) (string, error) {
+	fmt.Fprint(stdout, "Password: ")
+	var password string
 	if f, ok := stdin.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
-		eingabe, err := term.ReadPassword(int(f.Fd()))
+		input, err := term.ReadPassword(int(f.Fd()))
 		fmt.Fprintln(stdout)
 		if err != nil {
 			return "", err
 		}
-		passwort = string(eingabe)
+		password = string(input)
 	} else {
-		zeile, err := bufio.NewReader(stdin).ReadString('\n')
+		line, err := bufio.NewReader(stdin).ReadString('\n')
 		if err != nil && !errors.Is(err, io.EOF) {
 			return "", err
 		}
-		passwort = strings.TrimRight(zeile, "\r\n")
+		password = strings.TrimRight(line, "\r\n")
 	}
-	return auth.PasswortHashen(passwort)
+	return auth.HashPassword(password)
 }

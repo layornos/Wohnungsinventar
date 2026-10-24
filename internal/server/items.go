@@ -10,431 +10,431 @@ import (
 	"strings"
 	"time"
 
-	"inventar/internal/foto"
+	"inventar/internal/photo"
 	"inventar/internal/store"
 )
 
 const (
-	maxFotosProAnfrage = 10
-	maxFormularTeile   = 50
-	maxFeldLaenge      = 10_000
-	standardProSeite   = 50
-	maxProSeite        = 100
-	// maxVollstaendig begrenzt Listen, die vollständig sein sollen, z. B. Wegfall-Vorschau und Packliste.
-	maxVollstaendig = 10_000
+	maxPhotosPerRequest = 10
+	maxFormParts        = 50
+	maxFieldLength      = 10_000
+	defaultPerPage      = 50
+	maxPerPage          = 100
+	// maxComplete limits lists that are meant to be complete, e.g. removal preview and packing list.
+	maxComplete = 10_000
 )
 
 type itemJSON struct {
-	ID           int64           `json:"id"`
-	Name         string          `json:"name"`
-	Beschreibung string          `json:"beschreibung"`
-	Verbleib     *store.Verbleib `json:"verbleib"`
-	ErstelltAm   time.Time       `json:"erstelltAm"`
-	GeaendertAm  time.Time       `json:"geaendertAm"`
-	Besitzer     []personJSON    `json:"besitzer"`
-	Fotos        []fotoJSON      `json:"fotos"`
-	// Platzierung ist null, solange das Item nicht platziert ist.
-	Platzierung     *pfadJSON     `json:"platzierung"`
-	MoebelLagerorte []benanntJSON `json:"moebelLagerorte"`
-	// Umzug sind die Angaben im laufenden Umzug, sonst null.
-	Umzug *umzugsangabenJSON `json:"umzug"`
+	ID          int64              `json:"id"`
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Disposition *store.Disposition `json:"disposition"`
+	CreatedAt   time.Time          `json:"createdAt"`
+	UpdatedAt   time.Time          `json:"updatedAt"`
+	Owners      []personJSON       `json:"owners"`
+	Photos      []photoJSON        `json:"photos"`
+	// Placement is null as long as the item is not placed.
+	Placement                 *pathJSON   `json:"placement"`
+	FurnitureStorageLocations []namedJSON `json:"furnitureStorageLocations"`
+	// Move holds the details in the active move, otherwise null.
+	Move *moveDetailsJSON `json:"move"`
 }
 
-type fotoJSON struct {
-	ID          int64  `json:"id"`
-	Hauptfoto   bool   `json:"hauptfoto"`
-	URL         string `json:"url"`
-	VorschauURL string `json:"vorschauUrl"`
+type photoJSON struct {
+	ID           int64  `json:"id"`
+	MainPhoto    bool   `json:"mainPhoto"`
+	URL          string `json:"url"`
+	ThumbnailURL string `json:"thumbnailUrl"`
 }
 
-// verbleibJSON stellt Offen als null dar.
-func verbleibJSON(v store.Verbleib) *store.Verbleib {
-	if v == store.Offen {
+// dispositionJSON represents Undecided as null.
+func dispositionJSON(d store.Disposition) *store.Disposition {
+	if d == store.Undecided {
 		return nil
 	}
-	return &v
+	return &d
 }
 
-// fotoURL enthält neben der ID den zufälligen Dateinamen: Fotos bleiben dauerhaft im
-// Browser-Cache, die Adresse muss sich also ändern, sobald sich die Datei ändert.
-func fotoURL(id int64, datei string) string {
-	return fmt.Sprintf("/api/fotos/%d/%s", id, datei)
+// photoURL contains the random file name besides the ID: photos stay in the browser cache
+// for good, so the address has to change as soon as the file changes.
+func photoURL(id int64, file string) string {
+	return fmt.Sprintf("/api/photos/%d/%s", id, file)
 }
 
-func vorschauURL(fotoID int64, datei string) string { return fotoURL(fotoID, datei) + "/vorschau" }
+func thumbnailURL(photoID int64, file string) string { return photoURL(photoID, file) + "/thumbnail" }
 
-func alsItemJSON(item store.Item) itemJSON {
+func toItemJSON(item store.Item) itemJSON {
 	out := itemJSON{
-		ID:              item.ID,
-		Name:            item.Name,
-		Beschreibung:    item.Beschreibung,
-		Verbleib:        verbleibJSON(item.Verbleib),
-		ErstelltAm:      item.ErstelltAm,
-		GeaendertAm:     item.GeaendertAm,
-		Besitzer:        alsPersonenJSON(item.Besitzer),
-		Fotos:           []fotoJSON{},
-		MoebelLagerorte: alsBenannteJSON(item.MoebelLagerorte),
-		Umzug:           alsUmzugsangabenJSON(item.Umzug),
+		ID:                        item.ID,
+		Name:                      item.Name,
+		Description:               item.Description,
+		Disposition:               dispositionJSON(item.Disposition),
+		CreatedAt:                 item.CreatedAt,
+		UpdatedAt:                 item.UpdatedAt,
+		Owners:                    toPersonsJSON(item.Owners),
+		Photos:                    []photoJSON{},
+		FurnitureStorageLocations: toNamedListJSON(item.FurnitureStorageLocations),
+		Move:                      toMoveDetailsJSON(item.Move),
 	}
-	if item.Platzierung != nil {
-		p := alsPfadJSON(*item.Platzierung)
-		out.Platzierung = &p
+	if item.Placement != nil {
+		p := toPathJSON(*item.Placement)
+		out.Placement = &p
 	}
-	for _, f := range item.Fotos {
-		out.Fotos = append(out.Fotos, fotoJSON{ID: f.ID, Hauptfoto: f.Hauptfoto, URL: fotoURL(f.ID, f.Datei), VorschauURL: vorschauURL(f.ID, f.Datei)})
+	for _, p := range item.Photos {
+		out.Photos = append(out.Photos, photoJSON{ID: p.ID, MainPhoto: p.MainPhoto, URL: photoURL(p.ID, p.File), ThumbnailURL: thumbnailURL(p.ID, p.File)})
 	}
 	return out
 }
 
-// formular ist eine gelesene multipart-Anfrage; die Fotos sind bereits gespeichert.
-type formular struct {
-	felder map[string][]string
-	fotos  []foto.Datei
+// form is a parsed multipart request; the photos are already stored.
+type form struct {
+	fields map[string][]string
+	photos []photo.File
 }
 
-func (f formular) feld(name string) string {
-	if v := f.felder[name]; len(v) > 0 {
+func (f form) field(name string) string {
+	if v := f.fields[name]; len(v) > 0 {
 		return strings.TrimSpace(v[0])
 	}
 	return ""
 }
 
-func (f formular) neueFotos() []store.NeuesFoto {
-	out := make([]store.NeuesFoto, 0, len(f.fotos))
-	for _, d := range f.fotos {
-		out = append(out, store.NeuesFoto{Datei: d.Name, Typ: d.Typ})
+func (f form) newPhotos() []store.NewPhoto {
+	out := make([]store.NewPhoto, 0, len(f.photos))
+	for _, p := range f.photos {
+		out = append(out, store.NewPhoto{File: p.Name, Type: p.Type})
 	}
 	return out
 }
 
-// leseFormular liest eine multipart-Anfrage und speichert die Fotos (Feld "foto") dabei gleich.
-// Bei Fehlern antwortet es selbst und verwirft bereits gespeicherte Fotos.
-func (s *server) leseFormular(w http.ResponseWriter, r *http.Request) (formular, bool) {
-	f := formular{felder: map[string][]string{}}
-	abbrechen := func(status int, code, meldung string) (formular, bool) {
-		s.fotosVerwerfen(f.fotos)
-		schreibeFehler(w, status, code, meldung)
-		return formular{}, false
+// readForm reads a multipart request and stores the photos (field "photo") right away.
+// On errors it answers itself and discards photos already stored.
+func (s *server) readForm(w http.ResponseWriter, r *http.Request) (form, bool) {
+	f := form{fields: map[string][]string{}}
+	abort := func(status int, code, message string) (form, bool) {
+		s.discardPhotos(f.photos)
+		writeError(w, status, code, message)
+		return form{}, false
 	}
 	mr, err := r.MultipartReader()
 	if err != nil {
-		return abbrechen(http.StatusBadRequest, "ungueltige_anfrage", "Formulardaten erwartet")
+		return abort(http.StatusBadRequest, "invalid_request", "Formulardaten erwartet")
 	}
-	for teile := 0; ; teile++ {
-		teil, err := mr.NextPart()
+	for parts := 0; ; parts++ {
+		part, err := mr.NextPart()
 		if errors.Is(err, io.EOF) {
 			return f, true
 		}
-		if err != nil || teile >= maxFormularTeile {
-			return abbrechen(http.StatusBadRequest, "ungueltige_anfrage", "Ungültige Formulardaten")
+		if err != nil || parts >= maxFormParts {
+			return abort(http.StatusBadRequest, "invalid_request", "Ungültige Formulardaten")
 		}
-		if teil.FormName() == "foto" {
-			if len(f.fotos) >= maxFotosProAnfrage {
-				return abbrechen(http.StatusBadRequest, "zu_viele_fotos", fmt.Sprintf("Höchstens %d Fotos auf einmal", maxFotosProAnfrage))
+		if part.FormName() == "photo" {
+			if len(f.photos) >= maxPhotosPerRequest {
+				return abort(http.StatusBadRequest, "too_many_photos", fmt.Sprintf("Höchstens %d Fotos auf einmal", maxPhotosPerRequest))
 			}
-			d, err := s.fotos.Speichern(teil)
+			p, err := s.photos.Save(part)
 			switch {
-			case errors.Is(err, foto.ErrFalscherTyp):
-				return abbrechen(http.StatusBadRequest, "falscher_dateityp", "Nur JPEG-, PNG- und WebP-Fotos")
-			case errors.Is(err, foto.ErrZuGross):
-				return abbrechen(http.StatusRequestEntityTooLarge, "zu_gross",
-					fmt.Sprintf("Fotos dürfen höchstens %d MB groß sein", s.fotos.MaxGroesse>>20))
+			case errors.Is(err, photo.ErrWrongType):
+				return abort(http.StatusBadRequest, "wrong_file_type", "Nur JPEG-, PNG- und WebP-Fotos")
+			case errors.Is(err, photo.ErrTooLarge):
+				return abort(http.StatusRequestEntityTooLarge, "too_large",
+					fmt.Sprintf("Fotos dürfen höchstens %d MB groß sein", s.photos.MaxSize>>20))
 			case err != nil:
-				s.fotosVerwerfen(f.fotos)
-				s.internerFehler(w, r, err)
-				return formular{}, false
+				s.discardPhotos(f.photos)
+				s.internalError(w, r, err)
+				return form{}, false
 			}
-			f.fotos = append(f.fotos, d)
+			f.photos = append(f.photos, p)
 			continue
 		}
-		wert, err := io.ReadAll(io.LimitReader(teil, maxFeldLaenge+1))
-		if err != nil || len(wert) > maxFeldLaenge {
-			return abbrechen(http.StatusBadRequest, "ungueltige_anfrage", "Formularfeld zu lang")
+		value, err := io.ReadAll(io.LimitReader(part, maxFieldLength+1))
+		if err != nil || len(value) > maxFieldLength {
+			return abort(http.StatusBadRequest, "invalid_request", "Formularfeld zu lang")
 		}
-		f.felder[teil.FormName()] = append(f.felder[teil.FormName()], string(wert))
+		f.fields[part.FormName()] = append(f.fields[part.FormName()], string(value))
 	}
 }
 
-// fotosVerwerfen entfernt gespeicherte Fotos, die keinem Item zugeordnet wurden.
-func (s *server) fotosVerwerfen(dateien []foto.Datei) {
-	for _, d := range dateien {
-		s.dateiLoeschen(d.Name)
+// discardPhotos removes stored photos that were not assigned to any item.
+func (s *server) discardPhotos(files []photo.File) {
+	for _, f := range files {
+		s.deleteFile(f.Name)
 	}
 }
 
-func (s *server) dateiLoeschen(name string) {
-	if err := s.fotos.Loeschen(name); err != nil {
-		s.Logger.Error("Foto-Datei löschen", "datei", name, "fehler", err)
+func (s *server) deleteFile(name string) {
+	if err := s.photos.Delete(name); err != nil {
+		s.Logger.Error("delete photo file", "file", name, "error", err)
 	}
 }
 
-func verbleibLesen(w http.ResponseWriter, wert string) (store.Verbleib, bool) {
-	v := store.Verbleib(wert)
-	if !v.Gueltig() {
-		schreibeFehler(w, http.StatusBadRequest, "ungueltiger_verbleib", "Unbekannter Verbleib")
+func readDisposition(w http.ResponseWriter, value string) (store.Disposition, bool) {
+	d := store.Disposition(value)
+	if !d.Valid() {
+		writeError(w, http.StatusBadRequest, "invalid_disposition", "Unbekannter Verbleib")
 		return "", false
 	}
-	return v, true
+	return d, true
 }
 
+// Messages shown in the UI.
 const (
-	meldungBesitzerFehlt    = "Jedes Item braucht mindestens einen Besitzer"
-	meldungFotoFehlt        = "Jedes Item braucht mindestens ein Foto"
-	meldungUnbekanntePerson = "Diese Person gibt es nicht"
-	meldungUnbekannteBox    = "Diese Box gibt es im laufenden Umzug nicht"
+	msgOwnerMissing  = "Jedes Item braucht mindestens einen Besitzer"
+	msgPhotoMissing  = "Jedes Item braucht mindestens ein Foto"
+	msgUnknownPerson = "Diese Person gibt es nicht"
+	msgUnknownBox    = "Diese Box gibt es im laufenden Umzug nicht"
 )
 
-func nameFehlt(w http.ResponseWriter) {
-	schreibeFehler(w, http.StatusBadRequest, "name_fehlt", "Bitte einen Namen angeben")
+func nameMissing(w http.ResponseWriter) {
+	writeError(w, http.StatusBadRequest, "name_missing", "Bitte einen Namen angeben")
 }
 
-// neuesItemLesen prüft die Formularangaben eines neuen Items und antwortet bei Fehlern selbst.
-func neuesItemLesen(w http.ResponseWriter, f formular) (store.NeuesItem, bool) {
-	neu := store.NeuesItem{Name: f.feld("name"), Beschreibung: f.feld("beschreibung"), Fotos: f.neueFotos()}
-	if neu.Name == "" {
-		nameFehlt(w)
-		return neu, false
+// readNewItem checks the form fields of a new item and answers errors itself.
+func readNewItem(w http.ResponseWriter, f form) (store.NewItem, bool) {
+	n := store.NewItem{Name: f.field("name"), Description: f.field("description"), Photos: f.newPhotos()}
+	if n.Name == "" {
+		nameMissing(w)
+		return n, false
 	}
-	v, ok := verbleibLesen(w, f.feld("verbleib"))
+	d, ok := readDisposition(w, f.field("disposition"))
 	if !ok {
-		return neu, false
+		return n, false
 	}
-	neu.Verbleib = v
-	for _, wert := range f.felder["besitzer"] {
-		id, err := strconv.ParseInt(strings.TrimSpace(wert), 10, 64)
+	n.Disposition = d
+	for _, value := range f.fields["owner"] {
+		id, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
 		if err != nil {
-			schreibeFehler(w, http.StatusBadRequest, "unbekannte_person", meldungUnbekanntePerson)
-			return neu, false
+			writeError(w, http.StatusBadRequest, "unknown_person", msgUnknownPerson)
+			return n, false
 		}
-		neu.BesitzerIDs = append(neu.BesitzerIDs, id)
+		n.OwnerIDs = append(n.OwnerIDs, id)
 	}
-	if len(neu.BesitzerIDs) == 0 {
-		schreibeFehler(w, http.StatusBadRequest, "besitzer_fehlt", meldungBesitzerFehlt)
-		return neu, false
+	if len(n.OwnerIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "owner_missing", msgOwnerMissing)
+		return n, false
 	}
-	if len(neu.Fotos) == 0 {
-		fotoFehlt(w)
-		return neu, false
+	if len(n.Photos) == 0 {
+		photoMissing(w)
+		return n, false
 	}
-	if neu.Platz, ok = platzAusFormular(w, f); !ok {
-		return neu, false
+	if n.Place, ok = placeFromForm(w, f); !ok {
+		return n, false
 	}
-	if box := f.feld("box"); box != "" {
+	if box := f.field("box"); box != "" {
 		id, err := strconv.ParseInt(box, 10, 64)
 		if err != nil {
-			schreibeFehler(w, http.StatusBadRequest, "unbekannte_box", meldungUnbekannteBox)
-			return neu, false
+			writeError(w, http.StatusBadRequest, "unknown_box", msgUnknownBox)
+			return n, false
 		}
-		neu.BoxID = id
+		n.BoxID = id
 	}
-	return neu, true
+	return n, true
 }
 
-func (s *server) itemAnlegen(w http.ResponseWriter, r *http.Request) {
-	f, ok := s.leseFormular(w, r)
+func (s *server) createItem(w http.ResponseWriter, r *http.Request) {
+	f, ok := s.readForm(w, r)
 	if !ok {
 		return
 	}
-	neu, ok := neuesItemLesen(w, f)
+	n, ok := readNewItem(w, f)
 	if !ok {
-		s.fotosVerwerfen(f.fotos)
+		s.discardPhotos(f.photos)
 		return
 	}
-	item, err := s.Store.ItemAnlegen(r.Context(), neu, s.Jetzt())
+	item, err := s.Store.CreateItem(r.Context(), n, s.Now())
 	if err != nil {
-		s.fotosVerwerfen(f.fotos)
-		s.storeFehler(w, r, err)
+		s.discardPhotos(f.photos)
+		s.storeError(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusCreated, alsItemJSON(item))
+	writeJSON(w, http.StatusCreated, toItemJSON(item))
 }
 
-func (s *server) itemAbrufen(w http.ResponseWriter, r *http.Request) {
-	id, ok := pfadID(w, r, "id")
+func (s *server) getItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
 	if !ok {
 		return
 	}
-	item, err := s.Store.ItemAbrufen(r.Context(), id)
+	item, err := s.Store.GetItem(r.Context(), id)
 	if err != nil {
-		s.storeFehler(w, r, err)
+		s.storeError(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusOK, alsItemJSON(item))
+	writeJSON(w, http.StatusOK, toItemJSON(item))
 }
 
-type itemListenJSON struct {
-	ID          int64              `json:"id"`
-	Name        string             `json:"name"`
-	Verbleib    *store.Verbleib    `json:"verbleib"`
-	VorschauURL string             `json:"vorschauUrl"`
-	Platz       string             `json:"platz"`
-	Umzug       *umzugsangabenJSON `json:"umzug"`
+type itemListJSON struct {
+	ID           int64              `json:"id"`
+	Name         string             `json:"name"`
+	Disposition  *store.Disposition `json:"disposition"`
+	ThumbnailURL string             `json:"thumbnailUrl"`
+	Place        string             `json:"place"`
+	Move         *moveDetailsJSON   `json:"move"`
 }
 
-func alsItemListeJSON(eintraege []store.ItemListenEintrag) []itemListenJSON {
-	items := make([]itemListenJSON, 0, len(eintraege))
-	for _, e := range eintraege {
-		items = append(items, itemListenJSON{
-			ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID, e.HauptfotoDatei),
-			Platz: e.Platz, Umzug: alsUmzugsangabenJSON(e.Umzug),
+func toItemListJSON(entries []store.ItemListEntry) []itemListJSON {
+	items := make([]itemListJSON, 0, len(entries))
+	for _, e := range entries {
+		items = append(items, itemListJSON{
+			ID: e.ID, Name: e.Name, Disposition: dispositionJSON(e.Disposition), ThumbnailURL: thumbnailURL(e.MainPhotoID, e.MainPhotoFile),
+			Place: e.Place, Move: toMoveDetailsJSON(e.Move),
 		})
 	}
 	return items
 }
 
-// itemsAuflisten filtert mit q (Text im Namen), besitzer (Person-ID), verbleib (inkl. "offen"),
-// raum, lagerort (beide inkl. verschachtelter Lagerorte), ohneLagerort sowie box, herkunftsraum und
-// ohneZielraum im laufenden Umzug und liefert seitenweise
-// mit seite (ab 1) und proSeite.
-func (s *server) itemsAuflisten(w http.ResponseWriter, r *http.Request) {
+// listItems filters by q (text in the name), owner (person ID), disposition (including "undecided"),
+// room, storageLocation (both including nested storage locations), unstored as well as box, originRoom
+// and withoutTargetRoom in the active move, and returns pages with page (from 1) and perPage.
+func (s *server) listItems(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	filter := store.ItemFilter{Text: strings.TrimSpace(q.Get("q")), Anzahl: standardProSeite}
-	ungueltig := func(meldung string) {
-		schreibeFehler(w, http.StatusBadRequest, "ungueltige_anfrage", meldung)
+	filter := store.ItemFilter{Text: strings.TrimSpace(q.Get("q")), Limit: defaultPerPage}
+	invalid := func(message string) {
+		writeError(w, http.StatusBadRequest, "invalid_request", message)
 	}
-	for _, feld := range []struct {
-		name string
-		ziel *int64
+	for _, param := range []struct {
+		name   string
+		target *int64
 	}{
-		{"besitzer", &filter.BesitzerID}, {"raum", &filter.RaumID}, {"lagerort", &filter.LagerortID},
-		{"box", &filter.BoxID}, {"herkunftsraum", &filter.HerkunftsraumID},
+		{"owner", &filter.OwnerID}, {"room", &filter.RoomID}, {"storageLocation", &filter.StorageLocationID},
+		{"box", &filter.BoxID}, {"originRoom", &filter.OriginRoomID},
 	} {
-		if wert := q.Get(feld.name); wert != "" {
-			id, err := strconv.ParseInt(wert, 10, 64)
+		if value := q.Get(param.name); value != "" {
+			id, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
-				ungueltig("Ungültige ID für " + feld.name)
+				invalid("Ungültige ID für " + param.name)
 				return
 			}
-			*feld.ziel = id
+			*param.target = id
 		}
 	}
-	filter.OhneLagerort = q.Get("ohneLagerort") != ""
-	filter.OhneZielraum = q.Get("ohneZielraum") != ""
-	if v := q.Get("verbleib"); v != "" {
-		verbleib := store.Offen
-		if v != "offen" {
+	filter.Unstored = q.Get("unstored") != ""
+	filter.WithoutTargetRoom = q.Get("withoutTargetRoom") != ""
+	if v := q.Get("disposition"); v != "" {
+		disposition := store.Undecided
+		if v != "undecided" {
 			var ok bool
-			if verbleib, ok = verbleibLesen(w, v); !ok {
+			if disposition, ok = readDisposition(w, v); !ok {
 				return
 			}
 		}
-		filter.Verbleib = &verbleib
+		filter.Disposition = &disposition
 	}
-	seite := 1
-	if p := q.Get("seite"); p != "" {
+	page := 1
+	if p := q.Get("page"); p != "" {
 		n, err := strconv.Atoi(p)
 		if err != nil || n < 1 {
-			ungueltig("Ungültige Seite")
+			invalid("Ungültige Seite")
 			return
 		}
-		seite = n
+		page = n
 	}
-	if p := q.Get("proSeite"); p != "" {
+	if p := q.Get("perPage"); p != "" {
 		n, err := strconv.Atoi(p)
-		if err != nil || n < 1 || n > maxProSeite {
-			ungueltig(fmt.Sprintf("proSeite muss zwischen 1 und %d liegen", maxProSeite))
+		if err != nil || n < 1 || n > maxPerPage {
+			invalid(fmt.Sprintf("perPage muss zwischen 1 und %d liegen", maxPerPage))
 			return
 		}
-		filter.Anzahl = n
+		filter.Limit = n
 	}
-	filter.Versatz = (seite - 1) * filter.Anzahl
+	filter.Offset = (page - 1) * filter.Limit
 
-	s.itemListeAntworten(w, r, filter)
+	s.writeItemList(w, r, filter)
 }
 
-func (s *server) itemListeAntworten(w http.ResponseWriter, r *http.Request, filter store.ItemFilter) {
-	eintraege, weitere, err := s.Store.ItemsAuflisten(r.Context(), filter)
+func (s *server) writeItemList(w http.ResponseWriter, r *http.Request, filter store.ItemFilter) {
+	entries, more, err := s.Store.ListItems(r.Context(), filter)
 	if err != nil {
-		s.internerFehler(w, r, err)
+		s.internalError(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusOK, map[string]any{"items": alsItemListeJSON(eintraege), "weitere": weitere})
+	writeJSON(w, http.StatusOK, map[string]any{"items": toItemListJSON(entries), "more": more})
 }
 
-// wegfallVorschau liefert alle Items, die beim Löschen ohne Lagerort dastünden. pruefen stellt sicher,
-// dass es den Lagerort oder das Möbelstück gibt; filtern setzt ihn im Filter.
-func (s *server) wegfallVorschau(pruefen func(ctx context.Context, id int64) error, filtern func(*store.ItemFilter, int64)) http.HandlerFunc {
+// removalPreview returns all items that would be left without storage location on deletion. check
+// makes sure the storage location or the piece of furniture exists; filter sets it in the filter.
+func (s *server) removalPreview(check func(ctx context.Context, id int64) error, filter func(*store.ItemFilter, int64)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, ok := pfadID(w, r, "id")
+		id, ok := pathID(w, r, "id")
 		if !ok {
 			return
 		}
-		if err := pruefen(r.Context(), id); err != nil {
-			s.storeFehler(w, r, err)
+		if err := check(r.Context(), id); err != nil {
+			s.storeError(w, r, err)
 			return
 		}
-		filter := store.ItemFilter{Anzahl: maxVollstaendig}
-		filtern(&filter, id)
-		s.itemListeAntworten(w, r, filter)
+		f := store.ItemFilter{Limit: maxComplete}
+		filter(&f, id)
+		s.writeItemList(w, r, f)
 	}
 }
 
-func (s *server) itemBearbeiten(w http.ResponseWriter, r *http.Request) {
-	id, ok := pfadID(w, r, "id")
+func (s *server) editItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
 	if !ok {
 		return
 	}
 	var req struct {
-		Name         string  `json:"name"`
-		Beschreibung string  `json:"beschreibung"`
-		Verbleib     *string `json:"verbleib"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+		Disposition *string `json:"disposition"`
 	}
-	if !leseJSON(w, r, &req) {
+	if !readJSON(w, r, &req) {
 		return
 	}
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
-		nameFehlt(w)
+		nameMissing(w)
 		return
 	}
-	verbleib := store.Offen
-	if req.Verbleib != nil {
+	disposition := store.Undecided
+	if req.Disposition != nil {
 		var ok bool
-		if verbleib, ok = verbleibLesen(w, *req.Verbleib); !ok {
+		if disposition, ok = readDisposition(w, *req.Disposition); !ok {
 			return
 		}
 	}
-	item, err := s.Store.ItemBearbeiten(r.Context(), id, name, strings.TrimSpace(req.Beschreibung), verbleib, s.Jetzt())
-	s.itemAntworten(w, r, item, err)
+	item, err := s.Store.EditItem(r.Context(), id, name, strings.TrimSpace(req.Description), disposition, s.Now())
+	s.writeItem(w, r, item, err)
 }
 
-// itemAntworten antwortet nach einer Änderung mit dem Item oder dem Fehler.
-func (s *server) itemAntworten(w http.ResponseWriter, r *http.Request, item store.Item, err error) {
+// writeItem answers after a change with the item or the error.
+func (s *server) writeItem(w http.ResponseWriter, r *http.Request, item store.Item, err error) {
 	if err != nil {
-		s.storeFehler(w, r, err)
+		s.storeError(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusOK, alsItemJSON(item))
+	writeJSON(w, http.StatusOK, toItemJSON(item))
 }
 
-func (s *server) itemLoeschen(w http.ResponseWriter, r *http.Request) {
-	id, ok := pfadID(w, r, "id")
+func (s *server) deleteItem(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
 	if !ok {
 		return
 	}
-	dateien, err := s.Store.ItemLoeschen(r.Context(), id, s.Jetzt())
+	files, err := s.Store.DeleteItem(r.Context(), id, s.Now())
 	if err != nil {
-		s.storeFehler(w, r, err)
+		s.storeError(w, r, err)
 		return
 	}
-	for _, d := range dateien {
-		s.dateiLoeschen(d)
+	for _, f := range files {
+		s.deleteFile(f)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// besitzerAendern fügt die Person im Pfad als Besitzer hinzu oder entfernt sie.
-func (s *server) besitzerAendern(aendern func(ctx context.Context, itemID, personID int64, jetzt time.Time) (store.Item, error)) http.HandlerFunc {
+// changeOwner adds the person in the path as owner or removes them.
+func (s *server) changeOwner(change func(ctx context.Context, itemID, personID int64, now time.Time) (store.Item, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		itemID, ok := pfadID(w, r, "id")
+		itemID, ok := pathID(w, r, "id")
 		if !ok {
 			return
 		}
-		personID, ok := pfadID(w, r, "personId")
+		personID, ok := pathID(w, r, "personId")
 		if !ok {
 			return
 		}
-		item, err := aendern(r.Context(), itemID, personID, s.Jetzt())
-		s.itemAntworten(w, r, item, err)
+		item, err := change(r.Context(), itemID, personID, s.Now())
+		s.writeItem(w, r, item, err)
 	}
 }
