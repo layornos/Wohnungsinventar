@@ -5,6 +5,7 @@
 	//   menu and returns it on close.
 	// - "sidebar" (wide screens): permanently visible sidebar on the left.
 	// desktop.css decides which form is visible; the swipe only works while the sidebar is not visible.
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { toLogin } from './api.ts';
@@ -19,9 +20,13 @@
 	// A swipe only starts this close to the edge, so normal scrolling and swiping in the content isn't disturbed.
 	const EDGE = 24;
 	const MIN_DISTANCE = 60;
+	// In the installed app on iOS the same edge swipe is the system's back gesture. The menu therefore only opens
+	// after a short wait, and not if a back navigation happened since the swipe started.
+	const OPEN_DELAY = 350;
 
 	let dialog = $state<HTMLDialogElement>();
-	let start: { x: number; y: number } | null = null;
+	let start: { x: number; y: number; at: number } | null = null;
+	let lastBack = 0;
 	let error = $state('');
 
 	function open() {
@@ -45,8 +50,19 @@
 
 	function swipeStart(e: TouchEvent, onlyAtEdge: boolean) {
 		const t = e.touches[0];
-		start = !onlyAtEdge || t.clientX <= EDGE ? { x: t.clientX, y: t.clientY } : null;
+		start = !onlyAtEdge || t.clientX <= EDGE ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
 	}
+
+	function openUnlessBack(swipedAt = Date.now()) {
+		setTimeout(() => {
+			if (lastBack < swipedAt) open();
+		}, OPEN_DELAY);
+	}
+
+	// A back navigation that lands while the menu is open anyway (e.g. a slow page) closes it again.
+	afterNavigate((nav) => {
+		if (nav.type === 'popstate') close();
+	});
 
 	// Returns the horizontal distance if the swipe was more horizontal than vertical, otherwise 0.
 	function swipeDistance(e: TouchEvent) {
@@ -149,11 +165,14 @@
 {/snippet}
 
 <svelte:window
+	onpopstate={() => (lastBack = Date.now())}
 	ontouchstart={(e) => {
 		if (kind === 'dialog' && !sideMenu.open && !wide.current) swipeStart(e, true);
 	}}
 	ontouchend={(e) => {
-		if (kind === 'dialog' && !sideMenu.open && !wide.current && swipeDistance(e) >= MIN_DISTANCE) open();
+		if (kind !== 'dialog' || sideMenu.open || wide.current) return;
+		const swipedAt = start?.at;
+		if (swipeDistance(e) >= MIN_DISTANCE) openUnlessBack(swipedAt);
 	}}
 />
 
