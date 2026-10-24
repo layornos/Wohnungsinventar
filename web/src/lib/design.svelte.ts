@@ -11,12 +11,14 @@ export const DESIGNS: { wert: Design; name: string }[] = [
 // Muss zum Schlüssel im Inline-Script in app.html passen.
 const SCHLUESSEL = 'inventar.design';
 
-export function aktuellesDesign(): Design {
-	return document.documentElement.dataset.design === 'neon' ? 'neon' : 'minimal';
-}
+/** Das aktive Design; geteilt, damit Menü-Dialog und Seitenleiste dieselbe Wahl zeigen. */
+export const darstellung = $state<{ design: Design }>({
+	design: document.documentElement.dataset.design === 'neon' ? 'neon' : 'minimal'
+});
 
 /** Wechselt das Design und merkt es sich für dieses Gerät. */
 export function designWaehlen(d: Design) {
+	darstellung.design = d;
 	document.documentElement.dataset.design = d;
 	try {
 		localStorage.setItem(SCHLUESSEL, d);

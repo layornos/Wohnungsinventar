@@ -180,7 +180,7 @@
 	}
 </script>
 
-<main class="seite">
+<main class="seite weit">
 	<header class="kopf">
 		<a class="knopf sekundaer" href="/">← Liste</a>
 		{#if item && !bearbeiten}
@@ -193,153 +193,159 @@
 	{/if}
 
 	{#if item}
-		{#if foto}
-			<figure class="grossfoto">
-				<a href={foto.url} target="_blank" rel="noopener"><img src={foto.vorschauUrl} alt={item.name} /></a>
-				{#if item.fotos.length > 1}
-					<button type="button" class="foto-loeschen" aria-label="Foto löschen" disabled={laeuft} onclick={() => fotoLoeschen(foto.id)}>
-						×
-					</button>
+		<div class="zweispaltig">
+			<div class="fotospalte">
+				{#if foto}
+					<figure class="grossfoto">
+						<a href={foto.url} target="_blank" rel="noopener"><img src={foto.vorschauUrl} alt={item.name} /></a>
+						{#if item.fotos.length > 1}
+							<button type="button" class="foto-loeschen" aria-label="Foto löschen" disabled={laeuft} onclick={() => fotoLoeschen(foto.id)}>
+								×
+							</button>
+						{/if}
+					</figure>
 				{/if}
-			</figure>
-		{/if}
-		<ul class="fotoleiste">
-			{#each item.fotos as f (f.id)}
-				<li>
-					<button type="button" class="foto-wahl" class:aktiv={f.id === foto?.id} onclick={() => (gezeigt = f.id)}>
-						<img src={f.vorschauUrl} alt={f.hauptfoto ? 'Hauptfoto' : 'Foto'} loading="lazy" />
-					</button>
-				</li>
-			{/each}
-		</ul>
-		{#if foto}
-			<div class="knopfzeile">
-				{#if !foto.hauptfoto}
-					<button class="sekundaer" disabled={laeuft} onclick={() => aendern('PUT', `${pfad}/hauptfoto`, { fotoId: foto.id })}>
-						Als Hauptfoto
-					</button>
-				{:else}
-					<span class="marke">Hauptfoto</span>
+				<ul class="fotoleiste">
+					{#each item.fotos as f (f.id)}
+						<li>
+							<button type="button" class="foto-wahl" class:aktiv={f.id === foto?.id} onclick={() => (gezeigt = f.id)}>
+								<img src={f.vorschauUrl} alt={f.hauptfoto ? 'Hauptfoto' : 'Foto'} loading="lazy" />
+							</button>
+						</li>
+					{/each}
+				</ul>
+				{#if foto}
+					<div class="knopfzeile">
+						{#if !foto.hauptfoto}
+							<button class="sekundaer" disabled={laeuft} onclick={() => aendern('PUT', `${pfad}/hauptfoto`, { fotoId: foto.id })}>
+								Als Hauptfoto
+							</button>
+						{:else}
+							<span class="marke">Hauptfoto</span>
+						{/if}
+						<button class="sekundaer" disabled={laeuft} onclick={() => fotoBearbeitenBeginnen(foto)}>Drehen / Zuschneiden</button>
+					</div>
 				{/if}
-				<button class="sekundaer" disabled={laeuft} onclick={() => fotoBearbeitenBeginnen(foto)}>Drehen / Zuschneiden</button>
+				<FotoEingabe gewaehlt={fotosHochladen} deaktiviert={laeuft} />
+				{#if bearbeitung}
+					<FotoBearbeiten quelle={bearbeitung.quelle} fertig={bearbeitungFertig} />
+				{/if}
 			</div>
-		{/if}
-		<FotoEingabe gewaehlt={fotosHochladen} deaktiviert={laeuft} />
-		{#if bearbeitung}
-			<FotoBearbeiten quelle={bearbeitung.quelle} fertig={bearbeitungFertig} />
-		{/if}
 
-		{#if bearbeiten}
-			<form onsubmit={speichern}>
-				<label>
-					Name
-					<input bind:value={entwurf.name} required />
-				</label>
-				<label>
-					Beschreibung
-					<textarea bind:value={entwurf.beschreibung} rows="3"></textarea>
-				</label>
-				<VerbleibAuswahl bind:wert={entwurf.verbleib} />
-				<div class="knopfzeile">
-					<button type="submit" disabled={laeuft}>Speichern</button>
-					<button type="button" class="sekundaer" onclick={() => (bearbeiten = false)}>Abbrechen</button>
-				</div>
-			</form>
-		{:else}
-			<h1>{item.name}</h1>
-			{#if item.beschreibung}
-				<p class="beschreibung">{item.beschreibung}</p>
-			{/if}
-			<p>Verbleib: <span class="verbleib" data-verbleib={item.verbleib ?? 'offen'}>{verbleibName(item.verbleib)}</span></p>
-		{/if}
-
-		<section>
-			<h2>Platz</h2>
-			{#if platzWaehlen}
-				<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
-				<div class="knopfzeile">
-					<button disabled={laeuft} onclick={platzSpeichern}>Speichern</button>
-					<button class="sekundaer" onclick={() => (platzWaehlen = false)}>Abbrechen</button>
-				</div>
-			{:else}
-				{#if item.platzierung}
-					<PfadAnzeige pfad={item.platzierung} />
-					{#if item.platzierung.lagerorte.length === 0}<p class="leise">Direkt im Raum, ohne Lagerort.</p>{/if}
+			<div class="angabenspalte">
+				{#if bearbeiten}
+					<form onsubmit={speichern}>
+						<label>
+							Name
+							<input bind:value={entwurf.name} required />
+						</label>
+						<label>
+							Beschreibung
+							<textarea bind:value={entwurf.beschreibung} rows="3"></textarea>
+						</label>
+						<VerbleibAuswahl bind:wert={entwurf.verbleib} />
+						<div class="knopfzeile">
+							<button type="submit" disabled={laeuft}>Speichern</button>
+							<button type="button" class="sekundaer" onclick={() => (bearbeiten = false)}>Abbrechen</button>
+						</div>
+					</form>
 				{:else}
-					<p class="leise">Noch nicht platziert.</p>
+					<h1>{item.name}</h1>
+					{#if item.beschreibung}
+						<p class="beschreibung">{item.beschreibung}</p>
+					{/if}
+					<p>Verbleib: <span class="verbleib" data-verbleib={item.verbleib ?? 'offen'}>{verbleibName(item.verbleib)}</span></p>
 				{/if}
-				<button class="sekundaer klein" onclick={platzAendernBeginnen}>Platz ändern</button>
-			{/if}
-			{#if item.moebelLagerorte.length > 0}
-				<p>
-					Lagerorte dieses Möbelstücks:
-					{#each item.moebelLagerorte as l, i (l.id)}{i > 0 ? ', ' : ''}<a href="/lagerorte/{l.id}">{l.name}</a>{/each}
-				</p>
-			{/if}
-		</section>
 
-		{#if umzug}
-			<section>
-				<h2>Umzug</h2>
-				<div class="filter">
-					<label>
-						Herkunftsraum
-						<select bind:value={angaben.herkunft}>
-							<option value="">–</option>
-							{#each wohnungen as w (w.id)}
-								<optgroup label={w.name}>
-									{#each w.raeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
-								</optgroup>
-							{/each}
-						</select>
-					</label>
-					<label>
-						Zielraum
-						<select bind:value={angaben.ziel}>
-							<option value="">–</option>
-							{#each neueRaeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
-						</select>
-					</label>
-					<label class="ganz">
-						Box
-						<select bind:value={angaben.box}>
-							<option value="">Keine</option>
-							{#each umzug.boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
-						</select>
-					</label>
-				</div>
-				<button class="sekundaer" disabled={laeuft} onclick={angabenSpeichern}>Umzugsangaben speichern</button>
-			</section>
-		{/if}
+				<section>
+					<h2>Platz</h2>
+					{#if platzWaehlen}
+						<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
+						<div class="knopfzeile">
+							<button disabled={laeuft} onclick={platzSpeichern}>Speichern</button>
+							<button class="sekundaer" onclick={() => (platzWaehlen = false)}>Abbrechen</button>
+						</div>
+					{:else}
+						{#if item.platzierung}
+							<PfadAnzeige pfad={item.platzierung} />
+							{#if item.platzierung.lagerorte.length === 0}<p class="leise">Direkt im Raum, ohne Lagerort.</p>{/if}
+						{:else}
+							<p class="leise">Noch nicht platziert.</p>
+						{/if}
+						<button class="sekundaer klein" onclick={platzAendernBeginnen}>Platz ändern</button>
+					{/if}
+					{#if item.moebelLagerorte.length > 0}
+						<p>
+							Lagerorte dieses Möbelstücks:
+							{#each item.moebelLagerorte as l, i (l.id)}{i > 0 ? ', ' : ''}<a href="/lagerorte/{l.id}">{l.name}</a>{/each}
+						</p>
+					{/if}
+				</section>
 
-		<section>
-			<h2>Besitzer</h2>
-			<ul class="zeilen">
-				{#each item.besitzer as b (b.id)}
-					<li>
-						<span>{b.name}</span>
-						<button class="sekundaer klein" disabled={laeuft} onclick={() => aendern('DELETE', `${pfad}/besitzer/${b.id}`)} aria-label="{b.name} als Besitzer entfernen">
-							Entfernen
-						</button>
-					</li>
-				{/each}
-			</ul>
-			{#if weiterePersonen.length > 0}
-				<div class="knopfzeile">
-					<select aria-label="Besitzer hinzufügen" bind:value={neuerBesitzer}>
-						<option value="">Person wählen …</option>
-						{#each weiterePersonen as p (p.id)}
-							<option value={String(p.id)}>{p.name}</option>
+				{#if umzug}
+					<section>
+						<h2>Umzug</h2>
+						<div class="filter">
+							<label>
+								Herkunftsraum
+								<select bind:value={angaben.herkunft}>
+									<option value="">–</option>
+									{#each wohnungen as w (w.id)}
+										<optgroup label={w.name}>
+											{#each w.raeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+										</optgroup>
+									{/each}
+								</select>
+							</label>
+							<label>
+								Zielraum
+								<select bind:value={angaben.ziel}>
+									<option value="">–</option>
+									{#each neueRaeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+								</select>
+							</label>
+							<label class="ganz">
+								Box
+								<select bind:value={angaben.box}>
+									<option value="">Keine</option>
+									{#each umzug.boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
+								</select>
+							</label>
+						</div>
+						<button class="sekundaer" disabled={laeuft} onclick={angabenSpeichern}>Umzugsangaben speichern</button>
+					</section>
+				{/if}
+
+				<section>
+					<h2>Besitzer</h2>
+					<ul class="zeilen">
+						{#each item.besitzer as b (b.id)}
+							<li>
+								<span>{b.name}</span>
+								<button class="sekundaer klein" disabled={laeuft} onclick={() => aendern('DELETE', `${pfad}/besitzer/${b.id}`)} aria-label="{b.name} als Besitzer entfernen">
+									Entfernen
+								</button>
+							</li>
 						{/each}
-					</select>
-					<button class="sekundaer" disabled={laeuft || !neuerBesitzer} onclick={besitzerHinzufuegen}>Hinzufügen</button>
-				</div>
-			{/if}
-		</section>
+					</ul>
+					{#if weiterePersonen.length > 0}
+						<div class="knopfzeile">
+							<select aria-label="Besitzer hinzufügen" bind:value={neuerBesitzer}>
+								<option value="">Person wählen …</option>
+								{#each weiterePersonen as p (p.id)}
+									<option value={String(p.id)}>{p.name}</option>
+								{/each}
+							</select>
+							<button class="sekundaer" disabled={laeuft || !neuerBesitzer} onclick={besitzerHinzufuegen}>Hinzufügen</button>
+						</div>
+					{/if}
+				</section>
 
-		<section>
-			<button class="gefahr" onclick={itemLoeschen}>Item löschen</button>
-		</section>
+				<section>
+					<button class="gefahr" onclick={itemLoeschen}>Item löschen</button>
+				</section>
+			</div>
+		</div>
 	{:else if !fehler}
 		<p class="leise">Lädt …</p>
 	{/if}

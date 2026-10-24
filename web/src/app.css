@@ -24,6 +24,7 @@
 	--schatten: 0 1px 2px rgb(0 0 0 / 0.05);
 	--schatten-schwebend: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
 	--leuchten: none;
+	--leuchten-stark: none;
 	--glas: none;
 	--themenfarbe: #ffffff;
 
@@ -74,6 +75,7 @@
 	--schatten: none;
 	--schatten-schwebend: 0 0 28px rgb(125 249 200 / 0.5);
 	--leuchten: 0 0 20px rgb(125 249 200 / 0.4);
+	--leuchten-stark: 0 0 32px rgb(125 249 200 / 0.55);
 	--glas: blur(16px);
 	--themenfarbe: #09090f;
 	color-scheme: dark;
@@ -93,10 +95,6 @@ body {
 	-webkit-font-smoothing: antialiased;
 }
 
-:focus-visible {
-	outline: 2px solid var(--akzent);
-	outline-offset: 2px;
-}
 
 .seite {
 	max-width: 720px;
@@ -143,6 +141,13 @@ dialog.seitenmenue {
 
 dialog.seitenmenue::backdrop {
 	background: rgb(0 0 0 / 0.45);
+}
+
+/* Seitenleiste auf breiten Bildschirmen (Anordnung in desktop.css): Minimal dezent grau, Neon Milchglas. */
+nav.seitenleiste {
+	background: var(--flaeche);
+	-webkit-backdrop-filter: var(--glas);
+	backdrop-filter: var(--glas);
 }
 
 .menueinhalt {
@@ -236,10 +241,6 @@ a.knopf.sekundaer {
 	box-shadow: none;
 }
 
-button.sekundaer:hover:not(:disabled),
-a.knopf.sekundaer:hover {
-	border-color: var(--text-leise);
-}
 
 .fehler {
 	color: var(--fehler);
@@ -445,10 +446,6 @@ label.chip input {
 	text-decoration: none;
 }
 
-.karte:hover {
-	background: var(--flaeche);
-}
-
 .karte img {
 	display: block;
 	width: 56px;
@@ -481,7 +478,6 @@ label.chip input {
 	position: fixed;
 	right: 16px;
 	bottom: max(16px, env(safe-area-inset-bottom));
-	border-radius: 999px;
 	box-shadow: var(--schatten-schwebend);
 }
 
@@ -974,11 +970,6 @@ fieldset.darstellung legend {
 	backdrop-filter: var(--glas);
 }
 
-[data-design='neon'] button.sekundaer:hover:not(:disabled),
-[data-design='neon'] a.knopf.sekundaer:hover {
-	border-color: rgb(125 249 200 / 0.5);
-}
-
 [data-design='neon'] input:focus-visible,
 [data-design='neon'] select:focus-visible,
 [data-design='neon'] textarea:focus-visible {
@@ -1016,7 +1007,6 @@ fieldset.darstellung legend {
 }
 
 [data-design='neon'] .karte:hover {
-	border-color: rgb(125 249 200 / 0.45);
 	box-shadow: 0 0 22px rgb(125 249 200 / 0.18);
 }
 
