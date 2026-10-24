@@ -19,3 +19,7 @@ Die Punkte „Umzug“, „Wohnungen“, „Ohne Lagerort“ (und sinnvollerweis
 ## Fertig, wenn
 
 - [ ] Menü per Icon und per Rand-Wisch zu öffnen, die genannten Punkte darin, Kopf der Startseite aufgeräumt.
+
+## Comments
+
+- Umgesetzt in `web/src/lib/Seitenmenue.svelte` als modaler `<dialog>` am linken Rand: ☰-Knopf im Kopf der Startseite (`aria-expanded`, `aria-controls`), Wisch ab den linken 24 px öffnet, Wisch nach links, Tipp auf den Hintergrund oder Escape schließt. Der Dialog hält den Fokus im Menü und gibt ihn beim Schließen an den Knopf zurück. Keine neue Bibliothek. Im Browser auf einem Gerät noch nicht ausprobiert, vor allem der Rand-Wisch in der installierten PWA auf iOS.
