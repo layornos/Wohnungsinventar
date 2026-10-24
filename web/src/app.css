@@ -1,7 +1,8 @@
 /*
- * Zwei Designs, gesteuert über <html data-design="minimal|neon"> (gesetzt in app.html, gewechselt in
- * lib/design.ts). Alles Farbige läuft über die Tokens hier; die Regeln weiter unten gelten für beide,
- * nur Abweichungen im Aufbau (Liste vs. Kacheln, Milchglas) stehen im Abschnitt „Design Neon“ am Ende.
+ * Drei Designs, gesteuert über <html data-design="minimal|neon|weich"> (gesetzt in app.html, gewechselt in
+ * lib/design.svelte.ts). Alles Farbige läuft über die Tokens hier; die Regeln weiter unten gelten für alle,
+ * nur Abweichungen im Aufbau (Liste vs. Kacheln, Milchglas, Schatten statt Ränder) stehen in den Abschnitten
+ * „Design Neon“ und „Design Weich & farbig“ am Ende.
  * Breakpoints für breite Bildschirme gehören nicht hierher, sondern nach desktop.css.
  */
 
@@ -35,11 +36,14 @@
 	--verbleib-verschenken: #db2777;
 	--verbleib-spaeter: #ca8a04;
 
+	/* Schatten für Karten (Items, Designwahl); Weich hebt sie etwas stärker ab. */
+	--schatten-karte: var(--schatten);
+
 	color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
-	:root:not([data-design='neon']) {
+	:root:not([data-design='neon'], [data-design='weich']) {
 		--hintergrund: #09090b;
 		--flaeche: #18181b;
 		--flaeche-fest: #18181b;
@@ -79,6 +83,34 @@
 	--glas: blur(16px);
 	--themenfarbe: #09090f;
 	color-scheme: dark;
+}
+
+/*
+ * Weich & farbig: immer hell, große Rundungen, sanfte Schatten statt Ränder, Violett als Akzent.
+ * Plus Jakarta Sans, falls installiert. Leiser Text hat 5,0:1 auf dem Hintergrund und 5,6:1 auf Flächen.
+ */
+:root[data-design='weich'] {
+	--hintergrund: #f3f0fa;
+	--flaeche: #ffffff;
+	--flaeche-fest: #ffffff;
+	--feld: #ffffff;
+	--text: #1b1530;
+	--text-leise: #6b6385;
+	--akzent: #5b3bea;
+	--akzent-text: #ffffff;
+	--rand: #e6e1f3;
+	--fehler: #c81e1e;
+	--radius: 18px;
+	--radius-gross: 22px;
+	--schrift: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--schatten: 0 4px 14px rgb(60 40 140 / 0.08);
+	--schatten-karte: 0 6px 20px rgb(60 40 140 / 0.08);
+	--schatten-schwebend: 0 12px 28px rgb(91 59 234 / 0.4);
+	--leuchten: 0 4px 14px rgb(60 40 140 / 0.1);
+	--leuchten-stark: 0 6px 18px rgb(91 59 234 / 0.3);
+	--glas: none;
+	--themenfarbe: #f3f0fa;
+	color-scheme: light;
 }
 
 * {
@@ -143,7 +175,7 @@ dialog.seitenmenue::backdrop {
 	background: rgb(0 0 0 / 0.45);
 }
 
-/* Seitenleiste auf breiten Bildschirmen (Anordnung in desktop.css): Minimal dezent grau, Neon Milchglas. */
+/* Seitenleiste auf breiten Bildschirmen (Anordnung in desktop.css): Minimal dezent grau, Neon Milchglas, Weich weiß mit Schatten. */
 nav.seitenleiste {
 	background: var(--flaeche);
 	-webkit-backdrop-filter: var(--glas);
@@ -864,61 +896,121 @@ button.packen img {
 	backdrop-filter: var(--glas);
 }
 
-/* Umschalter für das Design im Seitenmenü: zwei Radio-Buttons als segmentierter Knopf. */
-fieldset.darstellung {
-	margin: 16px 0 8px;
+/* Einstellungen: Designwahl als Karten mit kleiner Farbvorschau; das Radio bleibt sichtbar und bedienbar. */
+fieldset.designwahl {
+	min-width: 0;
+	margin: 0;
 	padding: 0;
 	border: none;
 }
 
-fieldset.darstellung legend {
-	margin-bottom: 6px;
+fieldset.designwahl legend {
 	padding: 0;
-	color: var(--text-leise);
-	font-size: 0.8rem;
-	font-weight: 500;
 }
 
-.segmente {
+fieldset.designwahl legend h2 {
+	margin: 0 0 4px;
+}
+
+fieldset.designwahl p {
+	margin: 0;
+}
+
+.designkarten {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 4px;
-	padding: 4px;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 12px;
+	margin-top: 16px;
+}
+
+label.designkarte {
+	display: grid;
+	gap: 10px;
+	padding: 10px;
 	border: 1px solid var(--rand);
 	border-radius: var(--radius-gross);
 	background: var(--flaeche);
-}
-
-.segmente label {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 40px;
-	border-radius: calc(var(--radius-gross) - 4px);
-	font-size: 0.95rem;
+	box-shadow: var(--schatten-karte);
+	font-size: 1rem;
+	font-weight: 400;
 	cursor: pointer;
 }
 
-/* Das eigentliche Radio bleibt bedienbar und vorlesbar, nur unsichtbar über dem Label. */
-.segmente input {
-	position: absolute;
-	opacity: 0;
-	width: 1px;
-	height: 1px;
+label.designkarte:has(input:checked) {
+	border-color: var(--akzent);
+	outline: 1px solid var(--akzent);
+}
+
+.designkarte-zeile {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.designkarte input {
+	flex: none;
+	width: 22px;
+	height: 22px;
 	min-height: 0;
 	margin: 0;
-	padding: 0;
+	accent-color: var(--akzent);
 }
 
-.segmente label:has(input:checked) {
-	background: var(--akzent);
-	color: var(--akzent-text);
-	box-shadow: var(--leuchten);
+.designkarte-text {
+	display: grid;
 }
 
-.segmente label:has(input:focus-visible) {
-	outline: 2px solid var(--akzent);
-	outline-offset: 2px;
+.designkarte-name {
+	font-weight: 600;
+}
+
+/* Miniatur: große Fläche links, kleine Fläche und Akzent rechts, in den Farben des jeweiligen Designs. */
+.designvorschau {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	grid-template-rows: 1fr 1fr;
+	gap: 6px;
+	height: 72px;
+	padding: 8px;
+	border: 1px solid rgb(128 128 128 / 0.25);
+	border-radius: calc(var(--radius-gross) - 4px);
+	background: var(--v-grund);
+}
+
+.designvorschau span {
+	border-radius: var(--v-radius);
+	background: var(--v-flaeche);
+	box-shadow: var(--v-schatten, none);
+}
+
+.designvorschau span:first-child {
+	grid-row: 1 / -1;
+}
+
+.designvorschau span:last-child {
+	background: var(--v-akzent);
+}
+
+.designvorschau[data-vorschau='minimal'] {
+	--v-grund: #ffffff;
+	--v-flaeche: #f4f4f5;
+	--v-akzent: #18181b;
+	--v-radius: 4px;
+}
+
+.designvorschau[data-vorschau='neon'] {
+	--v-grund: #09090f;
+	--v-flaeche: rgb(255 255 255 / 0.12);
+	--v-akzent: #7df9c8;
+	--v-radius: 8px;
+}
+
+.designvorschau[data-vorschau='weich'] {
+	--v-grund: #f3f0fa;
+	--v-flaeche: #ffffff;
+	--v-akzent: #5b3bea;
+	--v-radius: 12px;
+	--v-schatten: 0 2px 6px rgb(60 40 140 / 0.12);
 }
 
 /*
@@ -1059,4 +1151,183 @@ fieldset.darstellung legend {
 [data-design='neon'] .verbleib[data-verbleib='spaeter_verkaufen'] {
 	--grund: rgb(250 204 21 / 0.16);
 	--schrift-farbe: #fde68a;
+}
+
+/*
+ * Design Weich & farbig: sanfte Schatten statt Ränder, Knöpfe und Filter als Pillen, fette Überschrift
+ * und Kacheln mit Pastell-Etiketten für die Item-Übersicht.
+ */
+[data-design='weich'] h1 {
+	font-size: 30px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+[data-design='weich'] h1.boxnummer {
+	font-size: 2.6em;
+}
+
+[data-design='weich'] h2 {
+	font-weight: 700;
+}
+
+/* Pillen für Knöpfe; was eher Feld, Listenzeile oder Teil eines Fotos ist, behält seine Form. */
+[data-design='weich'] :is(button, a.knopf):not(.menueknopf, .auswahl, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button) {
+	border-radius: 999px;
+	font-weight: 700;
+}
+
+[data-design='weich'] button.menueknopf {
+	border-radius: 16px;
+}
+
+[data-design='weich'] :is(button.sekundaer, a.knopf.sekundaer, label.chip, button.packen, button.auswahl, .trefferliste button, .hinweis),
+[data-design='weich'] :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
+	border-color: transparent;
+	box-shadow: var(--schatten);
+}
+
+[data-design='weich'] :is(input, select, textarea):focus-visible {
+	border-color: var(--akzent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 22%, transparent);
+}
+
+[data-design='weich'] label.chip:has(input:checked) {
+	outline: none;
+	border-color: var(--akzent);
+	background: #ece8f8;
+}
+
+[data-design='weich'] button.packen.drin,
+[data-design='weich'] .trefferliste button.aktiv {
+	border-color: var(--akzent);
+}
+
+[data-design='weich'] a.knopf.schwebend {
+	box-shadow: var(--schatten-schwebend);
+}
+
+[data-design='weich'] dialog.seitenmenue {
+	border-right: none;
+	box-shadow: var(--schatten-karte);
+}
+
+[data-design='weich'] :is(dialog.seitenmenue, dialog.foto-bearbeiten)::backdrop {
+	background: rgb(27 21 48 / 0.35);
+}
+
+[data-design='weich'] dialog.foto-bearbeiten {
+	border-color: transparent;
+	box-shadow: var(--schatten-karte);
+}
+
+/* Seitenleiste: weiße Fläche, vom Inhalt nur durch den Schatten abgesetzt (Rand aus desktop.css entfällt). */
+[data-design='weich'] nav.seitenleiste {
+	border-right-color: transparent;
+	box-shadow: var(--schatten);
+}
+
+[data-design='weich'] .leiste {
+	border-top-color: transparent;
+	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
+}
+
+[data-design='weich'] label.designkarte {
+	border-color: transparent;
+}
+
+[data-design='weich'] label.designkarte:has(input:checked) {
+	border-color: var(--akzent);
+}
+
+[data-design='weich'] .marke {
+	padding: 3px 10px;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+[data-design='weich'] .marke.box {
+	background: #eef0f4;
+	color: #3a4150;
+	border-color: transparent;
+}
+
+[data-design='weich'] .raster {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+[data-design='weich'] .raster li + li {
+	border-top: none;
+}
+
+[data-design='weich'] .karte {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+	height: 100%;
+	padding: 8px;
+	border-radius: 22px;
+	background: var(--flaeche);
+	box-shadow: var(--schatten-karte);
+	transition: box-shadow 0.15s;
+}
+
+[data-design='weich'] .karte:hover {
+	box-shadow: 0 10px 26px rgb(60 40 140 / 0.14);
+}
+
+[data-design='weich'] .karte img {
+	width: 100%;
+	height: 132px;
+	border-radius: 16px;
+}
+
+[data-design='weich'] .karte-name {
+	font-weight: 700;
+}
+
+[data-design='weich'] .karte-text,
+[data-design='weich'] .karte .verbleib {
+	margin: 0 4px;
+}
+
+[data-design='weich'] .karte .verbleib {
+	align-self: flex-start;
+	margin-top: auto;
+	margin-bottom: 4px;
+}
+
+[data-design='weich'] .verbleib {
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: var(--grund, #ece8f8);
+	color: var(--schrift-farbe, #4c3f75);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+[data-design='weich'] .verbleib::before {
+	display: none;
+}
+
+[data-design='weich'] .verbleib[data-verbleib='verkaufen'] {
+	--grund: #ffe4d6;
+	--schrift-farbe: #9a3412;
+}
+
+[data-design='weich'] .verbleib[data-verbleib='behalten'] {
+	--grund: #dcf5e7;
+	--schrift-farbe: #166534;
+}
+
+[data-design='weich'] .verbleib[data-verbleib='verschenken'] {
+	--grund: #fce4f1;
+	--schrift-farbe: #9d174d;
+}
+
+[data-design='weich'] .verbleib[data-verbleib='spaeter_verkaufen'] {
+	--grund: #fff1c2;
+	--schrift-farbe: #854d0e;
 }

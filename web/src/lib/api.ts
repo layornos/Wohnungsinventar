@@ -1,4 +1,5 @@
 import { goto } from '$app/navigation';
+import type { Design } from './design.svelte.ts';
 
 /** Fachlicher Fehler der API, z. B. code "anmeldung_fehlgeschlagen". */
 export class ApiError extends Error {
@@ -19,7 +20,8 @@ export function zurAnmeldung() {
 	return goto(ANMELDUNG, { replaceState: true });
 }
 
-export type Nutzer = { personId: number; name: string; email: string };
+/** design ist null, solange der Nutzer noch nie eines gewählt hat. */
+export type Nutzer = { personId: number; name: string; email: string; design: Design | null };
 
 export type Person = { id: number; name: string; nutzer: boolean };
 
