@@ -1012,7 +1012,7 @@ h1.box-number {
 	flex-wrap: wrap;
 	align-items: end;
 	gap: 8px;
-	margin-bottom: 12px;
+	margin: 12px 0;
 }
 
 input[type='checkbox'].large {

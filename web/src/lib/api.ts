@@ -73,7 +73,8 @@ export function pathText(p: Path): string {
 
 /** A room or storage location as the place for an item or a storage location. */
 export type Place = { kind: 'room' | 'storageLocation'; id: number };
-export type PlaceEntry = Place & { path: string };
+/** apartmentId: the apartment the room or storage location is in. */
+export type PlaceEntry = Place & { apartmentId: number; path: string };
 
 export type StorageLocationNode = Named & { furniture: Named | null; children: StorageLocationNode[] };
 /** subtree: IDs of the storage location and all of its nested storage locations. */
@@ -141,6 +142,8 @@ export type ItemListEntry = {
 	thumbnailUrl: string;
 	/** Name of the storage location or, without one, of the room; empty without placement. */
 	place: string;
+	/** The storage location the item is placed in directly; null if it is directly in a room or unplaced. */
+	storageLocationId: number | null;
 	move: MoveDetails | null;
 };
 

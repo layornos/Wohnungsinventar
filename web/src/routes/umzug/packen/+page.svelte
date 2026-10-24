@@ -11,14 +11,14 @@
 		type ItemListEntry,
 		type ItemPage,
 		type Move,
-		type Room,
-		type StorageLocationNode
+		type PlaceEntry
 	} from '#lib/api.ts';
 	import { lastPackOriginRoom, loadMove, loadMoveRooms, rememberPackOriginRoom, type MoveDetailsChange } from '#lib/move.ts';
 	import NewBoxDialog from '#lib/NewBoxDialog.svelte';
+	import { loadPlaces } from '#lib/places.ts';
 
-	/** A storage location of the origin room with the IDs of the listed items in it or nested below it. */
-	type Group = { id: number; path: string; itemIds: Set<number> };
+	/** A storage location with the listed items placed directly in it. */
+	type Group = { id: number; path: string; items: ItemListEntry[] };
 
 	let move = $state<Move | null>(null);
 	let oldRooms = $state<Named[]>([]);
@@ -28,7 +28,7 @@
 	let origin = $state(remembered ? String(remembered) : '');
 	let search = $state('');
 	let items = $state<ItemListEntry[]>([]);
-	let groups = $state<Group[]>([]);
+	let places = $state<PlaceEntry[]>([]);
 	let more = $state(false);
 	let selection = $state<number[]>([]);
 	let targetRoom = $state('');
@@ -39,17 +39,31 @@
 
 	const activeBox = $derived(move?.boxes.find((b) => String(b.id) === box));
 
-	// Every item belongs to the innermost storage location it is listed in; groups are in tree order, so that is
-	// the last match. Items outside all storage locations of the room end up in rest.
+	// Every item belongs to the storage location it is placed in directly (the innermost one); groups are in
+	// path order. Items without a storage location end up in rest.
 	const grouped = $derived.by(() => {
-		const owner = new Map<number, number>();
-		for (const g of groups) for (const id of g.itemIds) owner.set(id, g.id);
-		return {
-			groups: groups
-				.filter((g) => g.itemIds.size > 0)
-				.map((g) => ({ ...g, items: items.filter((i) => owner.get(i.id) === g.id) })),
-			rest: items.filter((i) => !owner.has(i.id))
-		};
+		const paths = new Map(places.filter((p) => p.kind === 'storageLocation').map((p) => [p.id, p.path]));
+		const room = oldRooms.find((r) => String(r.id) === origin);
+		// Paths are shown relative to the origin room, e.g. "Schreibtisch › oben".
+		const prefix = move && room ? `${move.oldApartment.name} › ${room.name} › ` : '';
+		const byLocation = new Map<number, Group>();
+		const rest: ItemListEntry[] = [];
+		for (const item of items) {
+			const id = item.storageLocationId;
+			const path = id === null ? undefined : paths.get(id);
+			if (id === null || path === undefined) {
+				rest.push(item);
+				continue;
+			}
+			let g = byLocation.get(id);
+			if (!g) {
+				g = { id, path: prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path, items: [] };
+				byLocation.set(id, g);
+			}
+			g.items.push(item);
+		}
+		const groups = [...byLocation.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+		return { groups, rest };
 	});
 
 	async function reloadMove() {
@@ -71,29 +85,10 @@
 		rememberPackOriginRoom(Number(value));
 	}
 
-	function flatten(nodes: StorageLocationNode[], prefix: string): { id: number; path: string }[] {
-		return nodes.flatMap((n) => {
-			const path = prefix ? `${prefix} › ${n.name}` : n.name;
-			return [{ id: n.id, path }, ...flatten(n.children, path)];
-		});
-	}
-
 	function itemQuery(extra: Record<string, string>) {
 		const p = new URLSearchParams({ perPage: '100', ...extra });
 		if (search.trim()) p.set('q', search.trim());
 		return '/api/items?' + p;
-	}
-
-	/** The storage locations of the origin room with the items in each of them (including nested ones). */
-	async function loadGroups(roomId: number): Promise<Group[]> {
-		const room = await api<Room>('GET', `/api/rooms/${roomId}`);
-		const locations = flatten(room.storageLocations, '');
-		return Promise.all(
-			locations.map(async (l) => {
-				const r = await api<ItemPage>('GET', itemQuery({ storageLocation: String(l.id) }));
-				return { ...l, itemIds: new Set(r.items.map((i) => i.id)) };
-			})
-		);
 	}
 
 	// Answers of an older search arriving late must not overwrite newer ones.
@@ -103,13 +98,14 @@
 		const n = ++loadCounter;
 		const roomId = Number(origin);
 		try {
-			const [list, g] = await Promise.all([
+			const [list, p] = await Promise.all([
 				api<ItemPage>('GET', itemQuery(roomId ? { originRoom: String(roomId) } : {})),
-				roomId ? loadGroups(roomId) : Promise.resolve([])
+				// Paths of the storage locations for the groups.
+				roomId ? loadPlaces() : Promise.resolve(places)
 			]);
 			if (n !== loadCounter) return;
 			({ items, more } = list);
-			groups = g;
+			places = p;
 		} catch (e) {
 			if (n === loadCounter) error = errorText(e);
 		}
@@ -219,7 +215,7 @@
 		</div>
 
 		<div class="filter">
-			<select aria-label="Herkunftsraum" value={origin} onchange={(e) => chooseOrigin(e.currentTarget.value)}>
+			<select class="span-all" aria-label="Herkunftsraum" value={origin} onchange={(e) => chooseOrigin(e.currentTarget.value)}>
 				<option value="">Alle Räume</option>
 				{#each oldRooms as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 			</select>
@@ -241,8 +237,6 @@
 					<ul class="rows">
 						{#each g.items as item (item.id)}
 							{@render itemRow(item)}
-						{:else}
-							<li class="muted">Nur in Unterlagerorten.</li>
 						{/each}
 					</ul>
 				</section>

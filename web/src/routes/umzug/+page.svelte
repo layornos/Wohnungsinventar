@@ -68,7 +68,7 @@
 	}
 
 	async function complete(confirmed: boolean) {
-		if (!confirmed && !confirm('Umzug abschließen? Alle Items mit Zielraum stehen danach ohne Lagerort in ihrem Zielraum.')) return;
+		if (!confirmed && !confirm('Umzug abschließen? Items mit Zielraum, die noch nicht eingeräumt sind, stehen danach ohne Lagerort in ihrem Zielraum; Möbel nehmen ihre Lagerorte mit.')) return;
 		error = '';
 		busy = true;
 		try {
