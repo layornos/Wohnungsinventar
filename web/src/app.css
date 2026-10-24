@@ -54,6 +54,42 @@ body {
 	gap: 12px;
 }
 
+.kopf.mit-menue {
+	justify-content: flex-start;
+}
+
+/* Seitenmenü: modaler <dialog> am linken Rand */
+button.menueknopf {
+	padding: 6px 14px;
+	font-size: 1.3em;
+	line-height: 1;
+}
+
+dialog.seitenmenue {
+	margin: 0;
+	padding: 0;
+	inset: 0 auto 0 0;
+	width: min(80vw, 300px);
+	height: 100%;
+	max-height: none;
+	border: none;
+	border-right: 1px solid var(--rand);
+	background: var(--flaeche);
+	color: var(--text);
+}
+
+dialog.seitenmenue::backdrop {
+	background: rgb(0 0 0 / 0.4);
+}
+
+.menueinhalt {
+	display: grid;
+	align-content: start;
+	gap: 8px;
+	min-height: 100%;
+	padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+
 form {
 	display: grid;
 	gap: 16px;

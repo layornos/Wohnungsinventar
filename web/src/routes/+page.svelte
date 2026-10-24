@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { api, boxName, fehlerText, VERBLEIBE, zurAnmeldung, type Box, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
 	import ItemRaster from '#lib/ItemRaster.svelte';
+	import Seitenmenue from '#lib/Seitenmenue.svelte';
 	import { ladePlaetze } from '#lib/plaetze.ts';
 	import { ladeUmzug } from '#lib/umzug.ts';
 	import { ladePersonen } from '#lib/personen.ts';
@@ -90,16 +91,9 @@
 </script>
 
 <main class="seite">
-	<header class="kopf">
+	<header class="kopf mit-menue">
+		<Seitenmenue abmelden={abmeldenUndWeiter} />
 		<h1>Inventar</h1>
-		<nav class="knopfzeile">
-			<a class="knopf sekundaer" href="/umzug">Umzug</a>
-			<a class="knopf sekundaer" href="/wohnungen">Wohnungen</a>
-			<a class="knopf sekundaer" href="/ohne-lagerort">Ohne Lagerort</a>
-			<a class="knopf sekundaer" href="/personen">Personen</a>
-			<a class="knopf sekundaer" href="/nutzer">Nutzer</a>
-			<button class="sekundaer" onclick={abmeldenUndWeiter}>Abmelden</button>
-		</nav>
 	</header>
 
 	<div class="filter">
