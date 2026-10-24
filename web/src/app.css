@@ -1,27 +1,82 @@
+/*
+ * Zwei Designs, gesteuert über <html data-design="minimal|neon"> (gesetzt in app.html, gewechselt in
+ * lib/design.ts). Alles Farbige läuft über die Tokens hier; die Regeln weiter unten gelten für beide,
+ * nur Abweichungen im Aufbau (Liste vs. Kacheln, Milchglas) stehen im Abschnitt „Design Neon“ am Ende.
+ * Breakpoints für breite Bildschirme gehören nicht hierher, sondern nach desktop.css.
+ */
+
+/* Minimal (Standard): weiß, fast monochrom, feine Linien. Inter, falls installiert – nichts wird nachgeladen. */
 :root {
-	--hintergrund: #f6f5f1;
-	--flaeche: #ffffff;
-	--text: #1d2421;
-	--text-leise: #5b645f;
-	--akzent: #2f5d50;
+	--hintergrund: #ffffff;
+	--flaeche: #fafafa;
+	/* Undurchsichtige Fläche für Dialoge, Leisten und Knöpfe über Fotos. */
+	--flaeche-fest: #ffffff;
+	--feld: #ffffff;
+	--text: #18181b;
+	--text-leise: #71717a;
+	--akzent: #18181b;
 	--akzent-text: #ffffff;
-	--rand: #d9dcd6;
-	--fehler: #a4262c;
-	--radius: 10px;
+	--rand: #e4e4e7;
+	--fehler: #dc2626;
+	--radius: 8px;
+	--radius-gross: 10px;
+	--schrift: Inter, 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--schatten: 0 1px 2px rgb(0 0 0 / 0.05);
+	--schatten-schwebend: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
+	--leuchten: none;
+	--glas: none;
+	--themenfarbe: #ffffff;
+
+	/* Verbleib: Punktfarbe (Minimal) bzw. Etikett-Grund und -Text (Neon). */
+	--verbleib-verkaufen: #ea580c;
+	--verbleib-behalten: #16a34a;
+	--verbleib-offen: #a1a1aa;
+	--verbleib-verschenken: #db2777;
+	--verbleib-spaeter: #ca8a04;
+
 	color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
-	:root {
-		--hintergrund: #141816;
-		--flaeche: #1e2421;
-		--text: #e8ebe8;
-		--text-leise: #a3aca6;
-		--akzent: #7fbfa9;
-		--akzent-text: #0e1a15;
-		--rand: #34403a;
-		--fehler: #ff8a8f;
+	:root:not([data-design='neon']) {
+		--hintergrund: #09090b;
+		--flaeche: #18181b;
+		--flaeche-fest: #18181b;
+		--feld: #09090b;
+		--text: #fafafa;
+		--text-leise: #a1a1aa;
+		--akzent: #fafafa;
+		--akzent-text: #18181b;
+		--rand: #27272a;
+		--fehler: #f87171;
+		--schatten: none;
+		--schatten-schwebend: 0 6px 20px rgb(0 0 0 / 0.6);
+		--themenfarbe: #09090b;
+		--verbleib-offen: #71717a;
 	}
+}
+
+/* Neon: immer dunkel, Milchglas-Flächen, Mint mit Leuchten. Space Grotesk, falls installiert. */
+:root[data-design='neon'] {
+	--hintergrund: #09090f;
+	--flaeche: rgb(255 255 255 / 0.055);
+	--flaeche-fest: rgb(20 20 31 / 0.94);
+	--feld: rgb(255 255 255 / 0.05);
+	--text: #f4f4fa;
+	--text-leise: #a8a8bf;
+	--akzent: #7df9c8;
+	--akzent-text: #062019;
+	--rand: rgb(255 255 255 / 0.13);
+	--fehler: #fca5a5;
+	--radius: 14px;
+	--radius-gross: 20px;
+	--schrift: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--schatten: none;
+	--schatten-schwebend: 0 0 28px rgb(125 249 200 / 0.5);
+	--leuchten: 0 0 20px rgb(125 249 200 / 0.4);
+	--glas: blur(16px);
+	--themenfarbe: #09090f;
+	color-scheme: dark;
 }
 
 * {
@@ -32,9 +87,15 @@ body {
 	margin: 0;
 	background: var(--hintergrund);
 	color: var(--text);
-	font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	font-family: var(--schrift);
 	font-size: 17px;
 	line-height: 1.45;
+	-webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+	outline: 2px solid var(--akzent);
+	outline-offset: 2px;
 }
 
 .seite {
@@ -74,12 +135,14 @@ dialog.seitenmenue {
 	max-height: none;
 	border: none;
 	border-right: 1px solid var(--rand);
-	background: var(--flaeche);
+	background: var(--flaeche-fest);
 	color: var(--text);
+	-webkit-backdrop-filter: var(--glas);
+	backdrop-filter: var(--glas);
 }
 
 dialog.seitenmenue::backdrop {
-	background: rgb(0 0 0 / 0.4);
+	background: rgb(0 0 0 / 0.45);
 }
 
 .menueinhalt {
@@ -98,19 +161,36 @@ form {
 label {
 	display: grid;
 	gap: 6px;
-	font-weight: 600;
+	font-size: 0.9em;
+	font-weight: 500;
 }
 
 input,
 select,
 textarea {
 	font: inherit;
+	font-size: 1rem;
+	font-weight: 400;
 	min-height: 48px;
 	padding: 10px 12px;
 	border: 1px solid var(--rand);
 	border-radius: var(--radius);
-	background: var(--flaeche);
+	background: var(--feld);
 	color: var(--text);
+	transition: border-color 0.15s;
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: var(--text-leise);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+	outline: none;
+	border-color: var(--akzent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 18%, transparent);
 }
 
 textarea {
@@ -121,6 +201,7 @@ textarea {
 button,
 a.knopf {
 	font: inherit;
+	font-size: 0.95rem;
 	font-weight: 600;
 	min-height: 48px;
 	padding: 10px 18px;
@@ -128,11 +209,17 @@ a.knopf {
 	border-radius: var(--radius);
 	background: var(--akzent);
 	color: var(--akzent-text);
+	box-shadow: var(--leuchten);
 	cursor: pointer;
+	transition:
+		background-color 0.15s,
+		border-color 0.15s,
+		box-shadow 0.15s;
 }
 
 button:disabled {
 	opacity: 0.6;
+	cursor: default;
 }
 
 a.knopf {
@@ -143,9 +230,15 @@ a.knopf {
 
 button.sekundaer,
 a.knopf.sekundaer {
-	background: transparent;
-	color: var(--akzent);
+	background: var(--flaeche);
+	color: var(--text);
 	border: 1px solid var(--rand);
+	box-shadow: none;
+}
+
+button.sekundaer:hover:not(:disabled),
+a.knopf.sekundaer:hover {
+	border-color: var(--text-leise);
 }
 
 .fehler {
@@ -162,6 +255,7 @@ button.gefahr {
 	background: transparent;
 	color: var(--fehler);
 	border: 1px solid var(--fehler);
+	box-shadow: none;
 }
 
 button.breit {
@@ -171,10 +265,21 @@ button.breit {
 
 a {
 	color: var(--akzent);
+	text-underline-offset: 3px;
 }
 
 h1 {
 	margin: 0.4em 0;
+	font-size: 1.6rem;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+}
+
+h2 {
+	font-size: 1.1rem;
+	font-weight: 600;
+	letter-spacing: -0.01em;
 }
 
 section {
@@ -186,10 +291,12 @@ section {
 }
 
 .hinweis {
-	padding: 12px;
-	border-radius: var(--radius);
+	padding: 12px 14px;
+	border-radius: var(--radius-gross);
 	background: var(--flaeche);
 	border: 1px solid var(--rand);
+	-webkit-backdrop-filter: var(--glas);
+	backdrop-filter: var(--glas);
 }
 
 .beschreibung {
@@ -220,13 +327,45 @@ form.inline input {
 	border-radius: 999px;
 	background: var(--akzent);
 	color: var(--akzent-text);
-	font-size: 0.85em;
+	font-size: 0.8em;
 	font-weight: 600;
 }
 
-.marke.offen {
-	background: var(--rand);
-	color: var(--text);
+/* Verbleib: in Minimal ein Farbpunkt mit leisem Text, in Neon ein Etikett (siehe „Design Neon“). */
+.verbleib {
+	--punkt: var(--verbleib-offen);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--text-leise);
+	font-size: 0.8rem;
+	font-weight: 500;
+	white-space: nowrap;
+}
+
+.verbleib::before {
+	content: '';
+	flex: none;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var(--punkt);
+}
+
+.verbleib[data-verbleib='verkaufen'] {
+	--punkt: var(--verbleib-verkaufen);
+}
+
+.verbleib[data-verbleib='behalten'] {
+	--punkt: var(--verbleib-behalten);
+}
+
+.verbleib[data-verbleib='verschenken'] {
+	--punkt: var(--verbleib-verschenken);
+}
+
+.verbleib[data-verbleib='spaeter_verkaufen'] {
+	--punkt: var(--verbleib-spaeter);
 }
 
 /* Auswahl als antippbare Chips */
@@ -254,13 +393,15 @@ label.chip {
 	border: 1px solid var(--rand);
 	border-radius: 999px;
 	background: var(--flaeche);
+	font-size: 0.95rem;
 	font-weight: 500;
 	cursor: pointer;
 }
 
 label.chip:has(input:checked) {
 	border-color: var(--akzent);
-	outline: 2px solid var(--akzent);
+	outline: 1px solid var(--akzent);
+	box-shadow: var(--leuchten);
 }
 
 label.chip input {
@@ -280,50 +421,68 @@ label.chip input {
 	grid-column: 1 / -1;
 }
 
+/* Item-Übersicht. Minimal: Liste mit kleiner Vorschau; Neon macht daraus Kacheln. */
 .raster {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-	gap: 12px;
+	grid-template-columns: minmax(0, 1fr);
 	list-style: none;
 	margin: 0;
 	padding: 0 0 80px;
 }
 
+.raster li + li {
+	border-top: 1px solid var(--rand);
+}
+
 .karte {
 	display: grid;
-	gap: 4px;
-	padding-bottom: 8px;
-	border-radius: var(--radius);
-	background: var(--flaeche);
-	border: 1px solid var(--rand);
+	grid-template-columns: 56px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	padding: 10px 6px;
+	border-radius: var(--radius-gross);
 	color: var(--text);
 	text-decoration: none;
-	overflow: hidden;
+}
+
+.karte:hover {
+	background: var(--flaeche);
 }
 
 .karte img {
-	width: 100%;
-	aspect-ratio: 1;
+	display: block;
+	width: 56px;
+	height: 56px;
 	object-fit: cover;
+	border-radius: 8px;
 	background: var(--rand);
 }
 
+.karte-text {
+	display: grid;
+	min-width: 0;
+}
+
 .karte-name {
-	padding: 0 10px;
-	font-weight: 600;
+	font-size: 15px;
+	font-weight: 500;
 	overflow-wrap: anywhere;
 }
 
-.karte .marke {
-	justify-self: start;
-	margin: 0 10px;
+.karte-ort {
+	color: var(--text-leise);
+	font-size: 13px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .schwebend {
 	position: fixed;
 	right: 16px;
 	bottom: max(16px, env(safe-area-inset-bottom));
-	box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+	border-radius: 999px;
+	box-shadow: var(--schatten-schwebend);
 }
 
 .grossfoto {
@@ -354,7 +513,7 @@ label.chip input {
 	width: 100%;
 	max-height: 60vh;
 	object-fit: contain;
-	border-radius: var(--radius);
+	border-radius: var(--radius-gross);
 	background: var(--flaeche);
 }
 
@@ -386,7 +545,7 @@ label.chip input {
 	right: 2px;
 	min-height: 32px;
 	padding: 0 10px;
-	background: var(--flaeche);
+	background: var(--flaeche-fest);
 }
 
 /* Bearbeiten-Knopf unten links, das Entfernen-× bleibt oben rechts. */
@@ -404,10 +563,12 @@ dialog.foto-bearbeiten {
 	max-height: 100dvh;
 	margin: auto;
 	padding: 0;
-	border: none;
-	border-radius: var(--radius);
-	background: var(--flaeche);
+	border: 1px solid var(--rand);
+	border-radius: var(--radius-gross);
+	background: var(--flaeche-fest);
 	color: var(--text);
+	-webkit-backdrop-filter: var(--glas);
+	backdrop-filter: var(--glas);
 }
 
 dialog.foto-bearbeiten::backdrop {
@@ -506,7 +667,7 @@ button.foto-wahl.aktiv {
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
-	padding: 8px 0;
+	padding: 10px 0;
 	border-bottom: 1px solid var(--rand);
 }
 
@@ -520,7 +681,8 @@ button.foto-wahl.aktiv {
 }
 
 .feldname {
-	font-weight: 600;
+	font-size: 0.9em;
+	font-weight: 500;
 }
 
 .platzwahl {
@@ -531,7 +693,10 @@ button.foto-wahl.aktiv {
 button.auswahl {
 	justify-content: flex-start;
 	text-align: left;
+	background: var(--feld);
 	color: var(--text);
+	border: 1px solid var(--rand);
+	box-shadow: none;
 	font-weight: 500;
 }
 
@@ -548,29 +713,34 @@ button.auswahl {
 .trefferliste button {
 	width: 100%;
 	text-align: left;
+	background: var(--flaeche);
 	color: var(--text);
+	border: 1px solid var(--rand);
+	box-shadow: none;
 	font-weight: 500;
 }
 
 .trefferliste button.aktiv {
-	outline: 2px solid var(--akzent);
+	border-color: var(--akzent);
+	outline: 1px solid var(--akzent);
 }
 
 .mit-bild {
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: 12px;
 	color: var(--text);
 	text-decoration: none;
-	font-weight: 600;
+	font-weight: 500;
 }
 
 .mit-bild img {
 	width: 48px;
 	height: 48px;
 	object-fit: cover;
-	border-radius: 6px;
+	border-radius: 8px;
 	flex: none;
+	background: var(--rand);
 }
 
 .einsortieren .breit {
@@ -603,7 +773,7 @@ ul.baum li {
 ul.baum a {
 	display: inline-block;
 	min-height: 32px;
-	font-weight: 600;
+	font-weight: 500;
 }
 
 .klein-text {
@@ -614,8 +784,8 @@ ul.baum a {
 
 .marke.box {
 	background: var(--flaeche);
-	color: var(--akzent);
-	border: 1px solid var(--akzent);
+	color: var(--text);
+	border: 1px solid var(--rand);
 }
 
 a.marke {
@@ -640,6 +810,7 @@ form.gross input {
 
 h1.boxnummer {
 	font-size: 2.6em;
+	letter-spacing: -0.03em;
 }
 
 .packkopf {
@@ -666,19 +837,21 @@ button.packen {
 	background: var(--flaeche);
 	color: var(--text);
 	border: 1px solid var(--rand);
-	font-weight: 600;
+	box-shadow: none;
+	font-weight: 500;
 }
 
 button.packen.drin {
 	border-color: var(--akzent);
-	outline: 2px solid var(--akzent);
+	outline: 1px solid var(--akzent);
+	box-shadow: var(--leuchten);
 }
 
 button.packen img {
 	width: 48px;
 	height: 48px;
 	object-fit: cover;
-	border-radius: 6px;
+	border-radius: 8px;
 }
 
 .leiste {
@@ -689,6 +862,211 @@ button.packen img {
 	align-items: center;
 	gap: 8px;
 	padding: 12px max(12px, env(safe-area-inset-bottom));
-	background: var(--flaeche);
+	background: var(--flaeche-fest);
 	border-top: 1px solid var(--rand);
+	-webkit-backdrop-filter: var(--glas);
+	backdrop-filter: var(--glas);
+}
+
+/* Umschalter für das Design im Seitenmenü: zwei Radio-Buttons als segmentierter Knopf. */
+fieldset.darstellung {
+	margin: 16px 0 8px;
+	padding: 0;
+	border: none;
+}
+
+fieldset.darstellung legend {
+	margin-bottom: 6px;
+	padding: 0;
+	color: var(--text-leise);
+	font-size: 0.8rem;
+	font-weight: 500;
+}
+
+.segmente {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 4px;
+	padding: 4px;
+	border: 1px solid var(--rand);
+	border-radius: var(--radius-gross);
+	background: var(--flaeche);
+}
+
+.segmente label {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 40px;
+	border-radius: calc(var(--radius-gross) - 4px);
+	font-size: 0.95rem;
+	cursor: pointer;
+}
+
+/* Das eigentliche Radio bleibt bedienbar und vorlesbar, nur unsichtbar über dem Label. */
+.segmente input {
+	position: absolute;
+	opacity: 0;
+	width: 1px;
+	height: 1px;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+}
+
+.segmente label:has(input:checked) {
+	background: var(--akzent);
+	color: var(--akzent-text);
+	box-shadow: var(--leuchten);
+}
+
+.segmente label:has(input:focus-visible) {
+	outline: 2px solid var(--akzent);
+	outline-offset: 2px;
+}
+
+/*
+ * Design Neon: Lichtflecken im Hintergrund, Milchglas-Flächen, Überschrift in Versalien
+ * und Kacheln statt Liste für die Item-Übersicht.
+ */
+[data-design='neon'] body::before,
+[data-design='neon'] body::after {
+	content: '';
+	position: fixed;
+	z-index: -1;
+	width: 420px;
+	height: 420px;
+	border-radius: 50%;
+	filter: blur(90px);
+	pointer-events: none;
+}
+
+[data-design='neon'] body::before {
+	top: -140px;
+	left: -160px;
+	background: #6d28d9;
+	opacity: 0.45;
+}
+
+[data-design='neon'] body::after {
+	top: 35vh;
+	right: -200px;
+	background: #0ea5a4;
+	opacity: 0.3;
+}
+
+[data-design='neon'] h1 {
+	font-size: 1.5rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+[data-design='neon'] h1.boxnummer {
+	font-size: 2.4em;
+	letter-spacing: 0.06em;
+}
+
+[data-design='neon'] button.sekundaer,
+[data-design='neon'] a.knopf.sekundaer,
+[data-design='neon'] .karte {
+	-webkit-backdrop-filter: var(--glas);
+	backdrop-filter: var(--glas);
+}
+
+[data-design='neon'] button.sekundaer:hover:not(:disabled),
+[data-design='neon'] a.knopf.sekundaer:hover {
+	border-color: rgb(125 249 200 / 0.5);
+}
+
+[data-design='neon'] input:focus-visible,
+[data-design='neon'] select:focus-visible,
+[data-design='neon'] textarea:focus-visible {
+	box-shadow: 0 0 18px rgb(125 249 200 / 0.35);
+}
+
+[data-design='neon'] .marke.box {
+	color: var(--akzent);
+	border-color: rgb(125 249 200 / 0.45);
+}
+
+[data-design='neon'] .raster {
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 12px;
+}
+
+[data-design='neon'] .raster li + li {
+	border-top: none;
+}
+
+[data-design='neon'] .karte {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+	height: 100%;
+	padding: 0 0 12px;
+	border: 1px solid var(--rand);
+	border-radius: 14px;
+	background: var(--flaeche);
+	overflow: hidden;
+	transition:
+		border-color 0.15s,
+		box-shadow 0.15s;
+}
+
+[data-design='neon'] .karte:hover {
+	border-color: rgb(125 249 200 / 0.45);
+	box-shadow: 0 0 22px rgb(125 249 200 / 0.18);
+}
+
+[data-design='neon'] .karte img {
+	width: 100%;
+	height: 130px;
+	border-radius: 0;
+}
+
+[data-design='neon'] .karte-text,
+[data-design='neon'] .karte .verbleib {
+	margin: 0 12px;
+}
+
+[data-design='neon'] .karte .verbleib {
+	align-self: flex-start;
+	margin-top: auto;
+}
+
+[data-design='neon'] .verbleib {
+	padding: 3px 9px;
+	border-radius: 999px;
+	background: var(--grund, rgb(255 255 255 / 0.1));
+	color: var(--schrift-farbe, #d4d4e0);
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+[data-design='neon'] .verbleib::before {
+	display: none;
+}
+
+[data-design='neon'] .verbleib[data-verbleib='verkaufen'] {
+	--grund: rgb(251 146 60 / 0.18);
+	--schrift-farbe: #fdba74;
+}
+
+[data-design='neon'] .verbleib[data-verbleib='behalten'] {
+	--grund: rgb(125 249 200 / 0.16);
+	--schrift-farbe: #7df9c8;
+}
+
+[data-design='neon'] .verbleib[data-verbleib='verschenken'] {
+	--grund: rgb(244 114 182 / 0.18);
+	--schrift-farbe: #f9a8d4;
+}
+
+[data-design='neon'] .verbleib[data-verbleib='spaeter_verkaufen'] {
+	--grund: rgb(250 204 21 / 0.16);
+	--schrift-farbe: #fde68a;
 }

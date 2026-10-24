@@ -118,6 +118,8 @@ export type ItemListenEintrag = {
 	name: string;
 	verbleib: Verbleib | null;
 	vorschauUrl: string;
+	/** Name des Lagerorts oder, ohne Lagerort, des Raums; leer ohne Platzierung. */
+	platz: string;
 	umzug: Umzugsangaben | null;
 };
 

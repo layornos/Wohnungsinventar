@@ -267,6 +267,7 @@ type itemListenJSON struct {
 	Name        string             `json:"name"`
 	Verbleib    *store.Verbleib    `json:"verbleib"`
 	VorschauURL string             `json:"vorschauUrl"`
+	Platz       string             `json:"platz"`
 	Umzug       *umzugsangabenJSON `json:"umzug"`
 }
 
@@ -275,7 +276,7 @@ func alsItemListeJSON(eintraege []store.ItemListenEintrag) []itemListenJSON {
 	for _, e := range eintraege {
 		items = append(items, itemListenJSON{
 			ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID, e.HauptfotoDatei),
-			Umzug: alsUmzugsangabenJSON(e.Umzug),
+			Platz: e.Platz, Umzug: alsUmzugsangabenJSON(e.Umzug),
 		})
 	}
 	return items

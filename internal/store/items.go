@@ -252,6 +252,8 @@ type ItemListenEintrag struct {
 	Verbleib       Verbleib
 	HauptfotoID    int64
 	HauptfotoDatei string
+	// Platz ist der Name des Lagerorts oder, ohne Lagerort, des Raums, in dem das Item steht; leer ohne Platzierung.
+	Platz string
 	// Umzug sind die Umzugsangaben im laufenden (oder im Filter genannten) Umzug.
 	Umzug *Umzugsangaben
 }
@@ -367,8 +369,10 @@ func itemsAuflisten(ctx context.Context, q abfrager, f ItemFilter) ([]ItemListen
 		abfrage = "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
 	}
 	abfrage += `
-		SELECT i.id, i.name, i.verbleib, f.id, f.datei, ua.item_id IS NOT NULL, h.id, h.name, z.id, z.name, b.id, b.nummer, b.bezeichnung
+		SELECT i.id, i.name, i.verbleib, f.id, f.datei, COALESCE(l.name, r.name, ''), ua.item_id IS NOT NULL, h.id, h.name, z.id, z.name, b.id, b.nummer, b.bezeichnung
 		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1
+		LEFT JOIN lagerort l ON l.id = i.lagerort_id
+		LEFT JOIN raum r ON r.id = i.raum_id
 		LEFT JOIN umzugsangabe ua ON ua.item_id = i.id
 			AND ua.umzug_id = COALESCE(?, (SELECT id FROM umzug WHERE laufend = 1))
 		LEFT JOIN raum h ON h.id = ua.herkunftsraum_id
@@ -396,7 +400,7 @@ func itemsAuflisten(ctx context.Context, q abfrager, f ItemFilter) ([]ItemListen
 			herkunftName, zielName, boxBezeich sql.NullString
 			boxNummer                          sql.NullInt64
 		)
-		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID, &e.HauptfotoDatei, &mitAngaben,
+		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID, &e.HauptfotoDatei, &e.Platz, &mitAngaben,
 			&herkunftID, &herkunftName, &zielID, &zielName, &boxID, &boxNummer, &boxBezeich); err != nil {
 			return nil, false, err
 		}

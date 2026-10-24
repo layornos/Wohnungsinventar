@@ -114,6 +114,28 @@ func TestFilterNachRaumUndLagerortUmfassenVerschachtelteLagerorte(t *testing.T) 
 	}
 }
 
+func TestListeNenntDenPlatzJedesItems(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	a := c.arbeitszimmerAnlegen()
+	c.itemIn("Schere", a.schublade)
+	stuhl := c.itemAnlegen("Stuhl", []int64{c.ich()}, testJPEG(t))
+	c.mustStatus(http.StatusOK, "PUT", itemPfad(stuhl)+"/platzierung", map[string]any{"raumId": a.raum})
+	c.itemAnlegen("Kiste", []int64{c.ich()}, testJPEG(t))
+
+	got := map[string]any{}
+	for _, i := range c.get("/api/items").Body["items"].([]any) {
+		i := i.(map[string]any)
+		got[i["name"].(string)] = i["platz"]
+	}
+	want := map[string]any{"Schere": "obere Schublade", "Stuhl": "Arbeitszimmer", "Kiste": ""}
+	for name, platz := range want {
+		if got[name] != platz {
+			t.Errorf("%s: Platz %q, erwartet %q", name, got[name], platz)
+		}
+	}
+}
+
 func TestPlaetzeAlsDurchsuchbarePfadliste(t *testing.T) {
 	e := newTestEnv(t)
 	c := e.loggedIn()

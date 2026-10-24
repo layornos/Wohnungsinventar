@@ -1,6 +1,8 @@
 <script lang="ts">
 	// Seitenmenü der Startseite. Öffnet per ☰-Knopf oder Wisch vom linken Rand, schließt per Wisch nach links,
 	// Tipp daneben oder Escape. Der modale <dialog> hält den Fokus im Menü und gibt ihn beim Schließen zurück.
+	import DesignWahl from './DesignWahl.svelte';
+
 	let { abmelden }: { abmelden: () => void } = $props();
 
 	// Wisch beginnt nur so nah am Rand, damit normales Scrollen und Wischen im Inhalt nicht stört.
@@ -69,6 +71,7 @@
 		<a class="knopf sekundaer" href="/ohne-lagerort" onclick={schliessen}>Ohne Lagerort</a>
 		<a class="knopf sekundaer" href="/personen" onclick={schliessen}>Personen</a>
 		<a class="knopf sekundaer" href="/nutzer" onclick={schliessen}>Nutzer</a>
+		<DesignWahl />
 		<button
 			type="button"
 			class="sekundaer"

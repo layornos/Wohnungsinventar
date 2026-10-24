@@ -4,7 +4,20 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
-		<meta name="theme-color" content="#2f5d50" />
+		<meta name="theme-color" content="#ffffff" />
+		<script>
+			// Design vor dem ersten Rendern setzen, damit nicht kurz das falsche aufblitzt (siehe lib/design.ts).
+			(function () {
+				var design = 'minimal';
+				try {
+					if (localStorage.getItem('inventar.design') === 'neon') design = 'neon';
+				} catch (e) {}
+				document.documentElement.dataset.design = design;
+				var dunkel = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+				var farbe = design === 'neon' ? '#09090f' : dunkel ? '#09090b' : '#ffffff';
+				document.querySelector('meta[name="theme-color"]').setAttribute('content', farbe);
+			})();
+		</script>
 		<link rel="manifest" href="/manifest.webmanifest" />
 		<link rel="apple-touch-icon" href="/icon-192.png" />
 		<meta name="apple-mobile-web-app-title" content="Inventar" />

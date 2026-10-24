@@ -250,7 +250,7 @@
 			{#if item.beschreibung}
 				<p class="beschreibung">{item.beschreibung}</p>
 			{/if}
-			<p>Verbleib: <span class="marke" class:offen={item.verbleib === null}>{verbleibName(item.verbleib)}</span></p>
+			<p>Verbleib: <span class="verbleib" data-verbleib={item.verbleib ?? 'offen'}>{verbleibName(item.verbleib)}</span></p>
 		{/if}
 
 		<section>
