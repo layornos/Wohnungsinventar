@@ -1,106 +1,109 @@
 <script lang="ts">
-	import { api, fehlerText, type Wohnung } from '#lib/api.ts';
+	import { errorText, api, type Apartment } from '#lib/api.ts';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import { loadApartments } from '#lib/move.ts';
 
-	let wohnungen = $state<Wohnung[]>([]);
-	let neueWohnung = $state('');
-	let neuerRaum = $state<Record<number, string>>({});
-	let umbenennen = $state<{ id: number; name: string } | null>(null);
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let apartments = $state<Apartment[]>([]);
+	let newApartment = $state('');
+	let newRoom = $state<Record<number, string>>({});
+	let renaming = $state<{ id: number; name: string } | null>(null);
+	let error = $state('');
+	let busy = $state(false);
 
-	async function neuLaden() {
+	async function reload() {
 		try {
-			wohnungen = (await api<{ wohnungen: Wohnung[] }>('GET', '/api/wohnungen')).wohnungen;
+			apartments = await loadApartments();
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
-	neuLaden();
+	reload();
 
-	async function ausfuehren(aktion: () => Promise<unknown>) {
-		fehler = '';
-		laeuft = true;
+	async function run(action: () => Promise<unknown>) {
+		error = '';
+		busy = true;
 		try {
-			await aktion();
-			await neuLaden();
+			await action();
+			await reload();
 			return true;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 			return false;
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	async function wohnungAnlegen(event: SubmitEvent) {
+	async function createApartment(event: SubmitEvent) {
 		event.preventDefault();
-		if (await ausfuehren(() => api('POST', '/api/wohnungen', { name: neueWohnung }))) neueWohnung = '';
+		if (await run(() => api('POST', '/api/apartments', { name: newApartment }))) newApartment = '';
 	}
 
-	async function raumAnlegen(event: SubmitEvent, wohnung: number) {
+	async function createRoom(event: SubmitEvent, apartment: number) {
 		event.preventDefault();
-		if (await ausfuehren(() => api('POST', `/api/wohnungen/${wohnung}/raeume`, { name: neuerRaum[wohnung] ?? '' })))
-			neuerRaum[wohnung] = '';
+		if (await run(() => api('POST', `/api/apartments/${apartment}/rooms`, { name: newRoom[apartment] ?? '' })))
+			newRoom[apartment] = '';
 	}
 
-	async function umbenennenSpeichern(event: SubmitEvent) {
+	async function saveRename(event: SubmitEvent) {
 		event.preventDefault();
-		const u = umbenennen;
-		if (u && (await ausfuehren(() => api('PUT', `/api/wohnungen/${u.id}`, { name: u.name })))) umbenennen = null;
+		const r = renaming;
+		if (r && (await run(() => api('PUT', `/api/apartments/${r.id}`, { name: r.name })))) renaming = null;
 	}
 
-	function wohnungLoeschen(w: Wohnung) {
-		if (!confirm(`Wohnung „${w.name}“ löschen?`)) return;
-		ausfuehren(() => api('DELETE', `/api/wohnungen/${w.id}`));
+	function removeApartment(a: Apartment) {
+		if (!confirm(`Wohnung „${a.name}“ löschen?`)) return;
+		run(() => api('DELETE', `/api/apartments/${a.id}`));
 	}
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/">← Liste</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/">← Liste</a>
 		<h1>Wohnungen</h1>
 	</header>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	{#each wohnungen as w (w.id)}
+	{#each apartments as a (a.id)}
 		<section>
-			{#if umbenennen?.id === w.id}
-				<form class="inline" onsubmit={umbenennenSpeichern}>
-					<input aria-label="Neuer Name" bind:value={umbenennen.name} required />
-					<button type="submit" disabled={laeuft}>Speichern</button>
-					<button type="button" class="sekundaer" onclick={() => (umbenennen = null)}>Abbrechen</button>
+			{#if renaming?.id === a.id}
+				<form class="inline" onsubmit={saveRename}>
+					<input aria-label="Neuer Name" bind:value={renaming.name} required />
+					<button type="submit" disabled={busy}>Speichern</button>
+					<button type="button" class="secondary" onclick={() => (renaming = null)}>Abbrechen</button>
 				</form>
 			{:else}
-				<div class="kopf">
-					<h2>{w.name}</h2>
-					<span class="knopfzeile">
-						<button class="sekundaer klein" onclick={() => (umbenennen = { id: w.id, name: w.name })}>Umbenennen</button>
-						<button class="sekundaer klein" disabled={laeuft} onclick={() => wohnungLoeschen(w)}>Löschen</button>
+				<div class="header">
+					<h2>{a.name}</h2>
+					<span class="button-row">
+						<button class="secondary small" onclick={() => (renaming = { id: a.id, name: a.name })}>Umbenennen</button>
+						<button class="secondary small" disabled={busy} onclick={() => removeApartment(a)}>Löschen</button>
 					</span>
 				</div>
 			{/if}
-			<ul class="zeilen">
-				{#each w.raeume as r (r.id)}
+			<ul class="rows">
+				{#each a.rooms as r (r.id)}
 					<li><a href="/raeume/{r.id}">{r.name}</a></li>
 				{:else}
-					<li class="leise">Noch keine Räume.</li>
+					<li class="muted">Noch keine Räume.</li>
 				{/each}
 			</ul>
-			<form class="inline" onsubmit={(e) => raumAnlegen(e, w.id)}>
-				<input aria-label="Name des neuen Raums in {w.name}" placeholder="Neuer Raum, z. B. Küche" bind:value={neuerRaum[w.id]} required />
-				<button type="submit" class="sekundaer" disabled={laeuft}>Raum anlegen</button>
+			<form class="inline" onsubmit={(e) => createRoom(e, a.id)}>
+				<input aria-label="Name des neuen Raums in {a.name}" placeholder="Neuer Raum, z. B. Küche" bind:value={newRoom[a.id]} required />
+				<button type="submit" class="secondary" disabled={busy}>Raum anlegen</button>
 			</form>
 		</section>
 	{/each}
 
 	<section>
 		<h2>Neue Wohnung</h2>
-		<form class="inline" onsubmit={wohnungAnlegen}>
-			<input aria-label="Name der neuen Wohnung" placeholder="z. B. Altbau Weststadt" bind:value={neueWohnung} required />
-			<button type="submit" disabled={laeuft}>Anlegen</button>
+		<form class="inline" onsubmit={createApartment}>
+			<input aria-label="Name der neuen Wohnung" placeholder="z. B. Altbau Weststadt" bind:value={newApartment} required />
+			<button type="submit" disabled={busy}>Anlegen</button>
 		</form>
 	</section>
 </main>

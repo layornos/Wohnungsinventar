@@ -1,2 +1,2 @@
-// Reine Single-Page-App: kein SSR, der Go-Server liefert nur die statische Hülle aus.
+// Pure single-page app: no SSR, the Go server only serves the static shell.
 export const ssr = false;

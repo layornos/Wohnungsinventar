@@ -1,198 +1,200 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, fehlerText, type ItemListenEintrag, type Lagerort, type Platz, type PlatzEintrag } from '#lib/api.ts';
-	import ItemRaster from '#lib/ItemRaster.svelte';
-	import ItemSuche from '#lib/ItemSuche.svelte';
-	import { elternBody, ladePlaetze, wegfallBestaetigen } from '#lib/plaetze.ts';
-	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
-	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
+	import { api, errorText, type ItemListEntry, type ItemPage, type StorageLocation, type Place, type PlaceEntry } from '#lib/api.ts';
+	import ItemGrid from '#lib/ItemGrid.svelte';
+	import ItemSearch from '#lib/ItemSearch.svelte';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import { parentBody, loadPlaces, confirmRemoval } from '#lib/places.ts';
+	import PathView from '#lib/PathView.svelte';
+	import PlacePicker from '#lib/PlacePicker.svelte';
 
 	const id = $derived(Number(page.params.id));
 
-	let lagerort = $state<Lagerort | null>(null);
-	let items = $state<ItemListenEintrag[]>([]);
-	let weitere = $state(false);
-	let seite = 1;
-	let plaetze = $state<PlatzEintrag[]>([]);
-	let neuerLagerort = $state('');
+	let location = $state<StorageLocation | null>(null);
+	let items = $state<ItemListEntry[]>([]);
+	let more = $state(false);
+	let pageNumber = 1;
+	let places = $state<PlaceEntry[]>([]);
+	let newStorageLocation = $state('');
 	let name = $state<string | null>(null);
-	let moebelWaehlen = $state(false);
-	let verschieben = $state(false);
-	let ziel = $state<Platz | null>(null);
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let choosingFurniture = $state(false);
+	let moving = $state(false);
+	let target = $state<Place | null>(null);
+	let error = $state('');
+	let busy = $state(false);
 
-	// In sich selbst oder einen Unterlagerort lässt er sich nicht verschieben.
-	const imEigenenBaum = (p: PlatzEintrag) => p.art === 'lagerort' && !!lagerort?.unterbaum.includes(p.id);
+	// It can't be moved into itself or one of its nested storage locations.
+	const inOwnTree = (p: PlaceEntry) => p.kind === 'storageLocation' && !!location?.subtree.includes(p.id);
 
-	async function laden(lagerortID: number) {
-		fehler = '';
+	async function load(locationID: number) {
+		error = '';
 		try {
-			lagerort = await api<Lagerort>('GET', `/api/lagerorte/${lagerortID}`);
-			await itemsLaden(lagerortID, 1);
+			location = await api<StorageLocation>('GET', `/api/storage-locations/${locationID}`);
+			await loadItems(locationID, 1);
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 
-	async function itemsLaden(lagerortID: number, s: number) {
-		const r = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', `/api/items?lagerort=${lagerortID}&seite=${s}`);
-		items = s === 1 ? r.items : [...items, ...r.items];
-		weitere = r.weitere;
-		seite = s;
+	async function loadItems(locationID: number, n: number) {
+		const r = await api<ItemPage>('GET', `/api/items?storageLocation=${locationID}&page=${n}`);
+		items = n === 1 ? r.items : [...items, ...r.items];
+		more = r.more;
+		pageNumber = n;
 	}
 
-	async function mehrLaden() {
+	async function loadMore() {
 		try {
-			await itemsLaden(id, seite + 1);
+			await loadItems(id, pageNumber + 1);
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 
 	$effect(() => {
-		laden(id);
+		load(id);
 	});
 
-	async function ausfuehren(aktion: () => Promise<unknown>) {
-		fehler = '';
-		laeuft = true;
+	async function run(action: () => Promise<unknown>) {
+		error = '';
+		busy = true;
 		try {
-			await aktion();
-			await laden(id);
+			await action();
+			await load(id);
 			return true;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 			return false;
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	async function unterlagerortAnlegen(event: SubmitEvent) {
+	async function createChild(event: SubmitEvent) {
 		event.preventDefault();
-		if (await ausfuehren(() => api('POST', '/api/lagerorte', { name: neuerLagerort, elternId: id }))) neuerLagerort = '';
+		if (await run(() => api('POST', '/api/storage-locations', { name: newStorageLocation, parentId: id }))) newStorageLocation = '';
 	}
 
-	async function umbenennen(event: SubmitEvent) {
+	async function rename(event: SubmitEvent) {
 		event.preventDefault();
 		const n = name;
-		if (n !== null && (await ausfuehren(() => api('PUT', `/api/lagerorte/${id}`, { name: n })))) name = null;
+		if (n !== null && (await run(() => api('PUT', `/api/storage-locations/${id}`, { name: n })))) name = null;
 	}
 
-	async function verschiebenBeginnen() {
+	async function startMoving() {
 		try {
-			plaetze = await ladePlaetze();
-			ziel = null;
-			verschieben = true;
+			places = await loadPlaces();
+			target = null;
+			moving = true;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 
-	async function verschiebenSpeichern() {
-		const z = ziel;
-		if (z && (await ausfuehren(() => api('PUT', `/api/lagerorte/${id}/eltern`, elternBody(z))))) verschieben = false;
+	async function saveMove() {
+		const t = target;
+		if (t && (await run(() => api('PUT', `/api/storage-locations/${id}/parent`, parentBody(t))))) moving = false;
 	}
 
-	async function moebelSetzen(itemId: number | null) {
-		if (await ausfuehren(() => api('PUT', `/api/lagerorte/${id}/moebel`, { itemId }))) moebelWaehlen = false;
+	async function setFurniture(itemId: number | null) {
+		if (await run(() => api('PUT', `/api/storage-locations/${id}/furniture`, { itemId }))) choosingFurniture = false;
 	}
 
-	async function loeschen() {
-		if (!lagerort) return;
-		fehler = '';
+	async function remove() {
+		if (!location) return;
+		error = '';
 		try {
-			const frage = `Lagerort „${lagerort.name}“ samt Unterlagerorten löschen?`;
-			if (!(await wegfallBestaetigen(`/api/lagerorte/${id}/wegfall`, frage))) return;
-			const raum = lagerort.pfad.raum.id;
-			await api('DELETE', `/api/lagerorte/${id}`);
-			await goto(`/raeume/${raum}`, { replaceState: true });
+			const question = `Lagerort „${location.name}“ samt Unterlagerorten löschen?`;
+			if (!(await confirmRemoval(`/api/storage-locations/${id}/removal`, question))) return;
+			const room = location.path.room.id;
+			await api('DELETE', `/api/storage-locations/${id}`);
+			await goto(`/raeume/${room}`, { replaceState: true });
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		{#if lagerort}
-			<a class="knopf sekundaer" href="/raeume/{lagerort.pfad.raum.id}">← {lagerort.pfad.raum.name}</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		{#if location}
+			<a class="button secondary" href="/raeume/{location.path.room.id}">← {location.path.room.name}</a>
 		{:else}
-			<a class="knopf sekundaer" href="/wohnungen">← Wohnungen</a>
+			<a class="button secondary" href="/wohnungen">← Wohnungen</a>
 		{/if}
 	</header>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	{#if lagerort}
-		<PfadAnzeige pfad={lagerort.pfad} />
+	{#if location}
+		<PathView path={location.path} />
 		{#if name !== null}
-			<form class="inline" onsubmit={umbenennen}>
+			<form class="inline" onsubmit={rename}>
 				<input aria-label="Neuer Name" bind:value={name} required />
-				<button type="submit" disabled={laeuft}>Speichern</button>
-				<button type="button" class="sekundaer" onclick={() => (name = null)}>Abbrechen</button>
+				<button type="submit" disabled={busy}>Speichern</button>
+				<button type="button" class="secondary" onclick={() => (name = null)}>Abbrechen</button>
 			</form>
 		{:else}
-			<h1>{lagerort.name}</h1>
-			<div class="knopfzeile">
-				<button class="sekundaer klein" onclick={() => (name = lagerort?.name ?? '')}>Umbenennen</button>
-				<button class="sekundaer klein" onclick={verschiebenBeginnen}>Verschieben</button>
-				<button class="sekundaer klein" onclick={loeschen}>Löschen</button>
+			<h1>{location.name}</h1>
+			<div class="button-row">
+				<button class="secondary small" onclick={() => (name = location?.name ?? '')}>Umbenennen</button>
+				<button class="secondary small" onclick={startMoving}>Verschieben</button>
+				<button class="secondary small" onclick={remove}>Löschen</button>
 			</div>
 		{/if}
 
-		{#if verschieben}
+		{#if moving}
 			<section>
-				<PlatzAuswahl {plaetze} bind:wert={ziel} titel="Verschieben nach" ohneErlaubt={false} ausblenden={imEigenenBaum} />
-				<div class="knopfzeile">
-					<button disabled={laeuft || !ziel} onclick={verschiebenSpeichern}>Verschieben</button>
-					<button class="sekundaer" onclick={() => (verschieben = false)}>Abbrechen</button>
+				<PlacePicker {places} bind:value={target} title="Verschieben nach" noneAllowed={false} hide={inOwnTree} />
+				<div class="button-row">
+					<button disabled={busy || !target} onclick={saveMove}>Verschieben</button>
+					<button class="secondary" onclick={() => (moving = false)}>Abbrechen</button>
 				</div>
 			</section>
 		{/if}
 
 		<section>
 			<h2>Möbelstück</h2>
-			{#if lagerort.moebel}
-				<p>Gehört zu <a href="/items/{lagerort.moebel.id}">{lagerort.moebel.name}</a>.</p>
-				<button class="sekundaer klein" disabled={laeuft} onclick={() => moebelSetzen(null)}>Zuordnung lösen</button>
-			{:else if moebelWaehlen}
-				<ItemSuche gewaehlt={(item) => moebelSetzen(item.id)} />
-				<button class="sekundaer klein" onclick={() => (moebelWaehlen = false)}>Abbrechen</button>
+			{#if location.furniture}
+				<p>Gehört zu <a href="/items/{location.furniture.id}">{location.furniture.name}</a>.</p>
+				<button class="secondary small" disabled={busy} onclick={() => setFurniture(null)}>Zuordnung lösen</button>
+			{:else if choosingFurniture}
+				<ItemSearch chosen={(item) => setFurniture(item.id)} />
+				<button class="secondary small" onclick={() => (choosingFurniture = false)}>Abbrechen</button>
 			{:else}
-				<p class="leise">Gehört zu keinem Möbelstück.</p>
-				<button class="sekundaer klein" onclick={() => (moebelWaehlen = true)}>Möbelstück zuordnen</button>
+				<p class="muted">Gehört zu keinem Möbelstück.</p>
+				<button class="secondary small" onclick={() => (choosingFurniture = true)}>Möbelstück zuordnen</button>
 			{/if}
 		</section>
 
 		<section>
 			<h2>Unterlagerorte</h2>
-			<ul class="zeilen">
-				{#each lagerort.unter as u (u.id)}
-					<li><a href="/lagerorte/{u.id}">{u.name}</a></li>
+			<ul class="rows">
+				{#each location.children as c (c.id)}
+					<li><a href="/lagerorte/{c.id}">{c.name}</a></li>
 				{:else}
-					<li class="leise">Keine.</li>
+					<li class="muted">Keine.</li>
 				{/each}
 			</ul>
-			<form class="inline" onsubmit={unterlagerortAnlegen}>
-				<input aria-label="Name des neuen Unterlagerorts" placeholder="z. B. obere Schublade" bind:value={neuerLagerort} required />
-				<button type="submit" class="sekundaer" disabled={laeuft}>Anlegen</button>
+			<form class="inline" onsubmit={createChild}>
+				<input aria-label="Name des neuen Unterlagerorts" placeholder="z. B. obere Schublade" bind:value={newStorageLocation} required />
+				<button type="submit" class="secondary" disabled={busy}>Anlegen</button>
 			</form>
 		</section>
 
 		<section>
 			<h2>Items darin</h2>
 			{#if items.length > 0}
-				<ItemRaster {items} />
-				{#if weitere}
-					<button class="sekundaer breit" onclick={mehrLaden}>Mehr laden</button>
+				<ItemGrid {items} />
+				{#if more}
+					<button class="secondary full-width" onclick={loadMore}>Mehr laden</button>
 				{/if}
 			{:else}
-				<p class="leise">Keine Items, auch nicht in Unterlagerorten.</p>
+				<p class="muted">Keine Items, auch nicht in Unterlagerorten.</p>
 			{/if}
 		</section>
 	{/if}

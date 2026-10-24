@@ -1,352 +1,354 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, boxName, fehlerText, verbleibName, type Foto, type Item, type Umzug, type Wohnung, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
-	import FotoBearbeiten from '#lib/FotoBearbeiten.svelte';
-	import FotoEingabe from '#lib/FotoEingabe.svelte';
-	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/plaetze.ts';
-	import { ladeUmzug, ladeWohnungen, type AngabenAenderung } from '#lib/umzug.ts';
-	import PfadAnzeige from '#lib/PfadAnzeige.svelte';
-	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
-	import { ladePersonen } from '#lib/personen.ts';
-	import VerbleibAuswahl from '#lib/VerbleibAuswahl.svelte';
+	import { api, boxName, errorText, dispositionName, type Photo, type Item, type Move, type Apartment, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
+	import DispositionPicker from '#lib/DispositionPicker.svelte';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import PhotoEditor from '#lib/PhotoEditor.svelte';
+	import PhotoInput from '#lib/PhotoInput.svelte';
+	import { loadPlaces, placementBody, confirmRemoval } from '#lib/places.ts';
+	import { loadMove, loadApartments, type MoveDetailsChange } from '#lib/move.ts';
+	import PathView from '#lib/PathView.svelte';
+	import PlacePicker from '#lib/PlacePicker.svelte';
+	import { loadPersons } from '#lib/persons.ts';
 
-	const pfad = $derived(`/api/items/${page.params.id}`);
+	const path = $derived(`/api/items/${page.params.id}`);
 
 	let item = $state<Item | null>(null);
-	let personen = $state<Person[]>([]);
-	let gezeigt = $state<number | null>(null);
-	let fehler = $state('');
-	let laeuft = $state(false);
-	let bearbeiten = $state(false);
-	let entwurf = $state({ name: '', beschreibung: '', verbleib: null as Verbleib | null });
+	let persons = $state<Person[]>([]);
+	let shown = $state<number | null>(null);
+	let error = $state('');
+	let busy = $state(false);
+	let editing = $state(false);
+	let draft = $state({ name: '', description: '', disposition: null as Disposition | null });
 
-	const foto = $derived(item?.fotos.find((f) => f.id === gezeigt) ?? item?.fotos.find((f) => f.hauptfoto));
-	const weiterePersonen = $derived(personen.filter((p) => !item?.besitzer.some((b) => b.id === p.id)));
+	const photo = $derived(item?.photos.find((p) => p.id === shown) ?? item?.photos.find((p) => p.mainPhoto));
+	const otherPersons = $derived(persons.filter((p) => !item?.owners.some((o) => o.id === p.id)));
 
 	$effect(() => {
-		const p = pfad;
+		const p = path;
 		item = null;
-		fehler = '';
+		error = '';
 		api<Item>('GET', p)
 			.then((i) => (item = i))
-			.catch((e) => (fehler = fehlerText(e)));
+			.catch((e) => (error = errorText(e)));
 	});
 
-	ladePersonen()
-		.then((p) => (personen = p))
-		.catch((e) => (fehler = fehlerText(e)));
+	loadPersons()
+		.then((p) => (persons = p))
+		.catch((e) => (error = errorText(e)));
 
-	/** Führt eine Änderung aus, die das Item zurückliefert, und zeigt Fehler an. */
-	async function aendern(method: string, adresse: string, body?: unknown) {
-		fehler = '';
-		laeuft = true;
+	/** Performs a change that returns the item, and shows errors. */
+	async function change(method: string, url: string, body?: unknown) {
+		error = '';
+		busy = true;
 		try {
-			item = await api<Item>(method, adresse, body);
+			item = await api<Item>(method, url, body);
 			return true;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 			return false;
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	function bearbeitenBeginnen() {
+	function startEditing() {
 		if (!item) return;
-		entwurf = { name: item.name, beschreibung: item.beschreibung, verbleib: item.verbleib };
-		bearbeiten = true;
+		draft = { name: item.name, description: item.description, disposition: item.disposition };
+		editing = true;
 	}
 
-	async function speichern(event: SubmitEvent) {
+	async function save(event: SubmitEvent) {
 		event.preventDefault();
-		if (await aendern('PUT', pfad, entwurf)) bearbeiten = false;
+		if (await change('PUT', path, draft)) editing = false;
 	}
 
-	function fotosHochladen(dateien: File[]) {
+	function uploadPhotos(files: File[]) {
 		const form = new FormData();
-		for (const d of dateien) form.append('foto', d);
-		aendern('POST', `${pfad}/fotos`, form);
+		for (const f of files) form.append('photo', f);
+		change('POST', `${path}/photos`, form);
 	}
 
-	// Gespeichertes Foto, das gerade gedreht oder zugeschnitten wird, mit seinem geladenen Original.
-	let bearbeitung = $state<{ fotoId: number; quelle: Blob } | null>(null);
+	// Saved photo currently being rotated or cropped, with its loaded original.
+	let photoEdit = $state<{ photoId: number; source: Blob } | null>(null);
 
-	async function fotoBearbeitenBeginnen(f: Foto) {
-		fehler = '';
-		laeuft = true;
+	async function startPhotoEdit(p: Photo) {
+		error = '';
+		busy = true;
 		try {
-			const res = await fetch(f.url);
+			const res = await fetch(p.url);
 			if (!res.ok) throw new Error(res.statusText);
-			bearbeitung = { fotoId: f.id, quelle: await res.blob() };
+			photoEdit = { photoId: p.id, source: await res.blob() };
 		} catch {
-			fehler = 'Das Foto ließ sich nicht laden.';
+			error = 'Das Foto ließ sich nicht laden.';
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	// Das bearbeitete Foto ersetzt das Original; der Server vergibt dabei eine neue Adresse.
-	function bearbeitungFertig(datei: File | null) {
-		const id = bearbeitung?.fotoId;
-		bearbeitung = null;
-		if (id === undefined || !datei) return;
+	// The edited photo replaces the original; the server gives it a new URL.
+	function photoEditDone(file: File | null) {
+		const id = photoEdit?.photoId;
+		photoEdit = null;
+		if (id === undefined || !file) return;
 		const form = new FormData();
-		form.append('foto', datei);
-		aendern('PUT', `/api/fotos/${id}`, form);
+		form.append('photo', file);
+		change('PUT', `/api/photos/${id}`, form);
 	}
 
-	async function fotoLoeschen(id: number) {
+	async function deletePhoto(id: number) {
 		if (!confirm('Dieses Foto löschen?')) return;
-		if (await aendern('DELETE', `/api/fotos/${id}`)) gezeigt = null;
+		if (await change('DELETE', `/api/photos/${id}`)) shown = null;
 	}
 
-	let neuerBesitzer = $state('');
-	async function besitzerHinzufuegen() {
-		if (!neuerBesitzer) return;
-		if (await aendern('PUT', `${pfad}/besitzer/${neuerBesitzer}`)) neuerBesitzer = '';
+	let newOwner = $state('');
+	async function addOwner() {
+		if (!newOwner) return;
+		if (await change('PUT', `${path}/owners/${newOwner}`)) newOwner = '';
 	}
 
-	let plaetze = $state<PlatzEintrag[]>([]);
-	let platzWaehlen = $state(false);
-	let platz = $state<Platz | null>(null);
+	let places = $state<PlaceEntry[]>([]);
+	let choosingPlace = $state(false);
+	let place = $state<Place | null>(null);
 
-	async function platzAendernBeginnen() {
+	async function startPlaceChange() {
 		try {
-			plaetze = await ladePlaetze();
+			places = await loadPlaces();
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 			return;
 		}
-		const p = item?.platzierung;
-		const innerster = p?.lagerorte.at(-1);
-		platz = innerster ? { art: 'lagerort', id: innerster.id } : p ? { art: 'raum', id: p.raum.id } : null;
-		platzWaehlen = true;
+		const p = item?.placement;
+		const innermost = p?.storageLocations.at(-1);
+		place = innermost ? { kind: 'storageLocation', id: innermost.id } : p ? { kind: 'room', id: p.room.id } : null;
+		choosingPlace = true;
 	}
 
-	async function platzSpeichern() {
-		if (await aendern('PUT', `${pfad}/platzierung`, platzBody(platz))) platzWaehlen = false;
+	async function savePlace() {
+		if (await change('PUT', `${path}/placement`, placementBody(place))) choosingPlace = false;
 	}
 
-	// Umzugsangaben, solange ein Umzug läuft.
-	let umzug = $state<Umzug | null>(null);
-	let wohnungen = $state<Wohnung[]>([]);
-	const neueRaeume = $derived(wohnungen.find((w) => w.id === umzug?.neueWohnung.id)?.raeume ?? []);
-	let angaben = $state({ herkunft: '', ziel: '', box: '' });
-	let angabenVorher = { herkunft: '', ziel: '', box: '' };
+	// Move details, while a move is active.
+	let move = $state<Move | null>(null);
+	let apartments = $state<Apartment[]>([]);
+	const newRooms = $derived(apartments.find((a) => a.id === move?.newApartment.id)?.rooms ?? []);
+	let details = $state({ origin: '', target: '', box: '' });
+	let detailsBefore = { origin: '', target: '', box: '' };
 
-	ladeUmzug()
-		.then(async (u) => {
-			umzug = u;
-			if (u) wohnungen = await ladeWohnungen();
+	loadMove()
+		.then(async (m) => {
+			move = m;
+			if (m) apartments = await loadApartments();
 		})
-		.catch((e) => (fehler = fehlerText(e)));
+		.catch((e) => (error = errorText(e)));
 
 	$effect(() => {
-		const a = item?.umzug;
-		angabenVorher = {
-			herkunft: a?.herkunftsraum ? String(a.herkunftsraum.id) : '',
-			ziel: a?.zielraum ? String(a.zielraum.id) : '',
-			box: a?.box ? String(a.box.id) : ''
+		const d = item?.move;
+		detailsBefore = {
+			origin: d?.originRoom ? String(d.originRoom.id) : '',
+			target: d?.targetRoom ? String(d.targetRoom.id) : '',
+			box: d?.box ? String(d.box.id) : ''
 		};
-		angaben = { ...angabenVorher };
+		details = { ...detailsBefore };
 	});
 
-	// Nur Geändertes schicken: Sonst würde ein leeres Feld den vorbelegten Herkunftsraum löschen.
-	function angabenSpeichern() {
+	// Only send what changed: otherwise an empty field would clear the preset origin room.
+	function saveDetails() {
 		const id = (v: string) => (v ? Number(v) : null);
-		const body: AngabenAenderung = {};
-		if (angaben.herkunft !== angabenVorher.herkunft) body.herkunftsraumId = id(angaben.herkunft);
-		if (angaben.ziel !== angabenVorher.ziel) body.zielraumId = id(angaben.ziel);
-		if (angaben.box !== angabenVorher.box) body.boxId = id(angaben.box);
-		if (Object.keys(body).length > 0) aendern('PATCH', `${pfad}/umzug`, body);
+		const body: MoveDetailsChange = {};
+		if (details.origin !== detailsBefore.origin) body.originRoomId = id(details.origin);
+		if (details.target !== detailsBefore.target) body.targetRoomId = id(details.target);
+		if (details.box !== detailsBefore.box) body.boxId = id(details.box);
+		if (Object.keys(body).length > 0) change('PATCH', `${path}/move`, body);
 	}
 
-	async function itemLoeschen() {
+	async function deleteItem() {
 		if (!item) return;
-		fehler = '';
+		error = '';
 		try {
-			const frage = `„${item.name}“ mit allen Fotos löschen?`;
-			const bestaetigt =
-				item.moebelLagerorte.length > 0
-					? await wegfallBestaetigen(`${pfad}/wegfall`, `${frage} Seine Lagerorte (${item.moebelLagerorte.map((l) => l.name).join(', ')}) fallen weg.`)
-					: confirm(frage);
-			if (!bestaetigt) return;
-			await api('DELETE', pfad);
+			const question = `„${item.name}“ mit allen Fotos löschen?`;
+			const confirmed =
+				item.furnitureStorageLocations.length > 0
+					? await confirmRemoval(`${path}/removal`, `${question} Seine Lagerorte (${item.furnitureStorageLocations.map((s) => s.name).join(', ')}) fallen weg.`)
+					: confirm(question);
+			if (!confirmed) return;
+			await api('DELETE', path);
 			await goto('/', { replaceState: true });
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 </script>
 
-<main class="seite weit">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/">← Liste</a>
-		{#if item && !bearbeiten}
-			<button class="sekundaer" onclick={bearbeitenBeginnen}>Bearbeiten</button>
+<main class="page wide">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/">← Liste</a>
+		{#if item && !editing}
+			<button class="secondary" onclick={startEditing}>Bearbeiten</button>
 		{/if}
 	</header>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
 	{#if item}
-		<div class="zweispaltig">
-			<div class="fotospalte">
-				{#if foto}
-					<figure class="grossfoto">
-						<a href={foto.url} target="_blank" rel="noopener"><img src={foto.vorschauUrl} alt={item.name} /></a>
-						{#if item.fotos.length > 1}
-							<button type="button" class="foto-loeschen" aria-label="Foto löschen" disabled={laeuft} onclick={() => fotoLoeschen(foto.id)}>
+		<div class="two-column">
+			<div class="photo-column">
+				{#if photo}
+					<figure class="large-photo">
+						<a href={photo.url} target="_blank" rel="noopener"><img src={photo.thumbnailUrl} alt={item.name} /></a>
+						{#if item.photos.length > 1}
+							<button type="button" class="photo-delete" aria-label="Foto löschen" disabled={busy} onclick={() => deletePhoto(photo.id)}>
 								×
 							</button>
 						{/if}
 					</figure>
 				{/if}
-				<ul class="fotoleiste">
-					{#each item.fotos as f (f.id)}
+				<ul class="photo-strip">
+					{#each item.photos as p (p.id)}
 						<li>
-							<button type="button" class="foto-wahl" class:aktiv={f.id === foto?.id} onclick={() => (gezeigt = f.id)}>
-								<img src={f.vorschauUrl} alt={f.hauptfoto ? 'Hauptfoto' : 'Foto'} loading="lazy" />
+							<button type="button" class="photo-choice" class:active={p.id === photo?.id} onclick={() => (shown = p.id)}>
+								<img src={p.thumbnailUrl} alt={p.mainPhoto ? 'Hauptfoto' : 'Foto'} loading="lazy" />
 							</button>
 						</li>
 					{/each}
 				</ul>
-				{#if foto}
-					<div class="knopfzeile">
-						{#if !foto.hauptfoto}
-							<button class="sekundaer" disabled={laeuft} onclick={() => aendern('PUT', `${pfad}/hauptfoto`, { fotoId: foto.id })}>
+				{#if photo}
+					<div class="button-row">
+						{#if !photo.mainPhoto}
+							<button class="secondary" disabled={busy} onclick={() => change('PUT', `${path}/main-photo`, { photoId: photo.id })}>
 								Als Hauptfoto
 							</button>
 						{:else}
-							<span class="marke">Hauptfoto</span>
+							<span class="badge">Hauptfoto</span>
 						{/if}
-						<button class="sekundaer" disabled={laeuft} onclick={() => fotoBearbeitenBeginnen(foto)}>Drehen / Zuschneiden</button>
+						<button class="secondary" disabled={busy} onclick={() => startPhotoEdit(photo)}>Drehen / Zuschneiden</button>
 					</div>
 				{/if}
-				<FotoEingabe gewaehlt={fotosHochladen} deaktiviert={laeuft} />
-				{#if bearbeitung}
-					<FotoBearbeiten quelle={bearbeitung.quelle} fertig={bearbeitungFertig} />
+				<PhotoInput chosen={uploadPhotos} disabled={busy} />
+				{#if photoEdit}
+					<PhotoEditor source={photoEdit.source} done={photoEditDone} />
 				{/if}
 			</div>
 
-			<div class="angabenspalte">
-				{#if bearbeiten}
-					<form onsubmit={speichern}>
+			<div class="details-column">
+				{#if editing}
+					<form onsubmit={save}>
 						<label>
 							Name
-							<input bind:value={entwurf.name} required />
+							<input bind:value={draft.name} required />
 						</label>
 						<label>
 							Beschreibung
-							<textarea bind:value={entwurf.beschreibung} rows="3"></textarea>
+							<textarea bind:value={draft.description} rows="3"></textarea>
 						</label>
-						<VerbleibAuswahl bind:wert={entwurf.verbleib} />
-						<div class="knopfzeile">
-							<button type="submit" disabled={laeuft}>Speichern</button>
-							<button type="button" class="sekundaer" onclick={() => (bearbeiten = false)}>Abbrechen</button>
+						<DispositionPicker bind:value={draft.disposition} />
+						<div class="button-row">
+							<button type="submit" disabled={busy}>Speichern</button>
+							<button type="button" class="secondary" onclick={() => (editing = false)}>Abbrechen</button>
 						</div>
 					</form>
 				{:else}
 					<h1>{item.name}</h1>
-					{#if item.beschreibung}
-						<p class="beschreibung">{item.beschreibung}</p>
+					{#if item.description}
+						<p class="description">{item.description}</p>
 					{/if}
-					<p>Verbleib: <span class="verbleib" data-verbleib={item.verbleib ?? 'offen'}>{verbleibName(item.verbleib)}</span></p>
+					<p>Verbleib: <span class="disposition" data-disposition={item.disposition ?? 'undecided'}>{dispositionName(item.disposition)}</span></p>
 				{/if}
 
 				<section>
 					<h2>Platz</h2>
-					{#if platzWaehlen}
-						<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
-						<div class="knopfzeile">
-							<button disabled={laeuft} onclick={platzSpeichern}>Speichern</button>
-							<button class="sekundaer" onclick={() => (platzWaehlen = false)}>Abbrechen</button>
+					{#if choosingPlace}
+						<PlacePicker bind:places bind:value={place} create />
+						<div class="button-row">
+							<button disabled={busy} onclick={savePlace}>Speichern</button>
+							<button class="secondary" onclick={() => (choosingPlace = false)}>Abbrechen</button>
 						</div>
 					{:else}
-						{#if item.platzierung}
-							<PfadAnzeige pfad={item.platzierung} />
-							{#if item.platzierung.lagerorte.length === 0}<p class="leise">Direkt im Raum, ohne Lagerort.</p>{/if}
+						{#if item.placement}
+							<PathView path={item.placement} />
+							{#if item.placement.storageLocations.length === 0}<p class="muted">Direkt im Raum, ohne Lagerort.</p>{/if}
 						{:else}
-							<p class="leise">Noch nicht platziert.</p>
+							<p class="muted">Noch nicht platziert.</p>
 						{/if}
-						<button class="sekundaer klein" onclick={platzAendernBeginnen}>Platz ändern</button>
+						<button class="secondary small" onclick={startPlaceChange}>Platz ändern</button>
 					{/if}
-					{#if item.moebelLagerorte.length > 0}
+					{#if item.furnitureStorageLocations.length > 0}
 						<p>
 							Lagerorte dieses Möbelstücks:
-							{#each item.moebelLagerorte as l, i (l.id)}{i > 0 ? ', ' : ''}<a href="/lagerorte/{l.id}">{l.name}</a>{/each}
+							{#each item.furnitureStorageLocations as s, i (s.id)}{i > 0 ? ', ' : ''}<a href="/lagerorte/{s.id}">{s.name}</a>{/each}
 						</p>
 					{/if}
 				</section>
 
-				{#if umzug}
+				{#if move}
 					<section>
 						<h2>Umzug</h2>
 						<div class="filter">
 							<label>
 								Herkunftsraum
-								<select bind:value={angaben.herkunft}>
+								<select bind:value={details.origin}>
 									<option value="">–</option>
-									{#each wohnungen as w (w.id)}
-										<optgroup label={w.name}>
-											{#each w.raeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+									{#each apartments as a (a.id)}
+										<optgroup label={a.name}>
+											{#each a.rooms as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 										</optgroup>
 									{/each}
 								</select>
 							</label>
 							<label>
 								Zielraum
-								<select bind:value={angaben.ziel}>
+								<select bind:value={details.target}>
 									<option value="">–</option>
-									{#each neueRaeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+									{#each newRooms as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 								</select>
 							</label>
-							<label class="ganz">
+							<label class="span-all">
 								Box
-								<select bind:value={angaben.box}>
+								<select bind:value={details.box}>
 									<option value="">Keine</option>
-									{#each umzug.boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
+									{#each move.boxes as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
 								</select>
 							</label>
 						</div>
-						<button class="sekundaer" disabled={laeuft} onclick={angabenSpeichern}>Umzugsangaben speichern</button>
+						<button class="secondary" disabled={busy} onclick={saveDetails}>Umzugsangaben speichern</button>
 					</section>
 				{/if}
 
 				<section>
 					<h2>Besitzer</h2>
-					<ul class="zeilen">
-						{#each item.besitzer as b (b.id)}
+					<ul class="rows">
+						{#each item.owners as o (o.id)}
 							<li>
-								<span>{b.name}</span>
-								<button class="sekundaer klein" disabled={laeuft} onclick={() => aendern('DELETE', `${pfad}/besitzer/${b.id}`)} aria-label="{b.name} als Besitzer entfernen">
+								<span>{o.name}</span>
+								<button class="secondary small" disabled={busy} onclick={() => change('DELETE', `${path}/owners/${o.id}`)} aria-label="{o.name} als Besitzer entfernen">
 									Entfernen
 								</button>
 							</li>
 						{/each}
 					</ul>
-					{#if weiterePersonen.length > 0}
-						<div class="knopfzeile">
-							<select aria-label="Besitzer hinzufügen" bind:value={neuerBesitzer}>
+					{#if otherPersons.length > 0}
+						<div class="button-row">
+							<select aria-label="Besitzer hinzufügen" bind:value={newOwner}>
 								<option value="">Person wählen …</option>
-								{#each weiterePersonen as p (p.id)}
+								{#each otherPersons as p (p.id)}
 									<option value={String(p.id)}>{p.name}</option>
 								{/each}
 							</select>
-							<button class="sekundaer" disabled={laeuft || !neuerBesitzer} onclick={besitzerHinzufuegen}>Hinzufügen</button>
+							<button class="secondary" disabled={busy || !newOwner} onclick={addOwner}>Hinzufügen</button>
 						</div>
 					{/if}
 				</section>
 
 				<section>
-					<button class="gefahr" onclick={itemLoeschen}>Item löschen</button>
+					<button class="danger" onclick={deleteItem}>Item löschen</button>
 				</section>
 			</div>
 		</div>
-	{:else if !fehler}
-		<p class="leise">Lädt …</p>
+	{:else if !error}
+		<p class="muted">Lädt …</p>
 	{/if}
 </main>

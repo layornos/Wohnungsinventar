@@ -1,42 +1,42 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { ApiError } from '#lib/api.ts';
-	import { anmelden } from '#lib/sitzung.svelte.ts';
+	import { login } from '#lib/session.svelte.ts';
 
 	let email = $state('');
-	let passwort = $state('');
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let password = $state('');
+	let error = $state('');
+	let busy = $state(false);
 
-	async function absenden(event: SubmitEvent) {
+	async function submit(event: SubmitEvent) {
 		event.preventDefault();
-		fehler = '';
-		laeuft = true;
+		error = '';
+		busy = true;
 		try {
-			await anmelden(email, passwort);
+			await login(email, password);
 			await goto('/', { replaceState: true });
 		} catch (e) {
-			fehler = e instanceof ApiError ? e.message : 'Anmeldung nicht möglich. Ist der Server erreichbar?';
+			error = e instanceof ApiError ? e.message : 'Anmeldung nicht möglich. Ist der Server erreichbar?';
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 </script>
 
-<main class="seite schmal">
+<main class="page narrow">
 	<h1>Anmelden</h1>
-	<form onsubmit={absenden}>
+	<form onsubmit={submit}>
 		<label>
 			E-Mail
 			<input type="email" autocomplete="username" bind:value={email} required />
 		</label>
 		<label>
 			Passwort
-			<input type="password" autocomplete="current-password" bind:value={passwort} required />
+			<input type="password" autocomplete="current-password" bind:value={password} required />
 		</label>
-		{#if fehler}
-			<p class="fehler" role="alert">{fehler}</p>
+		{#if error}
+			<p class="error" role="alert">{error}</p>
 		{/if}
-		<button type="submit" disabled={laeuft}>{laeuft ? 'Anmelden …' : 'Anmelden'}</button>
+		<button type="submit" disabled={busy}>{busy ? 'Anmelden …' : 'Anmelden'}</button>
 	</form>
 </main>

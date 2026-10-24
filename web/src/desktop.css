@@ -1,146 +1,146 @@
 /*
- * Breite Bildschirme: Zwischen 720 und 1024px (Tablet) wächst die Seite nur mit, ab 1024px steht das Menü als
- * Seitenleiste links und Startseite, Item und Erfassen nutzen die Breite.
- * Hier steht nur Anordnung (Raster, Breiten, Abstände, Sichtbarkeit); Farben, Schrift und Flächen kommen aus app.css.
- * Der Breakpoint 1024px steht auch in Seitenmenue.svelte (Wisch nur ohne Leiste).
+ * Wide screens: between 720 and 1024px (tablet) the page only grows; from 1024px the menu is a sidebar on the
+ * left and the start page, item page and capture page use the width.
+ * Only layout lives here (grids, widths, spacing, visibility); colours, fonts and surfaces come from app.css.
+ * The 1024px breakpoint also appears in SideMenu.svelte (swipe only without the sidebar).
  */
 
-/* Die Spalten des Erfassen-Formulars halten auch untereinander den Abstand des Formulars. */
-form.zweispaltig > .fotospalte,
-form.zweispaltig > .angabenspalte {
+/* The columns of the capture form keep the form's spacing among their own children too. */
+form.two-column > .photo-column,
+form.two-column > .details-column {
 	display: grid;
 	gap: 16px;
 	align-content: start;
 }
 
-nav.seitenleiste {
+nav.sidebar {
 	display: none;
 }
 
-/* Tastatur: sichtbarer Fokus auf allem Bedienbaren */
+/* Keyboard: visible focus on everything operable */
 :is(a, button, input, select, textarea):focus-visible {
-	outline: 2px solid var(--akzent);
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 
 label.chip:has(input:focus-visible) {
-	outline: 2px solid var(--akzent);
+	outline: 2px solid var(--accent);
 	outline-offset: 2px;
 }
 
-/* Maus: Zeigen hebt Antippbares hervor */
+/* Mouse: hovering highlights what can be clicked */
 @media (hover: hover) {
-	/* Hauptknöpfe (Fläche in Akzentfarbe) mischen etwas Seitenfarbe hinein statt durchsichtig zu werden:
-	   passt zu Schwarz und Weiß in Minimal wie zu Mint in Neon und Violett in Weich (Neon leuchtet, Weich schattet stärker). */
-	button:not(:disabled, .sekundaer, .menuelink, .menue-schliessen, .gefahr, .klein, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button):hover,
-	a.knopf:not(.sekundaer):hover {
-		background-color: color-mix(in srgb, var(--akzent) 86%, var(--hintergrund));
-		box-shadow: var(--leuchten-stark);
+	/* Primary buttons (accent-coloured surface) mix in some page colour instead of becoming transparent:
+	   works for black and white in Minimal as well as mint in Neon and violet in Soft (Neon glows, Soft casts a stronger shadow). */
+	button:not(:disabled, .secondary, .menu-link, .menu-close, .danger, .small, .pack, .photo-choice, .photo-delete, .crop, .handle, .results button):hover,
+	a.button:not(.secondary):hover {
+		background-color: color-mix(in srgb, var(--accent) 86%, var(--background));
+		box-shadow: var(--glow-strong);
 	}
 
-	button.sekundaer:not(:disabled):hover,
-	a.knopf.sekundaer:hover,
-	button.packen:not(:disabled):hover,
+	button.secondary:not(:disabled):hover,
+	a.button.secondary:hover,
+	button.pack:not(:disabled):hover,
 	label.chip:hover,
-	.karte:hover {
-		background-color: var(--flaeche);
-		border-color: var(--akzent);
+	.card:hover {
+		background-color: var(--surface);
+		border-color: var(--accent);
 	}
 
-	.mit-bild:hover {
+	.with-image:hover {
 		text-decoration: underline;
 	}
 }
 
-/* Tablet: mehr Breite, sonst wie auf dem Handy */
+/* Tablet: more width, otherwise like on the phone */
 @media (min-width: 720px) {
-	.seite {
+	.page {
 		max-width: 960px;
 		padding-inline: 24px;
 	}
 
-	.seite:not(.weit) form {
+	.page:not(.wide) form {
 		max-width: 640px;
 	}
 
-	/* Nur die Kacheln von Neon und Weich; Minimal bleibt eine Liste. */
-	:is([data-design='neon'], [data-design='weich']) .raster {
+	/* Only the tiles of Neon and Soft; Minimal stays a list. */
+	:is([data-theme='neon'], [data-theme='soft']) .item-grid {
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 	}
 }
 
-/* Desktop: Seitenleiste und mehrspaltige Seiten */
+/* Desktop: sidebar and multi-column pages */
 @media (min-width: 1024px) {
-	.rahmen:has(> .seitenleiste) {
+	.frame:has(> .sidebar) {
 		display: grid;
 		grid-template-columns: 240px minmax(0, 1fr);
 		align-items: start;
 	}
 
-	nav.seitenleiste {
+	nav.sidebar {
 		display: flex;
 		position: sticky;
 		top: 0;
 		height: 100vh;
 		height: 100dvh;
 		overflow-y: auto;
-		border-right: 1px solid var(--rand);
+		border-right: 1px solid var(--border);
 	}
 
-	/* Das Menü ist immer da; Knopf und Dialog der Startseite braucht es nicht. */
-	button.menueknopf {
+	/* The menu is always visible; the menu button and dialog are not needed. */
+	button.menu-button {
 		display: none;
 	}
 
-	.seite {
+	.page {
 		max-width: 1080px;
 		padding: 24px 32px 48px;
 	}
 
-	.seite.weit {
+	.page.wide {
 		max-width: 1200px;
 	}
 
-	:is([data-design='neon'], [data-design='weich']) .seite.weit:has(> .raster) {
+	:is([data-theme='neon'], [data-theme='soft']) .page.wide:has(> .item-grid) {
 		max-width: 1600px;
 	}
 
-	/* Startseite: alle Filter in einer Zeile */
-	.seite.weit > .filter {
+	/* Start page: all filters in one row */
+	.page.wide > .filter {
 		display: flex;
 		flex-wrap: wrap;
 	}
 
-	.seite.weit > .filter > * {
+	.page.wide > .filter > * {
 		flex: 1 1 10em;
 		min-width: 0;
 	}
 
-	.seite.weit > .filter > input {
+	.page.wide > .filter > input {
 		flex: 2 1 16em;
 	}
 
-	:is([data-design='neon'], [data-design='weich']) .raster {
+	:is([data-theme='neon'], [data-theme='soft']) .item-grid {
 		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 		gap: 16px;
 	}
 
-	/* Item und Erfassen: Fotos links, Angaben rechts */
-	.zweispaltig {
+	/* Item and capture: photos left, details right */
+	.two-column {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 		gap: 32px;
 		align-items: start;
 	}
 
-	.zweispaltig > .angabenspalte > :first-child {
+	.two-column > .details-column > :first-child {
 		margin-top: 0;
 	}
 }
 
-/* Bei genug Höhe bleiben die Fotos beim Scrollen durch lange Angaben stehen. */
+/* With enough height the photos stay in place while scrolling through long details. */
 @media (min-width: 1024px) and (min-height: 800px) {
-	.zweispaltig > .fotospalte {
+	.two-column > .photo-column {
 		position: sticky;
 		top: 24px;
 	}

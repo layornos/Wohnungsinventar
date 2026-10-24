@@ -1,82 +1,84 @@
 <script lang="ts">
-	import { api, fehlerText, type ItemListenEintrag, type Platz, type PlatzEintrag } from '#lib/api.ts';
-	import { ladePlaetze, platzBody } from '#lib/plaetze.ts';
-	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
+	import { api, errorText, type ItemListEntry, type ItemPage, type Place, type PlaceEntry } from '#lib/api.ts';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import { loadPlaces, placementBody } from '#lib/places.ts';
+	import PlacePicker from '#lib/PlacePicker.svelte';
 
-	let items = $state<ItemListenEintrag[]>([]);
-	let weitere = $state(false);
-	let plaetze = $state<PlatzEintrag[]>([]);
-	let platz = $state<Platz | null>(null);
-	let aktiv = $state<number | null>(null);
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let items = $state<ItemListEntry[]>([]);
+	let more = $state(false);
+	let places = $state<PlaceEntry[]>([]);
+	let place = $state<Place | null>(null);
+	let active = $state<number | null>(null);
+	let error = $state('');
+	let busy = $state(false);
 
-	async function laden() {
+	async function load() {
 		try {
-			const r = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', '/api/items?ohneLagerort=1&proSeite=100');
+			const r = await api<ItemPage>('GET', '/api/items?unstored=1&perPage=100');
 			items = r.items;
-			weitere = r.weitere;
-			plaetze = await ladePlaetze();
+			more = r.more;
+			places = await loadPlaces();
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
-	laden();
+	load();
 
-	async function einsortieren(item: ItemListenEintrag) {
-		const p = platz;
+	async function assign(item: ItemListEntry) {
+		const p = place;
 		if (!p) return;
-		fehler = '';
-		laeuft = true;
+		error = '';
+		busy = true;
 		try {
-			await api('PUT', `/api/items/${item.id}/platzierung`, platzBody(p));
-			// Nur ein Lagerort sortiert ein; direkt im Raum bleibt das Item „ohne Lagerort“.
-			if (p.art === 'lagerort') items = items.filter((i) => i.id !== item.id);
-			aktiv = null;
+			await api('PUT', `/api/items/${item.id}/placement`, placementBody(p));
+			// Only a storage location sorts an item in; directly in the room it stays „ohne Lagerort“.
+			if (p.kind === 'storageLocation') items = items.filter((i) => i.id !== item.id);
+			active = null;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/">← Liste</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/">← Liste</a>
 		<h1>Ohne Lagerort</h1>
 	</header>
 
-	<p class="leise">Diese Items haben noch keinen festen Platz in einem Lagerort. Der gewählte Platz bleibt für das nächste Item stehen.</p>
+	<p class="muted">Diese Items haben noch keinen festen Platz in einem Lagerort. Der gewählte Platz bleibt für das nächste Item stehen.</p>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	<ul class="zeilen">
+	<ul class="rows">
 		{#each items as item (item.id)}
-			<li class="einsortieren">
-				<a class="mit-bild" href="/items/{item.id}">
-					<img src={item.vorschauUrl} alt="" loading="lazy" />
+			<li class="assign">
+				<a class="with-image" href="/items/{item.id}">
+					<img src={item.thumbnailUrl} alt="" loading="lazy" />
 					{item.name}
 				</a>
-				{#if aktiv === item.id}
-					<div class="breit">
-						<PlatzAuswahl bind:plaetze bind:wert={platz} ohneErlaubt={false} anlegen />
-						<div class="knopfzeile">
-							<button disabled={laeuft || !platz} onclick={() => einsortieren(item)}>Einsortieren</button>
-							<button class="sekundaer" onclick={() => (aktiv = null)}>Abbrechen</button>
+				{#if active === item.id}
+					<div class="full-width">
+						<PlacePicker bind:places bind:value={place} noneAllowed={false} create />
+						<div class="button-row">
+							<button disabled={busy || !place} onclick={() => assign(item)}>Einsortieren</button>
+							<button class="secondary" onclick={() => (active = null)}>Abbrechen</button>
 						</div>
 					</div>
 				{:else}
-					<button class="sekundaer klein" onclick={() => (aktiv = item.id)}>Einsortieren</button>
+					<button class="secondary small" onclick={() => (active = item.id)}>Einsortieren</button>
 				{/if}
 			</li>
 		{:else}
-			<li class="leise">Alles einsortiert.</li>
+			<li class="muted">Alles einsortiert.</li>
 		{/each}
 	</ul>
-	{#if weitere}
-		<p class="leise">Es gibt weitere; nach dem Einsortieren erscheinen sie hier.</p>
+	{#if more}
+		<p class="muted">Es gibt weitere; nach dem Einsortieren erscheinen sie hier.</p>
 	{/if}
 </main>

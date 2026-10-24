@@ -1,129 +1,130 @@
 <script lang="ts">
-	import { api, boxName, fehlerText, VERBLEIBE, type Box, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
-	import ItemRaster from '#lib/ItemRaster.svelte';
-	import Seitenmenue from '#lib/Seitenmenue.svelte';
-	import { ladePlaetze } from '#lib/plaetze.ts';
-	import { ladeUmzug } from '#lib/umzug.ts';
-	import { ladePersonen } from '#lib/personen.ts';
+	import { api, boxName, errorText, DISPOSITIONS, type Box, type ItemPage, type ItemListEntry, type Person, type PlaceEntry } from '#lib/api.ts';
+	import ItemGrid from '#lib/ItemGrid.svelte';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import { loadPlaces } from '#lib/places.ts';
+	import { loadMove } from '#lib/move.ts';
+	import { loadPersons } from '#lib/persons.ts';
 	import type { Snapshot } from './$types';
 
-	let suche = $state('');
-	let besitzer = $state('');
-	let verbleib = $state('');
-	// Platz als "raum:3" oder "lagerort:7", damit ein einziges Auswahlfeld beides kann.
-	let platz = $state('');
-	let plaetze = $state<PlatzEintrag[]>([]);
-	// Während eines Umzugs lässt sich nach Box filtern.
+	let search = $state('');
+	let owner = $state('');
+	let disposition = $state('');
+	// Place as "room:3" or "storageLocation:7", so a single select can do both.
+	let place = $state('');
+	let places = $state<PlaceEntry[]>([]);
+	// During a move the list can be filtered by box.
 	let box = $state('');
-	let boxen = $state<Box[]>([]);
-	let personen = $state<Person[]>([]);
-	let items = $state<ItemListenEintrag[]>([]);
-	let weitere = $state(false);
-	let laedt = $state(false);
-	let fehler = $state('');
-	let seite = 1;
+	let boxes = $state<Box[]>([]);
+	let persons = $state<Person[]>([]);
+	let items = $state<ItemListEntry[]>([]);
+	let more = $state(false);
+	let loading = $state(false);
+	let error = $state('');
+	let pageNumber = 1;
 
-	// Suche und Filter bleiben erhalten, wenn man von einem Item zurückkommt.
-	export const snapshot: Snapshot<{ suche: string; besitzer: string; verbleib: string; platz: string; box: string }> = {
-		capture: () => ({ suche, besitzer, verbleib, platz, box }),
-		restore: (s) => ({ suche, besitzer, verbleib, platz, box } = s)
+	// Search and filters are kept when coming back from an item.
+	export const snapshot: Snapshot<{ search: string; owner: string; disposition: string; place: string; box: string }> = {
+		capture: () => ({ search, owner, disposition, place, box }),
+		// Defaults, because a snapshot taken by an older version has other keys.
+		restore: (s) => ({ search = '', owner = '', disposition = '', place = '', box = '' } = s)
 	};
 
-	ladePersonen()
-		.then((p) => (personen = p))
-		.catch((e) => (fehler = fehlerText(e)));
-	ladePlaetze()
-		.then((p) => (plaetze = p))
-		.catch((e) => (fehler = fehlerText(e)));
-	ladeUmzug()
-		.then((u) => (boxen = u?.boxen ?? []))
-		.catch((e) => (fehler = fehlerText(e)));
+	loadPersons()
+		.then((p) => (persons = p))
+		.catch((e) => (error = errorText(e)));
+	loadPlaces()
+		.then((p) => (places = p))
+		.catch((e) => (error = errorText(e)));
+	loadMove()
+		.then((m) => (boxes = m?.boxes ?? []))
+		.catch((e) => (error = errorText(e)));
 
-	function adresse(s: number) {
-		const p = new URLSearchParams({ seite: String(s) });
-		if (suche.trim()) p.set('q', suche.trim());
-		if (besitzer) p.set('besitzer', besitzer);
-		if (verbleib) p.set('verbleib', verbleib);
-		const [art, id] = platz.split(':');
-		if (id) p.set(art, id);
+	function url(n: number) {
+		const p = new URLSearchParams({ page: String(n) });
+		if (search.trim()) p.set('q', search.trim());
+		if (owner) p.set('owner', owner);
+		if (disposition) p.set('disposition', disposition);
+		const [kind, id] = place.split(':');
+		if (id) p.set(kind, id);
 		if (box) p.set('box', box);
 		return '/api/items?' + p;
 	}
 
-	// Nur die Antwort der jüngsten Anfrage zählt, falls schnell hintereinander getippt wird.
-	let anfrage = 0;
-	async function laden(neu: boolean) {
-		const nr = ++anfrage;
-		const s = neu ? 1 : seite + 1;
-		laedt = true;
-		fehler = '';
+	// Only the response to the latest request counts, in case of quick typing.
+	let request = 0;
+	async function load(fresh: boolean) {
+		const nr = ++request;
+		const n = fresh ? 1 : pageNumber + 1;
+		loading = true;
+		error = '';
 		try {
-			const r = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', adresse(s));
-			if (nr !== anfrage) return;
-			items = neu ? r.items : [...items, ...r.items];
-			weitere = r.weitere;
-			seite = s;
+			const r = await api<ItemPage>('GET', url(n));
+			if (nr !== request) return;
+			items = fresh ? r.items : [...items, ...r.items];
+			more = r.more;
+			pageNumber = n;
 		} catch (e) {
-			if (nr === anfrage) fehler = fehlerText(e);
+			if (nr === request) error = errorText(e);
 		} finally {
-			if (nr === anfrage) laedt = false;
+			if (nr === request) loading = false;
 		}
 	}
 
 	$effect(() => {
-		void [suche, besitzer, verbleib, platz, box];
-		const t = setTimeout(() => laden(true), 250);
+		void [search, owner, disposition, place, box];
+		const t = setTimeout(() => load(true), 250);
 		return () => clearTimeout(t);
 	});
 </script>
 
-<main class="seite weit">
-	<header class="kopf mit-menue">
-		<Seitenmenue />
+<main class="page wide">
+	<header class="header with-menu">
+		<MenuButton />
 		<h1>Inventar</h1>
 	</header>
 
 	<div class="filter">
-		<input type="search" placeholder="Suchen …" aria-label="Nach Name suchen" bind:value={suche} />
-		<select aria-label="Besitzer" bind:value={besitzer}>
+		<input type="search" placeholder="Suchen …" aria-label="Nach Name suchen" bind:value={search} />
+		<select aria-label="Besitzer" bind:value={owner}>
 			<option value="">Alle Besitzer</option>
-			{#each personen as p (p.id)}
+			{#each persons as p (p.id)}
 				<option value={String(p.id)}>{p.name}</option>
 			{/each}
 		</select>
-		<select aria-label="Verbleib" bind:value={verbleib}>
+		<select aria-label="Verbleib" bind:value={disposition}>
 			<option value="">Jeder Verbleib</option>
-			<option value="offen">Offen</option>
-			{#each VERBLEIBE as v (v.wert)}
-				<option value={v.wert}>{v.name}</option>
+			<option value="undecided">Offen</option>
+			{#each DISPOSITIONS as d (d.value)}
+				<option value={d.value}>{d.name}</option>
 			{/each}
 		</select>
-		<select class="ganz" aria-label="Platz" bind:value={platz}>
+		<select class="span-all" aria-label="Platz" bind:value={place}>
 			<option value="">Überall</option>
-			{#each plaetze as p (p.art + p.id)}
-				<option value="{p.art}:{p.id}">{p.pfad}</option>
+			{#each places as p (p.kind + p.id)}
+				<option value="{p.kind}:{p.id}">{p.path}</option>
 			{/each}
 		</select>
-		{#if boxen.length > 0}
-			<select class="ganz" aria-label="Box" bind:value={box}>
+		{#if boxes.length > 0}
+			<select class="span-all" aria-label="Box" bind:value={box}>
 				<option value="">Jede Box</option>
-				{#each boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
+				{#each boxes as b (b.id)}<option value={String(b.id)}>{boxName(b)}</option>{/each}
 			</select>
 		{/if}
 	</div>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	<ItemRaster {items} />
+	<ItemGrid {items} />
 
-	{#if !laedt && items.length === 0 && !fehler}
-		<p class="leise">Keine Items gefunden.</p>
+	{#if !loading && items.length === 0 && !error}
+		<p class="muted">Keine Items gefunden.</p>
 	{/if}
-	{#if weitere}
-		<button class="sekundaer breit" onclick={() => laden(false)} disabled={laedt}>Mehr laden</button>
+	{#if more}
+		<button class="secondary full-width" onclick={() => load(false)} disabled={loading}>Mehr laden</button>
 	{/if}
 
-	<a class="knopf schwebend" href="/items/neu">+ Erfassen</a>
+	<a class="button floating" href="/items/neu">+ Erfassen</a>
 </main>
