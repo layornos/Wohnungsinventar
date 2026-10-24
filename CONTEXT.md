@@ -140,3 +140,46 @@ _Avoid_: Preisstaffel, Rabattplan
 **Erinnerung**:
 Ein Hinweis, der in der App angezeigt und jedem Besitzer, der Nutzer ist, per Mail geschickt wird. Besitzer ohne Nutzerzugang werden nicht benachrichtigt; ist keiner der Besitzer Nutzer, geht die Erinnerung an alle Nutzer.
 _Avoid_: Notification, Reminder, Alarm
+
+## Code names
+
+Code, comments, API paths, JSON fields, database tables and CLI commands are English (see `CLAUDE.md`). Every domain term has exactly one English name in code; use it consistently. The German terms above remain the language of the UI and of conversations with the household. _Avoid_ lists apply to the German domain language, not to these code names (e.g. **Erinnerung** is `Reminder` in code).
+
+| Begriff | Code |
+|---|---|
+| Haushalt | `Household` |
+| Person | `Person` |
+| Nutzer | `User` |
+| Einladung | `Invitation` |
+| Besitzer | `Owner` |
+| Item | `Item` |
+| Foto / Hauptfoto | `Photo` / `MainPhoto` |
+| Wohnung | `Apartment` |
+| Raum | `Room` |
+| Lagerort | `StorageLocation` |
+| Möbelstück (Item, zu dem ein Lagerort gehört) | `Furniture` |
+| Platz (Raum oder Lagerort zur Auswahl) | `Place` |
+| Platzierung | `Placement` |
+| Wegfall | `Removal` |
+| Ohne Lagerort | `Unstored` |
+| Umzug | `Move` |
+| Herkunftsraum | `OriginRoom` |
+| Zielraum | `TargetRoom` |
+| Box | `Box` |
+| Verbleib | `Disposition` |
+| Verbleib offen | `Undecided` (Disposition `null`) |
+| Behalten | `Keep` |
+| Behalte-Prüfung | `KeepReview` |
+| Später verkaufen | `SellLater` |
+| Verkaufen | `Sell` |
+| Verschenken | `GiveAway` |
+| Angebotspreis | `AskingPrice` |
+| Verkaufserlös | `SaleProceeds` |
+| Inserattext | `ListingText` |
+| Archiv | `Archive` |
+| Erlösübersicht | `ProceedsSummary` |
+| Gewährleistungsausschluss | `WarrantyDisclaimer` |
+| Preiserinnerung | `PriceReminder` |
+| Preisplan | `PricePlan` |
+| Erinnerung | `Reminder` |
+| Design (Darstellung) | `Theme` |

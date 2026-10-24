@@ -1,3 +1,7 @@
+## Code language
+
+Everything in code is English: identifiers, functions, types, comments, API paths, JSON fields, database tables and columns, CSS classes, CLI commands, test names and commit messages. Domain terms use the fixed English names from the "Code names" table in `CONTEXT.md`. Only user-facing text in the UI (and specs/issues under `.scratch/`) stays German.
+
 ## Agent skills
 
 ### Issue tracker
