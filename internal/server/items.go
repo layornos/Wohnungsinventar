@@ -55,8 +55,13 @@ func verbleibJSON(v store.Verbleib) *store.Verbleib {
 	return &v
 }
 
-func fotoURL(id int64) string         { return fmt.Sprintf("/api/fotos/%d", id) }
-func vorschauURL(fotoID int64) string { return fotoURL(fotoID) + "/vorschau" }
+// fotoURL enthält neben der ID den zufälligen Dateinamen: Fotos bleiben dauerhaft im
+// Browser-Cache, die Adresse muss sich also ändern, sobald sich die Datei ändert.
+func fotoURL(id int64, datei string) string {
+	return fmt.Sprintf("/api/fotos/%d/%s", id, datei)
+}
+
+func vorschauURL(fotoID int64, datei string) string { return fotoURL(fotoID, datei) + "/vorschau" }
 
 func alsItemJSON(item store.Item) itemJSON {
 	out := itemJSON{
@@ -76,7 +81,7 @@ func alsItemJSON(item store.Item) itemJSON {
 		out.Platzierung = &p
 	}
 	for _, f := range item.Fotos {
-		out.Fotos = append(out.Fotos, fotoJSON{ID: f.ID, Hauptfoto: f.Hauptfoto, URL: fotoURL(f.ID), VorschauURL: vorschauURL(f.ID)})
+		out.Fotos = append(out.Fotos, fotoJSON{ID: f.ID, Hauptfoto: f.Hauptfoto, URL: fotoURL(f.ID, f.Datei), VorschauURL: vorschauURL(f.ID, f.Datei)})
 	}
 	return out
 }
@@ -269,7 +274,7 @@ func alsItemListeJSON(eintraege []store.ItemListenEintrag) []itemListenJSON {
 	items := make([]itemListenJSON, 0, len(eintraege))
 	for _, e := range eintraege {
 		items = append(items, itemListenJSON{
-			ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID),
+			ID: e.ID, Name: e.Name, Verbleib: verbleibJSON(e.Verbleib), VorschauURL: vorschauURL(e.HauptfotoID, e.HauptfotoDatei),
 			Umzug: alsUmzugsangabenJSON(e.Umzug),
 		})
 	}

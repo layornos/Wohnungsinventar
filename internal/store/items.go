@@ -247,10 +247,11 @@ func fotosLesen(ctx context.Context, q abfrager, itemID int64) ([]Foto, error) {
 
 // ItemListenEintrag ist ein Item in der Liste, mit seinem Hauptfoto für die Vorschau.
 type ItemListenEintrag struct {
-	ID          int64
-	Name        string
-	Verbleib    Verbleib
-	HauptfotoID int64
+	ID             int64
+	Name           string
+	Verbleib       Verbleib
+	HauptfotoID    int64
+	HauptfotoDatei string
 	// Umzug sind die Umzugsangaben im laufenden (oder im Filter genannten) Umzug.
 	Umzug *Umzugsangaben
 }
@@ -366,7 +367,7 @@ func itemsAuflisten(ctx context.Context, q abfrager, f ItemFilter) ([]ItemListen
 		abfrage = "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
 	}
 	abfrage += `
-		SELECT i.id, i.name, i.verbleib, f.id, ua.item_id IS NOT NULL, h.id, h.name, z.id, z.name, b.id, b.nummer, b.bezeichnung
+		SELECT i.id, i.name, i.verbleib, f.id, f.datei, ua.item_id IS NOT NULL, h.id, h.name, z.id, z.name, b.id, b.nummer, b.bezeichnung
 		FROM item i JOIN foto f ON f.item_id = i.id AND f.hauptfoto = 1
 		LEFT JOIN umzugsangabe ua ON ua.item_id = i.id
 			AND ua.umzug_id = COALESCE(?, (SELECT id FROM umzug WHERE laufend = 1))
@@ -395,7 +396,7 @@ func itemsAuflisten(ctx context.Context, q abfrager, f ItemFilter) ([]ItemListen
 			herkunftName, zielName, boxBezeich sql.NullString
 			boxNummer                          sql.NullInt64
 		)
-		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID, &mitAngaben,
+		if err := rows.Scan(&e.ID, &e.Name, &verbleib, &e.HauptfotoID, &e.HauptfotoDatei, &mitAngaben,
 			&herkunftID, &herkunftName, &zielID, &zielName, &boxID, &boxNummer, &boxBezeich); err != nil {
 			return nil, false, err
 		}

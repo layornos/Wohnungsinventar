@@ -21,4 +21,10 @@ Die Adresse eines Fotos eindeutig machen, z. B. den zufälligen Dateinamen in di
 
 ## Fertig, wenn
 
-- [ ] Neues Foto erscheint immer korrekt, Regressionstest an der HTTP-API.
+- [x] Neues Foto erscheint immer korrekt, Regressionstest an der HTTP-API.
+
+## Comments
+
+- Umgesetzt: Fotos werden unter `/api/fotos/{id}/{datei}` und `/api/fotos/{id}/{datei}/vorschau` ausgeliefert, `datei` ist der zufällige Dateiname. Passt der Dateiname nicht zur ID, antwortet der Server mit 404; die alten Adressen ohne Dateinamen gibt es nicht mehr. Löschen bleibt `DELETE /api/fotos/{id}`. Der Client übernimmt die Adressen aus `url`/`vorschauUrl` und musste nicht geändert werden. Ändert sich künftig die Datei (Ticket 01), ändert sich damit auch die Adresse.
+- Migration 0006 legt `foto` mit `AUTOINCREMENT` neu an (Daten bleiben erhalten), IDs gelöschter Fotos werden nicht mehr vergeben.
+- Regressionstests in `internal/server/fotos_test.go`: `TestNeuesFotoBekommtNachDemLoeschenEineNeueAdresse`, `TestFotoMitFalschemDateinamenWirdNichtAusgeliefert`.

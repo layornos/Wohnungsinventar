@@ -190,13 +190,14 @@ func TestFotosHinzufuegenUndHauptfotoSetzen(t *testing.T) {
 		t.Fatal("neue Fotos sollen das Hauptfoto nicht ändern")
 	}
 
-	dritte := fotosVon(res)[2]["id"]
+	dritteFoto := fotosVon(res)[2]
+	dritte := dritteFoto["id"]
 	res = c.mustStatus(http.StatusOK, "PUT", itemPfad(item)+"/hauptfoto", map[string]any{"fotoId": dritte})
 	if hauptfotoID(res) != dritte {
 		t.Fatalf("Hauptfoto: %s", res.Raw)
 	}
 	liste := c.mustStatus(http.StatusOK, "GET", "/api/items", nil)
-	if got := liste.Body["items"].([]any)[0].(map[string]any)["vorschauUrl"]; got != fmt.Sprintf("/api/fotos/%v/vorschau", dritte) {
+	if got := liste.Body["items"].([]any)[0].(map[string]any)["vorschauUrl"]; got != dritteFoto["vorschauUrl"] {
 		t.Fatalf("die Liste soll die Vorschau des Hauptfotos zeigen, zeigt %v", got)
 	}
 
@@ -267,5 +268,55 @@ func TestTransparenteFlaechenWerdenInDerVorschauWeiss(t *testing.T) {
 	r, g, bl, _ := vorschauBild(t, c, foto).At(5, 5).RGBA()
 	if r>>8 < 240 || g>>8 < 240 || bl>>8 < 240 {
 		t.Fatalf("Pixel (%d, %d, %d), erwartet weiß", r>>8, g>>8, bl>>8)
+	}
+}
+
+// Fotos dürfen dauerhaft im Browser-Cache bleiben. Ein neues Foto braucht deshalb eine Adresse,
+// unter der nie ein anderes Bild ausgeliefert wurde, auch wenn vorher eines gelöscht wurde.
+func TestNeuesFotoBekommtNachDemLoeschenEineNeueAdresse(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	item := c.itemAnlegen("Lampe", []int64{c.ich()}, testJPEG(t), testPNG(t))
+	alt := fotosVon(item)[1]
+	c.mustStatus(http.StatusOK, "DELETE", fmt.Sprintf("/api/fotos/%v", alt["id"]), nil)
+
+	neuesBild := testWebP(t)
+	res := c.multipart("POST", itemPfad(item)+"/fotos", formular{fotos: [][]byte{neuesBild}})
+	if res.Status != http.StatusOK || len(fotosVon(res)) != 2 {
+		t.Fatalf("Status %d: %s", res.Status, res.Raw)
+	}
+	neu := fotosVon(res)[1]
+	if neu["id"] == alt["id"] {
+		t.Errorf("die ID %v des gelöschten Fotos wurde wieder vergeben", alt["id"])
+	}
+	for _, feld := range []string{"url", "vorschauUrl"} {
+		if neu[feld] == alt[feld] {
+			t.Errorf("%s: das neue Foto hat die Adresse des gelöschten: %v", feld, neu[feld])
+		}
+		if r := c.get(alt[feld].(string)); r.Status != http.StatusNotFound {
+			t.Errorf("%s des gelöschten Fotos: Status %d", feld, r.Status)
+		}
+	}
+	if r := c.get(neu["url"].(string)); r.Status != http.StatusOK || !bytes.Equal(r.Raw, neuesBild) {
+		t.Fatalf("neues Foto: Status %d, %d Bytes", r.Status, len(r.Raw))
+	}
+}
+
+// Nur die Adresse mit dem richtigen Dateinamen liefert das Foto, sonst könnte eine alte
+// Adresse nach einer Änderung der Datei ein anderes Bild zeigen.
+func TestFotoMitFalschemDateinamenWirdNichtAusgeliefert(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	foto := fotosVon(c.itemAnlegen("Lampe", []int64{c.ich()}, testJPEG(t)))[0]
+
+	for _, url := range []string{
+		fmt.Sprintf("/api/fotos/%v", foto["id"]),
+		fmt.Sprintf("/api/fotos/%v/vorschau", foto["id"]),
+		fmt.Sprintf("/api/fotos/%v/falsch.jpg", foto["id"]),
+		fmt.Sprintf("/api/fotos/%v/falsch.jpg/vorschau", foto["id"]),
+	} {
+		if r := c.get(url); r.Status != http.StatusNotFound && r.Status != http.StatusMethodNotAllowed {
+			t.Errorf("%s: Status %d", url, r.Status)
+		}
 	}
 }

@@ -4,10 +4,13 @@ import (
 	"errors"
 	"net/http"
 	"os"
+
+	"inventar/internal/store"
 )
 
-// fotoAusliefern liefert das Original oder die Vorschau eines Fotos. Dateien ändern sich nie,
-// der Browser darf sie also dauerhaft zwischenspeichern, aber nur für sich (private).
+// fotoAusliefern liefert das Original oder die Vorschau eines Fotos. Die Adresse enthält den
+// zufälligen Dateinamen und passt nur zu genau einer Datei; der Browser darf sie also dauerhaft
+// zwischenspeichern, aber nur für sich (private).
 func (s *server) fotoAusliefern(vorschau bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pfadID(w, r, "id")
@@ -15,6 +18,9 @@ func (s *server) fotoAusliefern(vorschau bool) http.HandlerFunc {
 			return
 		}
 		f, err := s.Store.FotoAbrufen(r.Context(), id)
+		if err == nil && f.Datei != r.PathValue("datei") {
+			err = store.ErrNichtGefunden
+		}
 		if err != nil {
 			s.storeFehler(w, r, err)
 			return
