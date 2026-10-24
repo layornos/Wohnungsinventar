@@ -181,9 +181,10 @@ func (s *server) deleteStorageLocation(w http.ResponseWriter, r *http.Request) {
 }
 
 type placeJSON struct {
-	Kind store.PlaceKind `json:"kind"`
-	ID   int64           `json:"id"`
-	Path string          `json:"path"`
+	Kind        store.PlaceKind `json:"kind"`
+	ID          int64           `json:"id"`
+	ApartmentID int64           `json:"apartmentId"`
+	Path        string          `json:"path"`
 }
 
 func (s *server) listPlaces(w http.ResponseWriter, r *http.Request) {
@@ -194,7 +195,7 @@ func (s *server) listPlaces(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]placeJSON, 0, len(places))
 	for _, p := range places {
-		out = append(out, placeJSON{Kind: p.Kind, ID: p.ID, Path: p.Path})
+		out = append(out, placeJSON{Kind: p.Kind, ID: p.ID, ApartmentID: p.ApartmentID, Path: p.Path})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"places": out})
 }

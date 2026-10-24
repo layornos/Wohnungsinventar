@@ -22,14 +22,15 @@ type moveJSON struct {
 }
 
 type boxJSON struct {
-	ID     int64  `json:"id"`
-	Number int    `json:"number"`
-	Label  string `json:"label"`
-	Count  int    `json:"count"`
+	ID         int64      `json:"id"`
+	Number     int        `json:"number"`
+	Label      string     `json:"label"`
+	TargetRoom *namedJSON `json:"targetRoom"`
+	Count      int        `json:"count"`
 }
 
 func toBoxJSON(b store.Box) boxJSON {
-	return boxJSON{ID: b.ID, Number: b.Number, Label: b.Label, Count: b.Count}
+	return boxJSON{ID: b.ID, Number: b.Number, Label: b.Label, TargetRoom: toNamedPtr(b.TargetRoom), Count: b.Count}
 }
 
 func toMoveJSON(m store.Move) moveJSON {
@@ -99,14 +100,43 @@ func (s *server) getMove(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toMoveJSON(m))
 }
 
-func (s *server) createBox(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Label string `json:"label"`
+// readBoxRequest reads {"label", "targetRoomId"}. targetRoomID is nil if the field is missing,
+// and points to 0 if it is null.
+func readBoxRequest(w http.ResponseWriter, r *http.Request) (label string, targetRoomID *int64, ok bool) {
+	var fields map[string]json.RawMessage
+	if !readJSON(w, r, &fields) {
+		return "", nil, false
 	}
-	if !readJSON(w, r, &req) {
+	if raw, present := fields["label"]; present {
+		if err := json.Unmarshal(raw, &label); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "Ungültige Bezeichnung")
+			return "", nil, false
+		}
+	}
+	if raw, present := fields["targetRoomId"]; present {
+		var id *int64
+		if err := json.Unmarshal(raw, &id); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_request", "Ungültige ID für targetRoomId")
+			return "", nil, false
+		}
+		if id == nil {
+			id = new(int64)
+		}
+		targetRoomID = id
+	}
+	return strings.TrimSpace(label), targetRoomID, true
+}
+
+func (s *server) createBox(w http.ResponseWriter, r *http.Request) {
+	label, targetRoomID, ok := readBoxRequest(w, r)
+	if !ok {
 		return
 	}
-	b, err := s.Store.CreateBox(r.Context(), strings.TrimSpace(req.Label), s.Now())
+	var target int64
+	if targetRoomID != nil {
+		target = *targetRoomID
+	}
+	b, err := s.Store.CreateBox(r.Context(), label, target, s.Now())
 	if err != nil {
 		s.storeError(w, r, err)
 		return
@@ -114,18 +144,17 @@ func (s *server) createBox(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, toBoxJSON(b))
 }
 
-func (s *server) renameBox(w http.ResponseWriter, r *http.Request) {
+// editBox sets label and target room of a box; without "targetRoomId" the target room stays.
+func (s *server) editBox(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r, "id")
 	if !ok {
 		return
 	}
-	var req struct {
-		Label string `json:"label"`
-	}
-	if !readJSON(w, r, &req) {
+	label, targetRoomID, ok := readBoxRequest(w, r)
+	if !ok {
 		return
 	}
-	b, err := s.Store.RenameBox(r.Context(), id, strings.TrimSpace(req.Label))
+	b, err := s.Store.EditBox(r.Context(), id, label, targetRoomID)
 	if err != nil {
 		s.storeError(w, r, err)
 		return
@@ -133,26 +162,81 @@ func (s *server) renameBox(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toBoxJSON(b))
 }
 
+// writeBoxChange answers a change to the contents of a box with {"count", "box"}.
+func (s *server) writeBoxChange(w http.ResponseWriter, r *http.Request, count int, b store.Box, err error) {
+	if err != nil {
+		s.storeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"count": count, "box": toBoxJSON(b)})
+}
+
+// packStorageLocation packs everything in a storage location and below into the box ({"storageLocationId"}).
+func (s *server) packStorageLocation(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		StorageLocationID int64 `json:"storageLocationId"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	count, b, err := s.Store.PackStorageLocation(r.Context(), id, req.StorageLocationID, s.Now())
+	s.writeBoxChange(w, r, count, b, err)
+}
+
+// unpackBox places items of the box at a place of the new apartment: {"itemIds": […] or null
+// for all, "storageLocationId" or "roomId"}.
+func (s *server) unpackBox(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r, "id")
+	if !ok {
+		return
+	}
+	var req struct {
+		ItemIDs           *[]int64 `json:"itemIds"`
+		StorageLocationID int64    `json:"storageLocationId"`
+		RoomID            int64    `json:"roomId"`
+	}
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if (req.StorageLocationID == 0) == (req.RoomID == 0) {
+		invalidPlace(w, "Bitte genau einen Lagerort oder Raum wählen")
+		return
+	}
+	var itemIDs []int64
+	if req.ItemIDs != nil {
+		itemIDs = append([]int64{}, *req.ItemIDs...)
+	}
+	count, b, err := s.Store.UnpackBox(r.Context(), id, itemIDs, store.Place{StorageLocationID: req.StorageLocationID, RoomID: req.RoomID}, s.Now())
+	s.writeBoxChange(w, r, count, b, err)
+}
+
 type moveDetailsJSON struct {
-	OriginRoom *namedJSON      `json:"originRoom"`
-	TargetRoom *namedJSON      `json:"targetRoom"`
-	Box        *boxSummaryJSON `json:"box"`
+	OriginRoom *namedJSON `json:"originRoom"`
+	// TargetRoom is the effective target room: the item's own one, otherwise the one of its box.
+	TargetRoom        *namedJSON      `json:"targetRoom"`
+	TargetRoomFromBox bool            `json:"targetRoomFromBox"`
+	Box               *boxSummaryJSON `json:"box"`
 }
 
 // boxSummaryJSON is a box in the move details of an item, without contents.
 type boxSummaryJSON struct {
-	ID     int64  `json:"id"`
-	Number int    `json:"number"`
-	Label  string `json:"label"`
+	ID         int64      `json:"id"`
+	Number     int        `json:"number"`
+	Label      string     `json:"label"`
+	TargetRoom *namedJSON `json:"targetRoom"`
 }
 
 func toMoveDetailsJSON(d *store.MoveDetails) *moveDetailsJSON {
 	if d == nil {
 		return nil
 	}
-	out := &moveDetailsJSON{OriginRoom: toNamedPtr(d.OriginRoom), TargetRoom: toNamedPtr(d.TargetRoom)}
+	out := &moveDetailsJSON{OriginRoom: toNamedPtr(d.OriginRoom), TargetRoom: toNamedPtr(d.TargetRoom), TargetRoomFromBox: d.TargetRoomFromBox}
 	if d.Box != nil {
-		out.Box = &boxSummaryJSON{ID: d.Box.ID, Number: d.Box.Number, Label: d.Box.Label}
+		out.Box = &boxSummaryJSON{ID: d.Box.ID, Number: d.Box.Number, Label: d.Box.Label, TargetRoom: toNamedPtr(d.Box.TargetRoom)}
 	}
 	return out
 }
@@ -230,18 +314,28 @@ func (s *server) setMoveDetailsBulk(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// packingListItemJSON is an item in the packing list, with the path of where it was before packing.
+type packingListItemJSON struct {
+	itemListJSON
+	PreviousPlace string `json:"previousPlace"`
+}
+
 // writePackingList returns the box with all items in it including their move details.
 func (s *server) writePackingList(w http.ResponseWriter, r *http.Request, b store.Box, err error) {
 	if err != nil {
 		s.storeError(w, r, err)
 		return
 	}
-	items, _, err := s.Store.ListItems(r.Context(), store.ItemFilter{MoveID: b.MoveID, BoxID: b.ID, Limit: maxComplete})
+	entries, _, err := s.Store.ListItems(r.Context(), store.ItemFilter{MoveID: b.MoveID, BoxID: b.ID, Limit: maxComplete})
 	if err != nil {
 		s.internalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"box": toBoxJSON(b), "items": toItemListJSON(items)})
+	items := make([]packingListItemJSON, 0, len(entries))
+	for i, item := range toItemListJSON(entries) {
+		items = append(items, packingListItemJSON{itemListJSON: item, PreviousPlace: entries[i].PlacePath})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"box": toBoxJSON(b), "items": items})
 }
 
 func (s *server) getBox(w http.ResponseWriter, r *http.Request) {

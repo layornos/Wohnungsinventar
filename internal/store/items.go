@@ -254,6 +254,11 @@ type ItemListEntry struct {
 	MainPhotoFile string
 	// Place is the name of the storage location or, without one, of the room the item is in; empty without placement.
 	Place string
+	// StorageLocationID is the storage location the item is placed in directly; 0 if none.
+	StorageLocationID int64
+	// PlacePath is the path of the placement below the apartment, e.g. "Arbeitszimmer › Schreibtisch › oben";
+	// empty without placement.
+	PlacePath string
 	// Move holds the move details in the active move (or the one named in the filter).
 	Move *MoveDetails
 }
@@ -289,6 +294,13 @@ func subtree(name, start string) string {
 		UNION ALL
 		SELECT l.id FROM storage_location l JOIN ` + name + ` t ON l.parent_id = t.id)`
 }
+
+// furnitureWithTargetRoom selects the items with an effective target room in the move given as
+// placeholder (NULL for the active one). Used for furniture that takes its storage locations along.
+const furnitureWithTargetRoom = `
+	SELECT fm.item_id FROM item_move fm LEFT JOIN box fb ON fb.id = fm.box_id
+	WHERE fm.move_id = COALESCE(?, (SELECT id FROM move WHERE active = 1))
+		AND COALESCE(fm.target_room_id, fb.target_room_id) IS NOT NULL`
 
 // ListItems returns the matching items, most recently updated first, and whether there are more.
 func (s *Store) ListItems(ctx context.Context, f ItemFilter) ([]ItemListEntry, bool, error) {
@@ -343,7 +355,7 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 		args = append(args, f.BoxID)
 	}
 	if f.TargetRoomID != 0 {
-		conditions = append(conditions, `im.target_room_id = ?`)
+		conditions = append(conditions, `COALESCE(im.target_room_id, b.target_room_id) = ?`)
 		args = append(args, f.TargetRoomID)
 	}
 	// Without move details the current room counts as origin room, just as it would be prefilled on creation.
@@ -354,30 +366,39 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 			OR (im.item_id IS NULL AND (i.room_id = ? OR i.storage_location_id IN (SELECT id FROM in_origin_room))))`)
 		args = append(args, f.OriginRoomID, f.OriginRoomID)
 	}
+	// The effective target room counts. Items in the storage locations of furniture with an effective
+	// target room go along with it, unless they are in a box.
 	if f.WithoutTargetRoom {
 		ctes = append(ctes, `old_rooms (id) AS (
 			SELECT r.id FROM room r JOIN move m ON m.old_apartment_id = r.apartment_id
 			WHERE m.id = COALESCE(?, (SELECT id FROM move WHERE active = 1)))`,
-			subtree("in_old_apartment", "room_id IN (SELECT id FROM old_rooms)"))
-		cteArgs = append(cteArgs, nullID(f.MoveID))
-		conditions = append(conditions, `im.target_room_id IS NULL
-			AND (i.room_id IN (SELECT id FROM old_rooms) OR i.storage_location_id IN (SELECT id FROM in_old_apartment))`)
+			subtree("in_old_apartment", "room_id IN (SELECT id FROM old_rooms)"),
+			subtree("carried", `furniture_item_id IN (`+furnitureWithTargetRoom+`)`))
+		cteArgs = append(cteArgs, nullID(f.MoveID), nullID(f.MoveID))
+		conditions = append(conditions, `COALESCE(im.target_room_id, b.target_room_id) IS NULL
+			AND (i.room_id IN (SELECT id FROM old_rooms) OR i.storage_location_id IN (SELECT id FROM in_old_apartment))
+			AND NOT (im.box_id IS NULL AND COALESCE(i.storage_location_id IN (SELECT id FROM carried), FALSE))`)
 	}
 
-	query := ""
-	if len(ctes) > 0 {
-		query = "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
-	}
+	// The path of every storage location below its room, e.g. "Arbeitszimmer › Schreibtisch › oben".
+	ctes = append(ctes, `place_path (id, path) AS (
+		SELECT l.id, r.name || ' › ' || l.name FROM storage_location l JOIN room r ON r.id = l.room_id
+		UNION ALL
+		SELECT l.id, pp.path || ' › ' || l.name FROM storage_location l JOIN place_path pp ON l.parent_id = pp.id)`)
+	query := "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
 	query += `
-		SELECT i.id, i.name, i.disposition, p.id, p.file, COALESCE(l.name, r.name, ''), im.item_id IS NOT NULL, o.id, o.name, t.id, t.name, b.id, b.number, b.label
+		SELECT i.id, i.name, i.disposition, p.id, p.file, COALESCE(l.name, r.name, ''), COALESCE(i.storage_location_id, 0), COALESCE(pp.path, r.name, ''),
+			im.item_id IS NOT NULL, o.id, o.name, t.id, t.name, b.id, b.number, b.label, bt.id, bt.name
 		FROM item i JOIN photo p ON p.item_id = i.id AND p.main_photo = 1
 		LEFT JOIN storage_location l ON l.id = i.storage_location_id
+		LEFT JOIN place_path pp ON pp.id = i.storage_location_id
 		LEFT JOIN room r ON r.id = i.room_id
 		LEFT JOIN item_move im ON im.item_id = i.id
 			AND im.move_id = COALESCE(?, (SELECT id FROM move WHERE active = 1))
 		LEFT JOIN room o ON o.id = im.origin_room_id
 		LEFT JOIN room t ON t.id = im.target_room_id
-		LEFT JOIN box b ON b.id = im.box_id`
+		LEFT JOIN box b ON b.id = im.box_id
+		LEFT JOIN room bt ON bt.id = b.target_room_id`
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
@@ -393,23 +414,25 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 	entries := []ItemListEntry{}
 	for rows.Next() {
 		var (
-			e                                ItemListEntry
-			disposition                      sql.NullString
-			hasDetails                       bool
-			originID, targetID, boxID        sql.NullInt64
-			originName, targetName, boxLabel sql.NullString
-			boxNumber                        sql.NullInt64
+			e                                               ItemListEntry
+			disposition                                     sql.NullString
+			hasDetails                                      bool
+			originID, targetID, boxID, boxTargetID          sql.NullInt64
+			originName, targetName, boxLabel, boxTargetName sql.NullString
+			boxNumber                                       sql.NullInt64
 		)
-		if err := rows.Scan(&e.ID, &e.Name, &disposition, &e.MainPhotoID, &e.MainPhotoFile, &e.Place, &hasDetails,
-			&originID, &originName, &targetID, &targetName, &boxID, &boxNumber, &boxLabel); err != nil {
+		if err := rows.Scan(&e.ID, &e.Name, &disposition, &e.MainPhotoID, &e.MainPhotoFile, &e.Place, &e.StorageLocationID, &e.PlacePath, &hasDetails,
+			&originID, &originName, &targetID, &targetName, &boxID, &boxNumber, &boxLabel, &boxTargetID, &boxTargetName); err != nil {
 			return nil, false, err
 		}
 		e.Disposition = dispositionFrom(disposition)
 		if hasDetails {
 			e.Move = &MoveDetails{OriginRoom: namedFrom(originID, originName), TargetRoom: namedFrom(targetID, targetName)}
 			if boxID.Valid {
-				e.Move.Box = &Box{ID: boxID.Int64, Number: int(boxNumber.Int64), Label: boxLabel.String}
+				e.Move.Box = &Box{ID: boxID.Int64, Number: int(boxNumber.Int64), Label: boxLabel.String,
+					TargetRoom: namedFrom(boxTargetID, boxTargetName)}
 			}
+			e.Move.useBoxTargetRoom()
 		}
 		entries = append(entries, e)
 	}

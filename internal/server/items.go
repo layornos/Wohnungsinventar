@@ -269,7 +269,17 @@ type itemListJSON struct {
 	Disposition  *store.Disposition `json:"disposition"`
 	ThumbnailURL string             `json:"thumbnailUrl"`
 	Place        string             `json:"place"`
-	Move         *moveDetailsJSON   `json:"move"`
+	// StorageLocationID is the storage location the item is placed in directly, otherwise null.
+	StorageLocationID *int64           `json:"storageLocationId"`
+	Move              *moveDetailsJSON `json:"move"`
+}
+
+// idOrNull represents the ID 0 as null.
+func idOrNull(id int64) *int64 {
+	if id == 0 {
+		return nil
+	}
+	return &id
 }
 
 func toItemListJSON(entries []store.ItemListEntry) []itemListJSON {
@@ -277,7 +287,7 @@ func toItemListJSON(entries []store.ItemListEntry) []itemListJSON {
 	for _, e := range entries {
 		items = append(items, itemListJSON{
 			ID: e.ID, Name: e.Name, Disposition: dispositionJSON(e.Disposition), ThumbnailURL: thumbnailURL(e.MainPhotoID, e.MainPhotoFile),
-			Place: e.Place, Move: toMoveDetailsJSON(e.Move),
+			Place: e.Place, StorageLocationID: idOrNull(e.StorageLocationID), Move: toMoveDetailsJSON(e.Move),
 		})
 	}
 	return items

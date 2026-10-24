@@ -34,10 +34,12 @@ type MoveStore interface {
 	GetMove(ctx context.Context, id int64) (store.Move, error)
 	ListMoves(ctx context.Context) ([]store.Move, error)
 	CreateMove(ctx context.Context, oldApartmentID, newApartmentID int64, now time.Time) (store.Move, error)
-	CreateBox(ctx context.Context, label string, now time.Time) (store.Box, error)
+	CreateBox(ctx context.Context, label string, targetRoomID int64, now time.Time) (store.Box, error)
 	GetBox(ctx context.Context, id int64) (store.Box, error)
 	BoxByNumber(ctx context.Context, number int) (store.Box, error)
-	RenameBox(ctx context.Context, id int64, label string) (store.Box, error)
+	EditBox(ctx context.Context, id int64, label string, targetRoomID *int64) (store.Box, error)
+	PackStorageLocation(ctx context.Context, boxID, storageLocationID int64, now time.Time) (int, store.Box, error)
+	UnpackBox(ctx context.Context, boxID int64, itemIDs []int64, p store.Place, now time.Time) (int, store.Box, error)
 	DeleteBox(ctx context.Context, id int64) error
 	SetMoveDetails(ctx context.Context, itemID int64, c store.MoveDetailsChange, now time.Time) (store.Item, error)
 	SetMoveDetailsBulk(ctx context.Context, itemIDs []int64, c store.MoveDetailsChange, now time.Time) error
@@ -190,7 +192,10 @@ func New(d Deps) http.Handler {
 	protected.HandleFunc("GET /api/move/target-rooms", s.targetRooms)
 	protected.HandleFunc("POST /api/move/completion", s.completeMove)
 	protected.HandleFunc("GET /api/boxes/{id}", s.getBox)
-	protected.HandleFunc("PUT /api/boxes/{id}", s.renameBox)
+	protected.HandleFunc("PUT /api/boxes/{id}", s.editBox)
+	protected.HandleFunc("POST /api/boxes/{id}/pack", s.packStorageLocation)
+	protected.HandleFunc("POST /api/boxes/{id}/unpack", s.unpackBox)
+	protected.HandleFunc("GET /api/boxes/{id}/qr", s.boxQRCode)
 	protected.HandleFunc("DELETE /api/boxes/{id}", s.delete(s.Store.DeleteBox))
 	protected.HandleFunc("PATCH /api/items/{id}/move", s.setMoveDetails)
 	protected.HandleFunc("POST /api/move/bulk", s.setMoveDetailsBulk)
@@ -300,6 +305,8 @@ func (s *server) storeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusBadRequest, "unknown_box", msgUnknownBox)
 	case errors.Is(err, store.ErrTargetRoomNotInNewApartment):
 		writeError(w, http.StatusBadRequest, "target_room_not_in_new_apartment", "Der Zielraum muss in der neuen Wohnung liegen")
+	case errors.Is(err, store.ErrPlaceNotInNewApartment):
+		writeError(w, http.StatusBadRequest, "place_not_in_new_apartment", "Der Platz muss in der neuen Wohnung liegen")
 	case errors.Is(err, store.ErrUnknownItem):
 		writeError(w, http.StatusBadRequest, "unknown_item", "Dieses Item gibt es nicht")
 	case errors.Is(err, store.ErrUnknownPerson):

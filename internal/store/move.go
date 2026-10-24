@@ -20,6 +20,7 @@ var (
 	ErrTargetRoomNotInNewApartment = errors.New("target room is not in the new apartment")
 	ErrItemsWithoutTargetRoom      = errors.New("items of the old apartment without target room")
 	ErrUnknownItem                 = errors.New("unknown item")
+	ErrPlaceNotInNewApartment      = errors.New("place is not in the new apartment")
 )
 
 type Move struct {
@@ -37,6 +38,8 @@ type Box struct {
 	MoveID int64
 	Number int
 	Label  string
+	// TargetRoom is where the items in the box go unless they have a target room of their own; nil if none.
+	TargetRoom *Named
 	// Count is the number of items in the box.
 	Count int
 }
@@ -85,7 +88,7 @@ func readMove(ctx context.Context, q querier, id int64) (Move, error) {
 	if err != nil {
 		return Move{}, err
 	}
-	m.Boxes, err = readBoxes(q.QueryContext(ctx, boxSelect+` WHERE b.move_id = ? GROUP BY b.id ORDER BY b.number`, m.ID))
+	m.Boxes, err = readBoxes(q.QueryContext(ctx, boxSelect+` WHERE b.move_id = ? ORDER BY b.number`, m.ID))
 	return m, err
 }
 
@@ -144,8 +147,8 @@ func (s *Store) CreateMove(ctx context.Context, oldApartmentID, newApartmentID i
 }
 
 const boxSelect = `
-	SELECT b.id, b.move_id, b.number, b.label, COUNT(im.item_id)
-	FROM box b LEFT JOIN item_move im ON im.box_id = b.id`
+	SELECT b.id, b.move_id, b.number, b.label, tr.id, tr.name, (SELECT COUNT(*) FROM item_move im WHERE im.box_id = b.id)
+	FROM box b LEFT JOIN room tr ON tr.id = b.target_room_id`
 
 func readBoxes(rows *sql.Rows, err error) ([]Box, error) {
 	if err != nil {
@@ -154,17 +157,22 @@ func readBoxes(rows *sql.Rows, err error) ([]Box, error) {
 	defer rows.Close()
 	boxes := []Box{}
 	for rows.Next() {
-		var b Box
-		if err := rows.Scan(&b.ID, &b.MoveID, &b.Number, &b.Label, &b.Count); err != nil {
+		var (
+			b          Box
+			targetID   sql.NullInt64
+			targetName sql.NullString
+		)
+		if err := rows.Scan(&b.ID, &b.MoveID, &b.Number, &b.Label, &targetID, &targetName, &b.Count); err != nil {
 			return nil, err
 		}
+		b.TargetRoom = namedFrom(targetID, targetName)
 		boxes = append(boxes, b)
 	}
 	return boxes, rows.Err()
 }
 
 func readBox(ctx context.Context, q querier, condition string, args ...any) (Box, error) {
-	boxes, err := readBoxes(q.QueryContext(ctx, boxSelect+` WHERE `+condition+` GROUP BY b.id`, args...))
+	boxes, err := readBoxes(q.QueryContext(ctx, boxSelect+` WHERE `+condition, args...))
 	if err != nil {
 		return Box{}, err
 	}
@@ -187,24 +195,28 @@ func (s *Store) BoxByNumber(ctx context.Context, number int) (Box, error) {
 }
 
 // CreateBox creates a box in the active move with the next number, never given out before.
-func (s *Store) CreateBox(ctx context.Context, label string, now time.Time) (Box, error) {
+// targetRoomID 0 means without target room.
+func (s *Store) CreateBox(ctx context.Context, label string, targetRoomID int64, now time.Time) (Box, error) {
 	var b Box
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
-		var moveID int64
+		var moveID, newApartmentID int64
 		var number int
 		err := tx.QueryRowContext(ctx, `
-			UPDATE move SET last_box_number = last_box_number + 1 WHERE active = 1 RETURNING id, last_box_number`).
-			Scan(&moveID, &number)
+			UPDATE move SET last_box_number = last_box_number + 1 WHERE active = 1 RETURNING id, new_apartment_id, last_box_number`).
+			Scan(&moveID, &newApartmentID, &number)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNoMove
 		}
 		if err != nil {
 			return err
 		}
+		if err := checkTargetRoom(ctx, tx, targetRoomID, newApartmentID); err != nil {
+			return err
+		}
 		var id int64
 		if err := tx.QueryRowContext(ctx, `
-			INSERT INTO box (move_id, number, label, created_at) VALUES (?, ?, ?, ?) RETURNING id`,
-			moveID, number, label, timeText(now)).Scan(&id); err != nil {
+			INSERT INTO box (move_id, number, label, target_room_id, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id`,
+			moveID, number, label, nullID(targetRoomID), timeText(now)).Scan(&id); err != nil {
 			return err
 		}
 		b, err = readBox(ctx, tx, `b.id = ?`, id)
@@ -252,8 +264,21 @@ func moveIsActive(ctx context.Context, q querier, moveQuery string, args ...any)
 	return nil
 }
 
-func (s *Store) RenameBox(ctx context.Context, id int64, label string) (Box, error) {
-	return s.updateBox(ctx, id, func(tx *sql.Tx, _ Box) error {
+// EditBox sets the label of a box and, unless targetRoomID is nil, its target room (a pointer to 0 removes it).
+func (s *Store) EditBox(ctx context.Context, id int64, label string, targetRoomID *int64) (Box, error) {
+	return s.updateBox(ctx, id, func(tx *sql.Tx, b Box) error {
+		if targetRoomID != nil {
+			var newApartmentID int64
+			if err := tx.QueryRowContext(ctx, `SELECT new_apartment_id FROM move WHERE id = ?`, b.MoveID).Scan(&newApartmentID); err != nil {
+				return err
+			}
+			if err := checkTargetRoom(ctx, tx, *targetRoomID, newApartmentID); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE box SET target_room_id = ? WHERE id = ?`, nullID(*targetRoomID), id); err != nil {
+				return err
+			}
+		}
 		_, err := tx.ExecContext(ctx, `UPDATE box SET label = ? WHERE id = ?`, label, id)
 		return err
 	})
@@ -273,8 +298,19 @@ func (s *Store) DeleteBox(ctx context.Context, id int64) error {
 // MoveDetails are the origin room, target room and box of an item in the active move.
 type MoveDetails struct {
 	OriginRoom *Named
+	// TargetRoom is the effective target room: the item's own one, otherwise the one of its box.
 	TargetRoom *Named
-	Box        *Box
+	// TargetRoomFromBox tells that TargetRoom comes from the box.
+	TargetRoomFromBox bool
+	Box               *Box
+}
+
+// useBoxTargetRoom makes the target room of the box the effective one if the item has none of its own.
+func (d *MoveDetails) useBoxTargetRoom() {
+	if d.TargetRoom == nil && d.Box != nil && d.Box.TargetRoom != nil {
+		d.TargetRoom = d.Box.TargetRoom
+		d.TargetRoomFromBox = true
+	}
 }
 
 // MoveDetailsChange changes move details: nil leaves a detail as it is, a pointer to 0 resets it.
@@ -320,17 +356,9 @@ func setMoveDetails(ctx context.Context, q querier, itemID int64, c MoveDetailsC
 	if err != nil {
 		return err
 	}
-	if c.TargetRoomID != nil && *c.TargetRoomID != 0 {
-		var apartmentID int64
-		err := q.QueryRowContext(ctx, `SELECT apartment_id FROM room WHERE id = ?`, *c.TargetRoomID).Scan(&apartmentID)
-		if errors.Is(err, sql.ErrNoRows) {
-			return ErrUnknownPlace
-		}
-		if err != nil {
+	if c.TargetRoomID != nil {
+		if err := checkTargetRoom(ctx, q, *c.TargetRoomID, newApartmentID); err != nil {
 			return err
-		}
-		if apartmentID != newApartmentID {
-			return ErrTargetRoomNotInNewApartment
 		}
 	}
 	if c.OriginRoomID != nil && *c.OriginRoomID != 0 {
@@ -365,6 +393,25 @@ func setMoveDetails(ctx context.Context, q querier, itemID int64, c MoveDetailsC
 			nullID(*value), itemID, moveID); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// checkTargetRoom checks that a target room is in the new apartment; 0 (no target room) is fine.
+func checkTargetRoom(ctx context.Context, q querier, roomID, newApartmentID int64) error {
+	if roomID == 0 {
+		return nil
+	}
+	var apartmentID int64
+	err := q.QueryRowContext(ctx, `SELECT apartment_id FROM room WHERE id = ?`, roomID).Scan(&apartmentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrUnknownPlace
+	}
+	if err != nil {
+		return err
+	}
+	if apartmentID != newApartmentID {
+		return ErrTargetRoomNotInNewApartment
 	}
 	return nil
 }
@@ -407,6 +454,7 @@ func readMoveDetails(ctx context.Context, q querier, itemID int64) (*MoveDetails
 		}
 		d.Box = &b
 	}
+	d.useBoxTargetRoom()
 	return d, nil
 }
 
@@ -436,8 +484,9 @@ func (s *Store) TargetRoomOverview(ctx context.Context) ([]TargetRoomEntry, erro
 	overview := []TargetRoomEntry{}
 	for _, r := range rooms {
 		boxes, err := readBoxes(s.db.QueryContext(ctx, boxSelect+`
-			WHERE b.id IN (SELECT box_id FROM item_move WHERE move_id = ? AND target_room_id = ?)
-			GROUP BY b.id ORDER BY b.number`, m.ID, r.ID))
+			WHERE b.move_id = ? AND (b.target_room_id = ?
+				OR b.id IN (SELECT box_id FROM item_move WHERE move_id = ? AND target_room_id = ?))
+			ORDER BY b.number`, m.ID, r.ID, m.ID, r.ID))
 		if err != nil {
 			return nil, err
 		}
@@ -450,10 +499,139 @@ func (s *Store) TargetRoomOverview(ctx context.Context) ([]TargetRoomEntry, erro
 	return overview, nil
 }
 
-// CompleteMove puts all items with a target room directly into their target room, without storage
-// location, and completes the move. Items without target room keep their placement; if such items
-// are still in the old apartment, confirmation is needed, otherwise ErrItemsWithoutTargetRoom and
-// these items are returned. The move details stay as history.
+// activeBox returns the box if it belongs to the active move, together with that move.
+func activeBox(ctx context.Context, q querier, boxID int64) (Move, Box, error) {
+	m, err := readMove(ctx, q, 0)
+	if err != nil {
+		return Move{}, Box{}, err
+	}
+	b, err := readBox(ctx, q, `b.id = ?`, boxID)
+	if err != nil {
+		return Move{}, Box{}, err
+	}
+	if b.MoveID != m.ID {
+		return Move{}, Box{}, ErrMoveCompleted
+	}
+	return m, b, nil
+}
+
+// PackStorageLocation packs all items placed in the storage location or one of its nested ones
+// into the box and returns how many were not in it before. The piece of furniture the storage
+// location belongs to is not inside it and so stays out.
+func (s *Store) PackStorageLocation(ctx context.Context, boxID, storageLocationID int64, now time.Time) (int, Box, error) {
+	var (
+		count int
+		b     Box
+	)
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
+		m, _, err := activeBox(ctx, tx, boxID)
+		if err != nil {
+			return err
+		}
+		if err := checkPlace(ctx, tx, 0, storageLocationID); err != nil {
+			return err
+		}
+		ids, err := readIDs(tx.QueryContext(ctx, withSubtree+`
+			SELECT i.id FROM item i WHERE i.storage_location_id IN (SELECT id FROM subtree)
+				AND NOT EXISTS (SELECT 1 FROM item_move im WHERE im.item_id = i.id AND im.move_id = ? AND im.box_id = ?)
+			ORDER BY i.id`, storageLocationID, m.ID, boxID))
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			if _, err := tx.ExecContext(ctx, `UPDATE item SET updated_at = ? WHERE id = ?`, timeText(now), id); err != nil {
+				return err
+			}
+			if err := setMoveDetails(ctx, tx, id, MoveDetailsChange{BoxID: &boxID}); err != nil {
+				return err
+			}
+		}
+		count = len(ids)
+		b, err = readBox(ctx, tx, `b.id = ?`, boxID)
+		return err
+	})
+	return count, b, err
+}
+
+// UnpackBox places items of the box for good at a place of the new apartment, takes them out of
+// the box and makes the room of the place their target room. itemIDs nil means all items of the
+// box. Furniture takes its storage locations along into that room.
+func (s *Store) UnpackBox(ctx context.Context, boxID int64, itemIDs []int64, p Place, now time.Time) (int, Box, error) {
+	var (
+		count int
+		b     Box
+	)
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
+		m, _, err := activeBox(ctx, tx, boxID)
+		if err != nil {
+			return err
+		}
+		if err := checkPlace(ctx, tx, p.RoomID, p.StorageLocationID); err != nil {
+			return err
+		}
+		path, err := readPlacement(ctx, tx, p.StorageLocationID, p.RoomID)
+		if err != nil {
+			return err
+		}
+		if path.Apartment.ID != m.NewApartment.ID {
+			return ErrPlaceNotInNewApartment
+		}
+		ids := itemIDs
+		if ids == nil {
+			if ids, err = readIDs(tx.QueryContext(ctx, `SELECT item_id FROM item_move WHERE box_id = ? ORDER BY item_id`, boxID)); err != nil {
+				return err
+			}
+		}
+		seen := map[int64]bool{}
+		for _, id := range ids {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			var inBox bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM item_move WHERE item_id = ? AND box_id = ?)`, id, boxID).Scan(&inBox); err != nil {
+				return err
+			}
+			if !inBox {
+				return ErrUnknownItem
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE item SET updated_at = ? WHERE id = ?`, timeText(now), id); err != nil {
+				return err
+			}
+			if err := setPlace(ctx, tx, id, p); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE item_move SET box_id = NULL, target_room_id = ? WHERE item_id = ? AND move_id = ?`,
+				path.Room.ID, id, m.ID); err != nil {
+				return err
+			}
+			if err := carryStorageLocations(ctx, tx, id, path.Room.ID); err != nil {
+				return err
+			}
+		}
+		count = len(seen)
+		b, err = readBox(ctx, tx, `b.id = ?`, boxID)
+		return err
+	})
+	return count, b, err
+}
+
+// carryStorageLocations puts the storage locations of a piece of furniture, with everything in and
+// below them, into the room. Storage locations of the furniture nested in one another stay so.
+func carryStorageLocations(ctx context.Context, q querier, furnitureID, roomID int64) error {
+	_, err := q.ExecContext(ctx, `WITH RECURSIVE `+subtree("own", "furniture_item_id = ?")+`
+		UPDATE storage_location SET room_id = ?, parent_id = NULL
+		WHERE furniture_item_id = ? AND (parent_id IS NULL OR parent_id NOT IN (SELECT id FROM own))`,
+		furnitureID, roomID, furnitureID)
+	return err
+}
+
+// CompleteMove completes the active move. Items already placed in the new apartment stay as they
+// are. All other items with an effective target room are put directly into it, without storage
+// location; furniture among them takes its storage locations along, and items in there without a
+// target room of their own keep their placement. Items without target room keep their placement;
+// if such items are still in the old apartment, confirmation is needed, otherwise
+// ErrItemsWithoutTargetRoom and these items are returned. The move details stay as history.
 func (s *Store) CompleteMove(ctx context.Context, confirmed bool, now time.Time) (Move, []ItemListEntry, error) {
 	var (
 		m       Move
@@ -472,12 +650,48 @@ func (s *Store) CompleteMove(ctx context.Context, confirmed bool, now time.Time)
 				return ErrItemsWithoutTargetRoom
 			}
 		}
-		if _, err := tx.ExecContext(ctx, `
-			UPDATE item SET storage_location_id = NULL, updated_at = ?,
-				room_id = (SELECT target_room_id FROM item_move WHERE item_id = item.id AND move_id = ?)
-			WHERE id IN (SELECT item_id FROM item_move WHERE move_id = ? AND target_room_id IS NOT NULL)`,
-			timeText(now), active.ID, active.ID); err != nil {
+		rows, err := tx.QueryContext(ctx, `WITH RECURSIVE `+subtree("in_new", "room_id IN (SELECT id FROM room WHERE apartment_id = ?)")+`
+			SELECT i.id, COALESCE(im.target_room_id, b.target_room_id),
+				EXISTS (SELECT 1 FROM storage_location WHERE furniture_item_id = i.id)
+			FROM item i JOIN item_move im ON im.item_id = i.id AND im.move_id = ?
+			LEFT JOIN box b ON b.id = im.box_id
+			WHERE COALESCE(im.target_room_id, b.target_room_id) IS NOT NULL
+				AND NOT COALESCE(i.room_id IN (SELECT id FROM room WHERE apartment_id = ?), FALSE)
+				AND NOT COALESCE(i.storage_location_id IN (SELECT id FROM in_new), FALSE)
+			ORDER BY i.id`, active.NewApartment.ID, active.ID, active.NewApartment.ID)
+		if err != nil {
 			return err
+		}
+		type placing struct {
+			itemID, roomID int64
+			furniture      bool
+		}
+		var all []placing
+		for rows.Next() {
+			var p placing
+			if err := rows.Scan(&p.itemID, &p.roomID, &p.furniture); err != nil {
+				rows.Close()
+				return err
+			}
+			all = append(all, p)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		// First all items, so that items with a target room of their own leave the furniture before it moves.
+		for _, p := range all {
+			if _, err := tx.ExecContext(ctx, `UPDATE item SET storage_location_id = NULL, room_id = ?, updated_at = ? WHERE id = ?`,
+				p.roomID, timeText(now), p.itemID); err != nil {
+				return err
+			}
+		}
+		for _, p := range all {
+			if p.furniture {
+				if err := carryStorageLocations(ctx, tx, p.itemID, p.roomID); err != nil {
+					return err
+				}
+			}
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE move SET active = 0, completed_at = ? WHERE id = ?`,
 			timeText(now), active.ID); err != nil {

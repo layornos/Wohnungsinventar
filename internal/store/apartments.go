@@ -124,8 +124,9 @@ func (s *Store) DeleteRoom(ctx context.Context, id int64) error {
 		err := tx.QueryRowContext(ctx, `
 			SELECT EXISTS (SELECT 1 FROM room WHERE id = ?),
 				EXISTS (SELECT 1 FROM storage_location WHERE room_id = ?) OR EXISTS (SELECT 1 FROM item WHERE room_id = ?),
-				EXISTS (SELECT 1 FROM item_move WHERE origin_room_id = ? OR target_room_id = ?)`,
-			id, id, id, id, id).Scan(&exists, &occupied, &inMove)
+				EXISTS (SELECT 1 FROM item_move WHERE origin_room_id = ? OR target_room_id = ?)
+					OR EXISTS (SELECT 1 FROM box WHERE target_room_id = ?)`,
+			id, id, id, id, id, id).Scan(&exists, &occupied, &inMove)
 		switch {
 		case err != nil:
 			return err
@@ -569,24 +570,25 @@ const (
 
 // PlaceEntry is a room or storage location with its path as text, e.g. for a selection list.
 type PlaceEntry struct {
-	Kind PlaceKind
-	ID   int64
-	Path string
+	Kind        PlaceKind
+	ID          int64
+	ApartmentID int64
+	Path        string
 }
 
 // ListPlaces returns all rooms and storage locations, sorted by path.
 func (s *Store) ListPlaces(ctx context.Context) ([]PlaceEntry, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		WITH RECURSIVE stored (id, path) AS (
-			SELECT l.id, a.name || ' › ' || r.name || ' › ' || l.name
+		WITH RECURSIVE stored (id, apartment_id, path) AS (
+			SELECT l.id, a.id, a.name || ' › ' || r.name || ' › ' || l.name
 			FROM storage_location l JOIN room r ON r.id = l.room_id JOIN apartment a ON a.id = r.apartment_id
 			UNION ALL
-			SELECT l.id, s.path || ' › ' || l.name FROM storage_location l JOIN stored s ON l.parent_id = s.id
+			SELECT l.id, s.apartment_id, s.path || ' › ' || l.name FROM storage_location l JOIN stored s ON l.parent_id = s.id
 		)
-		SELECT 'room', r.id, a.name || ' › ' || r.name FROM room r JOIN apartment a ON a.id = r.apartment_id
+		SELECT 'room', r.id, a.id, a.name || ' › ' || r.name FROM room r JOIN apartment a ON a.id = r.apartment_id
 		UNION ALL
-		SELECT 'storageLocation', id, path FROM stored
-		ORDER BY 3, 2`)
+		SELECT 'storageLocation', id, apartment_id, path FROM stored
+		ORDER BY 4, 2`)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +596,7 @@ func (s *Store) ListPlaces(ctx context.Context) ([]PlaceEntry, error) {
 	places := []PlaceEntry{}
 	for rows.Next() {
 		var p PlaceEntry
-		if err := rows.Scan(&p.Kind, &p.ID, &p.Path); err != nil {
+		if err := rows.Scan(&p.Kind, &p.ID, &p.ApartmentID, &p.Path); err != nil {
 			return nil, err
 		}
 		places = append(places, p)
