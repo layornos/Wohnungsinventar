@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { api, boxName, formatDate, errorText, type Move } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 
 	let move = $state<Move | null>(null);
 	let error = $state('');
@@ -15,7 +14,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/umzug">← Umzug</a>
 	</header>
 	{#if error}

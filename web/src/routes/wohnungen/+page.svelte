@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { errorText, api, type Apartment } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { loadApartments } from '#lib/move.ts';
 
 	let apartments = $state<Apartment[]>([]);
@@ -59,7 +58,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/">← Liste</a>
 		<h1>Wohnungen</h1>
 	</header>

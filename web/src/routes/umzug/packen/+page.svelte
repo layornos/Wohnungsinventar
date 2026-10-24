@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { api, boxName, errorText, type Named, type ItemListEntry, type ItemPage, type Move } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { loadMove, loadMoveRooms, type MoveDetailsChange } from '#lib/move.ts';
 
 	let move = $state<Move | null>(null);
@@ -89,7 +88,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/umzug">← Umzug</a>
 		<h1>Packen</h1>
 	</header>

@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { api, errorText, type Item, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
 	import DispositionPicker from '#lib/DispositionPicker.svelte';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import OwnerPicker from '#lib/OwnerPicker.svelte';
 	import PhotoEditor from '#lib/PhotoEditor.svelte';
 	import PhotoInput from '#lib/PhotoInput.svelte';
@@ -100,7 +99,6 @@
 
 <main class="page wide">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href={box ? '/umzug/packen?box=' + box : '/'}>{box ? '← Packen' : '← Liste'}</a>
 		<h1>Erfassen</h1>
 	</header>

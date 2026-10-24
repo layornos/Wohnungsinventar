@@ -1,11 +1,10 @@
 <script lang="ts">
 	// Side menu in two forms with the same content, both rendered once by the layout for every logged-in page:
-	// - "dialog" (narrow screens): opens via the ☰ button in the page header (MenuButton.svelte) or a swipe from the
-	//   left edge, closes via a swipe to the left, a tap beside it or Escape. The modal <dialog> keeps focus in the
-	//   menu and returns it on close.
+	// - "dialog" (narrow screens): opens via the floating ☰ button (MenuButton.svelte), closes via a swipe to the
+	//   left, a tap beside it or Escape. The modal <dialog> keeps focus in the menu and returns it on close.
+	//   There is deliberately no edge swipe to open it: in the installed app on iOS that is the system's back gesture.
 	// - "sidebar" (wide screens): permanently visible sidebar on the left.
-	// desktop.css decides which form is visible; the swipe only works while the sidebar is not visible.
-	import { afterNavigate } from '$app/navigation';
+	// desktop.css decides which form is visible.
 	import { page } from '$app/state';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { toLogin } from './api.ts';
@@ -17,16 +16,10 @@
 	// Must match the breakpoint in desktop.css.
 	const wide = new MediaQuery('min-width: 1024px');
 
-	// A swipe only starts this close to the edge, so normal scrolling and swiping in the content isn't disturbed.
-	const EDGE = 24;
 	const MIN_DISTANCE = 60;
-	// In the installed app on iOS the same edge swipe is the system's back gesture. The menu therefore only opens
-	// after a short wait, and not if a back navigation happened since the swipe started.
-	const OPEN_DELAY = 350;
 
 	let dialog = $state<HTMLDialogElement>();
-	let start: { x: number; y: number; at: number } | null = null;
-	let lastBack = 0;
+	let start: { x: number; y: number } | null = null;
 	let error = $state('');
 
 	function open() {
@@ -48,21 +41,10 @@
 		if (wide.current && sideMenu.open) close();
 	});
 
-	function swipeStart(e: TouchEvent, onlyAtEdge: boolean) {
+	function swipeStart(e: TouchEvent) {
 		const t = e.touches[0];
-		start = !onlyAtEdge || t.clientX <= EDGE ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+		start = { x: t.clientX, y: t.clientY };
 	}
-
-	function openUnlessBack(swipedAt = Date.now()) {
-		setTimeout(() => {
-			if (lastBack < swipedAt) open();
-		}, OPEN_DELAY);
-	}
-
-	// A back navigation that lands while the menu is open anyway (e.g. a slow page) closes it again.
-	afterNavigate((nav) => {
-		if (nav.type === 'popstate') close();
-	});
 
 	// Returns the horizontal distance if the swipe was more horizontal than vertical, otherwise 0.
 	function swipeDistance(e: TouchEvent) {
@@ -164,18 +146,6 @@
 	</div>
 {/snippet}
 
-<svelte:window
-	onpopstate={() => (lastBack = Date.now())}
-	ontouchstart={(e) => {
-		if (kind === 'dialog' && !sideMenu.open && !wide.current) swipeStart(e, true);
-	}}
-	ontouchend={(e) => {
-		if (kind !== 'dialog' || sideMenu.open || wide.current) return;
-		const swipedAt = start?.at;
-		if (swipeDistance(e) >= MIN_DISTANCE) openUnlessBack(swipedAt);
-	}}
-/>
-
 {#if kind === 'sidebar'}
 	<nav class="menu-content sidebar" aria-label="Menü">
 		{@render menuContent()}
@@ -191,7 +161,7 @@
 			// Clicks on the dimmed backdrop land directly on the <dialog>, not on its content.
 			if (e.target === dialog) close();
 		}}
-		ontouchstart={(e) => swipeStart(e, false)}
+		ontouchstart={swipeStart}
 		ontouchend={(e) => {
 			if (swipeDistance(e) <= -MIN_DISTANCE) close();
 		}}

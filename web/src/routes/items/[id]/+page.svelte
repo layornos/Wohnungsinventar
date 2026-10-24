@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { api, boxName, errorText, dispositionName, type Photo, type Item, type Move, type Apartment, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
 	import DispositionPicker from '#lib/DispositionPicker.svelte';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import PhotoEditor from '#lib/PhotoEditor.svelte';
 	import PhotoInput from '#lib/PhotoInput.svelte';
 	import { loadPlaces, placementBody, confirmRemoval } from '#lib/places.ts';
@@ -183,7 +182,6 @@
 
 <main class="page wide">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/">← Liste</a>
 		{#if item && !editing}
 			<button class="secondary" onclick={startEditing}>Bearbeiten</button>

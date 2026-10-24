@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api, errorText, type ItemListEntry, type ItemPage, type Place, type PlaceEntry } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { loadPlaces, placementBody } from '#lib/places.ts';
 	import PlacePicker from '#lib/PlacePicker.svelte';
 
@@ -44,7 +43,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/">← Liste</a>
 		<h1>Ohne Lagerort</h1>
 	</header>

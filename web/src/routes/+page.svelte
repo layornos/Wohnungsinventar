@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { api, boxName, errorText, DISPOSITIONS, type Box, type ItemPage, type ItemListEntry, type Person, type PlaceEntry } from '#lib/api.ts';
 	import ItemGrid from '#lib/ItemGrid.svelte';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { loadPlaces } from '#lib/places.ts';
 	import { loadMove } from '#lib/move.ts';
 	import { loadPersons } from '#lib/persons.ts';
@@ -80,7 +79,6 @@
 
 <main class="page wide">
 	<header class="header with-menu">
-		<MenuButton />
 		<h1>Inventar</h1>
 	</header>
 

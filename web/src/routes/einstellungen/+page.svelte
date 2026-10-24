@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { errorText } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { appearance, THEMES, type Theme } from '#lib/theme.svelte.ts';
 	import { saveTheme } from '#lib/session.svelte.ts';
 
@@ -19,7 +18,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/">← Liste</a>
 		<h1>Einstellungen</h1>
 	</header>

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api, ApiError, formatDateTime, errorText, type Invitation, type User, type Person } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { loadPersons } from '#lib/persons.ts';
 
 	let users = $state<User[]>([]);
@@ -92,7 +91,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/">← Liste</a>
 		<h1>Nutzer</h1>
 	</header>

@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api, boxName, errorText, type Named, type Box, type ItemListEntry } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import PackingList from '#lib/PackingList.svelte';
 
 	type TargetRoom = { room: Named; boxes: Box[]; items: ItemListEntry[] };
@@ -15,7 +14,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/umzug">← Umzug</a>
 		<h1>Nach Zielraum</h1>
 	</header>

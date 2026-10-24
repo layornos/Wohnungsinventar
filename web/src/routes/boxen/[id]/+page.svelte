@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { api, boxName, errorText, type Box, type ItemListEntry } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import PackingList from '#lib/PackingList.svelte';
 	import { loadMove } from '#lib/move.ts';
 
@@ -54,7 +53,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/umzug">← Umzug</a>
 	</header>
 

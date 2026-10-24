@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { api, errorText, type Named, type ItemListEntry, type ItemPage } from '#lib/api.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { loadMove, loadMoveRooms } from '#lib/move.ts';
 
 	let items = $state<ItemListEntry[]>([]);
@@ -33,7 +32,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/umzug">← Umzug</a>
 		<h1>Ohne Zielraum</h1>
 	</header>

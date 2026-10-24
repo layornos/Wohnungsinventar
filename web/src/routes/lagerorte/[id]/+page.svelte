@@ -4,7 +4,6 @@
 	import { api, errorText, type ItemListEntry, type ItemPage, type StorageLocation, type Place, type PlaceEntry } from '#lib/api.ts';
 	import ItemGrid from '#lib/ItemGrid.svelte';
 	import ItemSearch from '#lib/ItemSearch.svelte';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import { parentBody, loadPlaces, confirmRemoval } from '#lib/places.ts';
 	import PathView from '#lib/PathView.svelte';
 	import PlacePicker from '#lib/PlacePicker.svelte';
@@ -118,7 +117,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		{#if location}
 			<a class="button secondary" href="/raeume/{location.path.room.id}">← {location.path.room.name}</a>
 		{:else}

@@ -1,5 +1,6 @@
 <script lang="ts">
-	// ☰ button at the start of a page header; opens the side menu on narrow screens (hidden from 1024px, desktop.css).
+	// Floating ☰ button at the bottom left, within thumb reach; opens the side menu on narrow screens (hidden from
+	// 1024px, desktop.css). Rendered once by the layout.
 	import { openSideMenu, sideMenu } from './sideMenu.svelte.ts';
 </script>
 

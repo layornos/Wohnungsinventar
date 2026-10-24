@@ -131,7 +131,8 @@ body {
 .page {
 	max-width: 720px;
 	margin: 0 auto;
-	padding: max(16px, env(safe-area-inset-top)) 16px 32px;
+	/* Room below the content, so the floating buttons never cover the last entry. */
+	padding: max(16px, env(safe-area-inset-top)) 16px 96px;
 }
 
 .page.narrow {
@@ -149,17 +150,26 @@ body {
 	justify-content: flex-start;
 }
 
-/* The ☰ button and the back link stay together on the left, the rest of the header moves to the right. */
-.header > .menu-button + * {
-	margin-right: auto;
+/* Side menu: floating ☰ button at the bottom left, opposite the floating "Erfassen" button. */
+button.menu-button {
+	position: fixed;
+	left: 16px;
+	bottom: max(16px, env(safe-area-inset-bottom));
+	z-index: 10;
+	width: 56px;
+	height: 56px;
+	padding: 0;
+	font-size: 1.4em;
+	line-height: 1;
+	box-shadow: var(--shadow-floating);
+}
+
+/* Pages with a bar at the bottom: the button sits above it. */
+body:has(.action-bar) button.menu-button {
+	bottom: calc(max(16px, env(safe-area-inset-bottom)) + 80px);
 }
 
 /* Side menu: modal <dialog> at the left edge */
-button.menu-button {
-	padding: 6px 14px;
-	font-size: 1.3em;
-	line-height: 1;
-}
 
 dialog.side-menu {
 	margin: 0;

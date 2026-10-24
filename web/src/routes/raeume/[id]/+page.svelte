@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { api, errorText, type ItemListEntry, type ItemPage, type Room } from '#lib/api.ts';
 	import ItemGrid from '#lib/ItemGrid.svelte';
-	import MenuButton from '#lib/MenuButton.svelte';
 	import StorageLocationTree from '#lib/StorageLocationTree.svelte';
 
 	const id = $derived(Number(page.params.id));
@@ -72,7 +71,6 @@
 
 <main class="page">
 	<header class="header">
-		<MenuButton />
 		<a class="button secondary" href="/wohnungen">← Wohnungen</a>
 	</header>
 
