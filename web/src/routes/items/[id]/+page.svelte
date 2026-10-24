@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, boxName, fehlerText, verbleibName, type Item, type Umzug, type Wohnung, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
+	import { api, boxName, fehlerText, verbleibName, type Foto, type Item, type Umzug, type Wohnung, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
+	import FotoBearbeiten from '#lib/FotoBearbeiten.svelte';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
 	import { ladePlaetze, platzBody, wegfallBestaetigen } from '#lib/plaetze.ts';
 	import { ladeUmzug, ladeWohnungen, type AngabenAenderung } from '#lib/umzug.ts';
@@ -66,6 +67,33 @@
 		const form = new FormData();
 		for (const d of dateien) form.append('foto', d);
 		aendern('POST', `${pfad}/fotos`, form);
+	}
+
+	// Gespeichertes Foto, das gerade gedreht oder zugeschnitten wird, mit seinem geladenen Original.
+	let bearbeitung = $state<{ fotoId: number; quelle: Blob } | null>(null);
+
+	async function fotoBearbeitenBeginnen(f: Foto) {
+		fehler = '';
+		laeuft = true;
+		try {
+			const res = await fetch(f.url);
+			if (!res.ok) throw new Error(res.statusText);
+			bearbeitung = { fotoId: f.id, quelle: await res.blob() };
+		} catch {
+			fehler = 'Das Foto ließ sich nicht laden.';
+		} finally {
+			laeuft = false;
+		}
+	}
+
+	// Das bearbeitete Foto ersetzt das Original; der Server vergibt dabei eine neue Adresse.
+	function bearbeitungFertig(datei: File | null) {
+		const id = bearbeitung?.fotoId;
+		bearbeitung = null;
+		if (id === undefined || !datei) return;
+		const form = new FormData();
+		form.append('foto', datei);
+		aendern('PUT', `/api/fotos/${id}`, form);
 	}
 
 	async function fotoLoeschen(id: number) {
@@ -193,9 +221,13 @@
 				{:else}
 					<span class="marke">Hauptfoto</span>
 				{/if}
+				<button class="sekundaer" disabled={laeuft} onclick={() => fotoBearbeitenBeginnen(foto)}>Drehen / Zuschneiden</button>
 			</div>
 		{/if}
 		<FotoEingabe gewaehlt={fotosHochladen} deaktiviert={laeuft} />
+		{#if bearbeitung}
+			<FotoBearbeiten quelle={bearbeitung.quelle} fertig={bearbeitungFertig} />
+		{/if}
 
 		{#if bearbeiten}
 			<form onsubmit={speichern}>

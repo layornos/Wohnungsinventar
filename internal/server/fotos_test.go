@@ -320,3 +320,90 @@ func TestFotoMitFalschemDateinamenWirdNichtAusgeliefert(t *testing.T) {
 		}
 	}
 }
+
+// Ein im Browser gedrehtes oder zugeschnittenes Foto ersetzt das Original. Es behält ID, Platz
+// in der Reihenfolge und Hauptfoto-Markierung, bekommt aber eine neue Adresse, weil der Browser
+// die alte dauerhaft zwischenspeichert.
+func TestBearbeitetesFotoErsetztDasOriginal(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	item := c.itemAnlegen("Lampe", []int64{c.ich()}, testJPEG(t), testPNG(t), testWebP(t))
+	vorher := fotosVon(c.mustStatus(http.StatusOK, "PUT", itemPfad(item)+"/hauptfoto", map[string]any{"fotoId": fotosVon(item)[1]["id"]}))
+	alt := vorher[1]
+
+	var b bytes.Buffer
+	jpeg.Encode(&b, zweifarbig(20, 40), nil)
+	bearbeitet := b.Bytes()
+	res := c.multipart("PUT", fmt.Sprintf("/api/fotos/%v", alt["id"]), formular{fotos: [][]byte{bearbeitet}})
+	if res.Status != http.StatusOK {
+		t.Fatalf("Status %d: %s", res.Status, res.Raw)
+	}
+	nachher := fotosVon(res)
+	if len(nachher) != 3 {
+		t.Fatalf("%d Fotos, erwartet 3", len(nachher))
+	}
+	for i := range vorher {
+		if nachher[i]["id"] != vorher[i]["id"] || nachher[i]["hauptfoto"] != vorher[i]["hauptfoto"] {
+			t.Errorf("Foto %d: vorher %v, nachher %v", i, vorher[i], nachher[i])
+		}
+		if i != 1 && (nachher[i]["url"] != vorher[i]["url"] || nachher[i]["vorschauUrl"] != vorher[i]["vorschauUrl"]) {
+			t.Errorf("Foto %d wurde nicht bearbeitet, seine Adresse soll gleich bleiben", i)
+		}
+	}
+	neu := nachher[1]
+	for _, feld := range []string{"url", "vorschauUrl"} {
+		if neu[feld] == alt[feld] {
+			t.Errorf("%s: das bearbeitete Foto hat die alte Adresse %v", feld, neu[feld])
+		}
+		if r := c.get(alt[feld].(string)); r.Status != http.StatusNotFound {
+			t.Errorf("alte %s: Status %d", feld, r.Status)
+		}
+	}
+	if r := c.get(neu["url"].(string)); r.Status != http.StatusOK || !bytes.Equal(r.Raw, bearbeitet) || r.Header.Get("Content-Type") != "image/jpeg" {
+		t.Fatalf("neues Original: Status %d, Typ %q, %d Bytes", r.Status, r.Header.Get("Content-Type"), len(r.Raw))
+	}
+	if img := vorschauBild(t, c, neu); img.Bounds().Dx() != 20 || img.Bounds().Dy() != 40 {
+		t.Fatalf("die Vorschau soll zum bearbeiteten Foto passen, ist %v groß", img.Bounds().Size())
+	}
+	liste := c.mustStatus(http.StatusOK, "GET", "/api/items", nil)
+	if got := liste.Body["items"].([]any)[0].(map[string]any)["vorschauUrl"]; got != neu["vorschauUrl"] {
+		t.Errorf("die Liste soll die neue Vorschau des Hauptfotos zeigen, zeigt %v", got)
+	}
+	// Die alte Datei samt Vorschau ist aufgeräumt.
+	e.keineVerwaistenFotos(3)
+}
+
+func TestFotoErsetzenLehntUngueltigeAnfragenAb(t *testing.T) {
+	e := newTestEnv(t)
+	c := e.loggedIn()
+	foto := fotosVon(c.itemAnlegen("Lampe", []int64{c.ich()}, testJPEG(t)))[0]
+	pfad := fmt.Sprintf("/api/fotos/%v", foto["id"])
+
+	for _, fall := range []struct {
+		name   string
+		pfad   string
+		fotos  [][]byte
+		status int
+		code   string
+	}{
+		{"unbekannte ID", "/api/fotos/9999", [][]byte{testPNG(t)}, http.StatusNotFound, "nicht_gefunden"},
+		{"keine ID", "/api/fotos/abc", [][]byte{testPNG(t)}, http.StatusNotFound, "nicht_gefunden"},
+		{"ohne Foto", pfad, nil, http.StatusBadRequest, "foto_fehlt"},
+		{"zwei Fotos", pfad, [][]byte{testPNG(t), testPNG(t)}, http.StatusBadRequest, "zu_viele_fotos"},
+		{"kein Bild", pfad, [][]byte{[]byte("kein Bild")}, http.StatusBadRequest, "falscher_dateityp"},
+	} {
+		res := c.multipart("PUT", fall.pfad, formular{fotos: fall.fotos})
+		if res.Status != fall.status || res.errorCode() != fall.code {
+			t.Errorf("%s: Status %d, Fehlercode %q", fall.name, res.Status, res.errorCode())
+		}
+	}
+	if res := e.client().multipart("PUT", pfad, formular{fotos: [][]byte{testPNG(t)}}); res.Status != http.StatusUnauthorized {
+		t.Errorf("ohne Sitzung: Status %d", res.Status)
+	}
+
+	// Das Original bleibt, und abgelehnte Uploads hinterlassen keine Dateien.
+	if r := c.get(foto["url"].(string)); r.Status != http.StatusOK {
+		t.Errorf("Original: Status %d", r.Status)
+	}
+	e.keineVerwaistenFotos(1)
+}

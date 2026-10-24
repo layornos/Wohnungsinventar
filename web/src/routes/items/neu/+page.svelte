@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { api, fehlerText, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
 	import BesitzerAuswahl from '#lib/BesitzerAuswahl.svelte';
+	import FotoBearbeiten from '#lib/FotoBearbeiten.svelte';
 	import FotoEingabe from '#lib/FotoEingabe.svelte';
 	import { ladePlaetze, letzterPlatz, letztenPlatzMerken } from '#lib/plaetze.ts';
 	import { ladePersonen } from '#lib/personen.ts';
@@ -40,6 +41,17 @@
 
 	function hinzufuegen(dateien: File[]) {
 		fotos = [...fotos, ...dateien.map((datei) => ({ datei, vorschau: URL.createObjectURL(datei) }))];
+	}
+
+	// Index des Fotos, das gerade gedreht oder zugeschnitten wird.
+	let bearbeitet = $state<number | null>(null);
+
+	function bearbeitungFertig(datei: File | null) {
+		const i = bearbeitet;
+		bearbeitet = null;
+		if (i === null || !datei) return;
+		URL.revokeObjectURL(fotos[i].vorschau);
+		fotos[i] = { datei, vorschau: URL.createObjectURL(datei) };
 	}
 
 	function entfernen(i: number) {
@@ -105,11 +117,15 @@
 					<li>
 						<img src={f.vorschau} alt="Foto {i + 1}" />
 						<button type="button" class="sekundaer klein" onclick={() => entfernen(i)} aria-label="Foto {i + 1} entfernen">×</button>
+						<button type="button" class="sekundaer klein foto-bearbeiten-knopf" onclick={() => (bearbeitet = i)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
 					</li>
 				{/each}
 			</ul>
 		{/if}
 		<FotoEingabe gewaehlt={hinzufuegen} />
+		{#if bearbeitet !== null}
+			<FotoBearbeiten quelle={fotos[bearbeitet].datei} fertig={bearbeitungFertig} />
+		{/if}
 
 		<label>
 			Name

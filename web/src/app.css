@@ -389,6 +389,100 @@ label.chip input {
 	background: var(--flaeche);
 }
 
+/* Bearbeiten-Knopf unten links, das Entfernen-× bleibt oben rechts. */
+.fotoleiste li > button.klein.foto-bearbeiten-knopf {
+	top: auto;
+	right: auto;
+	bottom: 2px;
+	left: 2px;
+}
+
+/* Foto drehen und zuschneiden: modaler <dialog> über die ganze Seite */
+dialog.foto-bearbeiten {
+	width: 100%;
+	max-width: 720px;
+	max-height: 100dvh;
+	margin: auto;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius);
+	background: var(--flaeche);
+	color: var(--text);
+}
+
+dialog.foto-bearbeiten::backdrop {
+	background: rgb(0 0 0 / 0.6);
+}
+
+.bearbeiten-inhalt {
+	display: grid;
+	gap: 12px;
+	padding: max(16px, env(safe-area-inset-top)) 24px max(16px, env(safe-area-inset-bottom));
+}
+
+.bearbeiten-inhalt h2 {
+	margin: 0;
+	font-size: 1.1em;
+}
+
+/* Die Bühne hat genau das Seitenverhältnis des gedrehten Bildes; der Zuschnitt liegt in Prozent darüber. */
+.buehne {
+	position: relative;
+	justify-self: center;
+	max-width: 100%;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+.buehne canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+.abdunklung {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+.ausschnitt-schatten {
+	position: absolute;
+	box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
+}
+
+.buehne button.ausschnitt {
+	position: absolute;
+	min-height: 0;
+	padding: 0;
+	border: 2px solid #ffffff;
+	border-radius: 0;
+	background: transparent;
+	cursor: move;
+	touch-action: none;
+}
+
+/* Große, unsichtbare Tippfläche mit kleinem sichtbarem Punkt in der Mitte. */
+.buehne button.griff {
+	position: absolute;
+	width: 44px;
+	height: 44px;
+	min-height: 0;
+	padding: 0;
+	transform: translate(-50%, -50%);
+	border-radius: 50%;
+	background: radial-gradient(circle, #ffffff 0 9px, var(--akzent) 9px 12px, transparent 12px);
+	cursor: crosshair;
+	touch-action: none;
+}
+
+.buehne button:focus-visible {
+	outline: 3px solid var(--akzent);
+	outline-offset: 2px;
+}
+
 button.foto-wahl {
 	min-height: 0;
 	padding: 0;

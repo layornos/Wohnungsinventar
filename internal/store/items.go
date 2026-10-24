@@ -547,6 +547,35 @@ func (s *Store) HauptfotoSetzen(ctx context.Context, itemID, fotoID int64, jetzt
 	})
 }
 
+// FotoErsetzen tauscht die Datei eines Fotos gegen eine bereits gespeicherte neue, z. B. nach
+// Drehen oder Zuschneiden. ID, Reihenfolge und Hauptfoto bleiben. Geliefert werden der alte
+// Dateiname, den der Aufrufer danach entfernt, und das Item.
+func (s *Store) FotoErsetzen(ctx context.Context, fotoID int64, neu NeuesFoto, jetzt time.Time) (string, Item, error) {
+	var (
+		alt  string
+		item Item
+	)
+	err := s.inTransaktion(ctx, func(tx *sql.Tx) error {
+		var itemID int64
+		err := tx.QueryRowContext(ctx, `SELECT item_id, datei FROM foto WHERE id = ?`, fotoID).Scan(&itemID, &alt)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNichtGefunden
+		}
+		if err != nil {
+			return err
+		}
+		item, err = itemAendernIn(ctx, tx, itemID, jetzt, func(tx *sql.Tx) error {
+			_, err := tx.ExecContext(ctx, `UPDATE foto SET datei = ?, typ = ? WHERE id = ?`, neu.Datei, neu.Typ, fotoID)
+			return err
+		})
+		return err
+	})
+	if err != nil {
+		return "", Item{}, err
+	}
+	return alt, item, nil
+}
+
 // FotoLoeschen löscht ein Foto, außer es ist das letzte seines Items. War es das Hauptfoto,
 // wird das nächste in der Reihenfolge Hauptfoto, nach dem letzten das erste. Geliefert werden
 // der Dateiname, den der Aufrufer danach entfernt, und das Item.

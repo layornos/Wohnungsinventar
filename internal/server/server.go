@@ -71,6 +71,7 @@ type ItemStore interface {
 	FotoAbrufen(ctx context.Context, id int64) (store.Foto, error)
 	FotosHinzufuegen(ctx context.Context, itemID int64, fotos []store.NeuesFoto, jetzt time.Time) (store.Item, error)
 	HauptfotoSetzen(ctx context.Context, itemID, fotoID int64, jetzt time.Time) (store.Item, error)
+	FotoErsetzen(ctx context.Context, fotoID int64, neu store.NeuesFoto, jetzt time.Time) (string, store.Item, error)
 	FotoLoeschen(ctx context.Context, fotoID int64, jetzt time.Time) (string, store.Item, error)
 	PlatzierungSetzen(ctx context.Context, itemID int64, p store.Platz, jetzt time.Time) (store.Item, error)
 }
@@ -156,6 +157,7 @@ func New(d Deps) http.Handler {
 	geschuetzt.HandleFunc("POST /api/items/{id}/fotos", s.fotosHinzufuegen)
 	geschuetzt.HandleFunc("PUT /api/items/{id}/hauptfoto", s.hauptfotoSetzen)
 	geschuetzt.HandleFunc("GET /api/fotos/{id}/{datei}", s.fotoAusliefern(false))
+	geschuetzt.HandleFunc("PUT /api/fotos/{id}", s.fotoErsetzen)
 	geschuetzt.HandleFunc("DELETE /api/fotos/{id}", s.fotoLoeschen)
 	geschuetzt.HandleFunc("GET /api/fotos/{id}/{datei}/vorschau", s.fotoAusliefern(true))
 	geschuetzt.HandleFunc("GET /api/wohnungen", s.wohnungenAuflisten)

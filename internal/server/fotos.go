@@ -90,6 +90,37 @@ func (s *server) hauptfotoSetzen(w http.ResponseWriter, r *http.Request) {
 	s.itemAntworten(w, r, item, err)
 }
 
+// fotoErsetzen nimmt genau ein Foto (Feld "foto") entgegen, das im Browser gedreht oder
+// zugeschnitten wurde. Es wird wie ein neues Foto unter einem neuen zufälligen Namen gespeichert,
+// damit sich die Adresse ändert; die alte Datei samt Vorschau wird danach entfernt.
+func (s *server) fotoErsetzen(w http.ResponseWriter, r *http.Request) {
+	id, ok := pfadID(w, r, "id")
+	if !ok {
+		return
+	}
+	f, ok := s.leseFormular(w, r)
+	if !ok {
+		return
+	}
+	switch len(f.fotos) {
+	case 0:
+		fotoFehlt(w)
+		return
+	case 1:
+	default:
+		s.fotosVerwerfen(f.fotos)
+		schreibeFehler(w, http.StatusBadRequest, "zu_viele_fotos", "Genau ein Foto erwartet")
+		return
+	}
+	alt, item, err := s.Store.FotoErsetzen(r.Context(), id, f.neueFotos()[0], s.Jetzt())
+	if err != nil {
+		s.fotosVerwerfen(f.fotos)
+	} else {
+		s.dateiLoeschen(alt)
+	}
+	s.itemAntworten(w, r, item, err)
+}
+
 func (s *server) fotoLoeschen(w http.ResponseWriter, r *http.Request) {
 	id, ok := pfadID(w, r, "id")
 	if !ok {
