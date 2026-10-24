@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { page } from '$app/state';
+	import { useBottomBar } from '#lib/bottomBar.svelte.ts';
 	import { api, errorText, type Item, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
 	import DispositionPicker from '#lib/DispositionPicker.svelte';
 	import OwnerPicker from '#lib/OwnerPicker.svelte';
@@ -23,6 +25,8 @@
 	let saved = $state<Item | null>(null);
 	// From the packing mode new items go straight into the active box.
 	const box = page.url.searchParams.get('box');
+	let photoInput: PhotoInput;
+	let nameInput: HTMLInputElement;
 	let places = $state<PlaceEntry[]>([]);
 	let place = $state<Place | null>(null);
 
@@ -41,6 +45,8 @@
 
 	function add(files: File[]) {
 		photos = [...photos, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))];
+		// Series mode: photo, name, photo, name.
+		if (!name) nameInput.focus();
 	}
 
 	// Index of the photo currently being rotated or cropped.
@@ -83,19 +89,29 @@
 		try {
 			saved = await api<Item>('POST', '/api/items', form);
 			rememberLastPlace(place);
-			// Ready for the next item; owners and place stay, because similar items often follow.
+			// Series mode: ready for the next item. Owners, place and disposition stay, because similar items
+			// often follow; the camera is one tap away (browsers only open it from a user gesture).
 			for (const p of photos) URL.revokeObjectURL(p.preview);
 			photos = [];
 			name = '';
 			description = '';
-			disposition = null;
+			await tick();
+			window.scrollTo({ top: 0 });
+			photoInput.focusCamera();
 		} catch (e) {
 			error = errorText(e);
 		} finally {
 			busy = false;
 		}
 	}
+
+	// On narrow screens the camera also sits in the bottom bar, within thumb reach.
+	$effect(() => useBottomBar(barContent));
 </script>
+
+{#snippet barContent()}
+	<button type="button" class="camera-button" disabled={busy} onclick={() => photoInput.openCamera()}>Foto aufnehmen</button>
+{/snippet}
 
 <main class="page wide">
 	<header class="header">
@@ -123,7 +139,7 @@
 					{/each}
 				</ul>
 			{/if}
-			<PhotoInput chosen={add} />
+			<PhotoInput bind:this={photoInput} chosen={add} />
 			{#if editing !== null}
 				<PhotoEditor source={photos[editing].file} done={editDone} />
 			{/if}
@@ -132,7 +148,7 @@
 		<div class="details-column">
 			<label>
 				Name
-				<input bind:value={name} required autocomplete="off" />
+				<input bind:this={nameInput} bind:value={name} required autocomplete="off" />
 			</label>
 			<label>
 				Beschreibung (optional)

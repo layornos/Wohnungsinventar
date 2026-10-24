@@ -1,6 +1,8 @@
 // Rotating and cropping a photo in the browser (canvas). The crop is free, without a fixed aspect ratio, and
 // is given relative to the rotated image: 0 is left or top, 1 is right or bottom.
 
+import { canvasToJpeg, MAX_EDGE } from './shrinkPhoto.ts';
+
 /** Edges of the crop: left, top, right, bottom. */
 export type Edges = { l: number; t: number; r: number; b: number };
 
@@ -80,12 +82,13 @@ export function drawPreview(canvas: HTMLCanvasElement, image: HTMLImageElement, 
 	drawRotated(ctx, image, r);
 }
 
-/** Produces the rotated and cropped photo as JPEG. */
+/** Produces the rotated and cropped photo as JPEG, at most MAX_EDGE on the longer edge. */
 export async function editedPhoto(image: HTMLImageElement, r: Rotation, e: Edges): Promise<File> {
 	const [w, h] = rotatedSize(image, r);
 	const width = Math.max(1, Math.round((e.r - e.l) * w));
 	const height = Math.max(1, Math.round((e.b - e.t) * h));
-	const f = Math.min(1, Math.sqrt(MAX_PIXELS / (width * height)));
+	// The result has the same size limit as any other uploaded photo (shrinkPhoto.ts).
+	const f = Math.min(1, MAX_EDGE / Math.max(width, height), Math.sqrt(MAX_PIXELS / (width * height)));
 	const canvas = document.createElement('canvas');
 	canvas.width = Math.max(1, Math.round(width * f));
 	canvas.height = Math.max(1, Math.round(height * f));
@@ -95,8 +98,7 @@ export async function editedPhoto(image: HTMLImageElement, r: Rotation, e: Edges
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 	ctx.scale(f, f);
 	ctx.translate(-e.l * w, -e.t * h);
+	ctx.imageSmoothingQuality = 'high';
 	drawRotated(ctx, image, r);
-	const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/jpeg', 0.92));
-	if (!blob) throw new Error('Photo could not be created');
-	return new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+	return canvasToJpeg(canvas);
 }
