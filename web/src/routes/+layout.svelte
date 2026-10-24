@@ -6,6 +6,7 @@
 	import BottomBar from '#lib/BottomBar.svelte';
 	import SideMenu from '#lib/SideMenu.svelte';
 	import { loadSession, session } from '#lib/session.svelte.ts';
+	import '../fonts.css';
 	import '../app.css';
 	import '../desktop.css';
 	import type { LayoutProps } from './$types';

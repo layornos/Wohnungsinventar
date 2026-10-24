@@ -6,7 +6,7 @@
  * Breakpoints for wide screens don't belong here but in desktop.css.
  */
 
-/* Minimal (default): white, almost monochrome, thin lines. Inter if installed – nothing is downloaded. */
+/* Minimal (default): white, almost monochrome, thin lines. Inter (fonts.css). */
 :root {
 	--background: #ffffff;
 	--surface: #fafafa;
@@ -21,7 +21,7 @@
 	--error: #dc2626;
 	--radius: 8px;
 	--radius-large: 10px;
-	--font: Inter, 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--font: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 	--shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 	--shadow-floating: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
 	--glow: none;
@@ -61,7 +61,7 @@
 	}
 }
 
-/* Neon: always dark, frosted-glass surfaces, mint with glow. Space Grotesk if installed. */
+/* Neon: always dark, frosted-glass surfaces, mint with glow. Space Grotesk (fonts.css). */
 :root[data-theme='neon'] {
 	--background: #09090f;
 	--surface: rgb(255 255 255 / 0.055);
@@ -87,7 +87,7 @@
 
 /*
  * Soft ("Weich & farbig"): always light, large radii, gentle shadows instead of borders, violet as accent.
- * Plus Jakarta Sans if installed. Muted text has 5.0:1 on the background and 5.6:1 on surfaces.
+ * Plus Jakarta Sans (fonts.css). Muted text has 5.0:1 on the background and 5.6:1 on surfaces.
  */
 :root[data-theme='soft'] {
 	--background: #f3f0fa;
