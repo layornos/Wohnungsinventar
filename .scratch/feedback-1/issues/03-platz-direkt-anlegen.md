@@ -15,3 +15,7 @@ Findet die Suche in der Platzauswahl (Erfassen, Detailseite, „Ohne Lagerort“
 ## Fertig, wenn
 
 - [ ] Aus der Platzauswahl lässt sich ein neuer Lagerort unter einem bestehenden Raum oder Lagerort anlegen und ist danach gleich ausgewählt.
+
+## Comments
+
+- Umgesetzt in `web/src/lib/PlatzAuswahl.svelte` mit neuer Option `anlegen` (aktiv beim Erfassen, auf der Detailseite und unter „Ohne Lagerort“, nicht beim Verschieben eines Lagerorts). Findet die Suche nichts, erscheint „„<Suchtext>“ anlegen in …“; danach wählt man den Raum oder Lagerort aus derselben Pfadliste. Angelegt wird über die bestehende `POST /api/lagerorte`, der neue Lagerort kommt per `bind:plaetze` in die Liste der Seite und ist gleich gewählt. Keine Serveränderung nötig; nur `make check`, kein Browsertest.

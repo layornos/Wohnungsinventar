@@ -120,7 +120,7 @@
 			<textarea bind:value={beschreibung} rows="2"></textarea>
 		</label>
 		<BesitzerAuswahl {personen} bind:ausgewaehlt={besitzer} />
-		<PlatzAuswahl {plaetze} bind:wert={platz} />
+		<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
 		<VerbleibAuswahl bind:wert={verbleib} />
 
 		{#if fehler}
