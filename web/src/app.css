@@ -1063,6 +1063,205 @@ button.pack img {
 	backdrop-filter: var(--glass);
 }
 
+/* Packing mode: one section per storage location of the origin room, with "Alles einpacken" next to its name. */
+.pack-group {
+	margin-top: 20px;
+}
+
+.pack-group-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.pack-group h2 {
+	margin: 0 0 4px;
+	overflow-wrap: anywhere;
+}
+
+/* New box: small modal <dialog> for label and target room */
+dialog.box-dialog {
+	width: calc(100% - 32px);
+	max-width: 420px;
+	margin: auto;
+	padding: 20px;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-large);
+	background: var(--surface-solid);
+	color: var(--text);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
+}
+
+dialog.box-dialog::backdrop {
+	background: rgb(0 0 0 / 0.45);
+}
+
+dialog.box-dialog h2 {
+	margin: 0;
+}
+
+/* Box page: unpacking is the main action once the move has arrived. */
+a.button.unpack-button {
+	justify-content: center;
+	width: 100%;
+	min-height: 56px;
+	margin-bottom: 12px;
+	font-size: 1.1rem;
+}
+
+.box-label {
+	font-size: 1.2rem;
+	font-weight: 600;
+	margin: 0;
+}
+
+/* Unpack mode */
+.unpack-place {
+	margin: 12px 0 16px;
+}
+
+.unpack-list button.pack {
+	min-height: 64px;
+}
+
+button.unpack-all {
+	width: 100%;
+	min-height: 56px;
+	font-size: 1.05rem;
+}
+
+.bottom-bar > button.unpack-all {
+	flex: 1;
+	width: auto;
+	min-width: 0;
+	min-height: 48px;
+}
+
+.empty-box {
+	display: grid;
+	gap: 12px;
+	justify-items: start;
+}
+
+.empty-box p {
+	margin: 0;
+}
+
+/* Box label: black on white in every theme, sized in millimetres so that it fits on A6 and A5. */
+.box-labels {
+	display: grid;
+	gap: 16px;
+}
+
+.box-label-sheet {
+	display: grid;
+	justify-items: center;
+	gap: 3mm;
+	width: 100%;
+	max-width: 105mm;
+	margin: 16px auto;
+	padding: 6mm;
+	border: 1px solid #d4d4d8;
+	border-radius: 4px;
+	background: #ffffff;
+	color: #000000;
+	font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	text-align: center;
+}
+
+.box-label-sheet p {
+	margin: 0;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	line-height: 1.1;
+}
+
+.box-label-sheet .label-number {
+	font-size: 38mm;
+	font-weight: 800;
+	letter-spacing: -0.04em;
+	line-height: 1;
+}
+
+.box-label-sheet .label-name {
+	font-size: 9mm;
+	font-weight: 700;
+}
+
+.box-label-sheet .label-target {
+	font-size: 8mm;
+	font-weight: 600;
+}
+
+.box-label-sheet .label-qr {
+	display: block;
+	width: 48mm;
+	height: 48mm;
+	image-rendering: pixelated;
+}
+
+.label-actions {
+	display: grid;
+	gap: 12px;
+}
+
+.label-actions p {
+	margin: 0;
+}
+
+/* Print: only the page content, black on white, no menu or bottom bar; every box label on its own page. */
+@page {
+	margin: 8mm;
+}
+
+@media print {
+	:root {
+		color-scheme: light;
+	}
+
+	body {
+		background: #ffffff !important;
+		color: #000000 !important;
+	}
+
+	body::before,
+	body::after,
+	.bottom-bar,
+	nav.sidebar,
+	dialog,
+	.no-print {
+		display: none !important;
+	}
+
+	.frame,
+	.frame:has(> .sidebar) {
+		display: block !important;
+	}
+
+	.page {
+		max-width: none !important;
+		margin: 0 !important;
+		padding: 0 !important;
+	}
+
+	.box-labels {
+		display: block;
+	}
+
+	.box-label-sheet {
+		margin: 0 auto;
+		border: none;
+		break-inside: avoid;
+	}
+
+	.box-label-sheet + .box-label-sheet {
+		break-before: page;
+	}
+}
+
 /* Settings: theme picker as cards with a small colour preview; the radio stays visible and usable. */
 fieldset.theme-picker {
 	min-width: 0;
@@ -1384,11 +1583,11 @@ label.theme-card:has(input:checked) {
 	box-shadow: var(--shadow-card);
 }
 
-[data-theme='soft'] :is(dialog.side-menu, dialog.photo-editor)::backdrop {
+[data-theme='soft'] :is(dialog.side-menu, dialog.photo-editor, dialog.box-dialog)::backdrop {
 	background: rgb(27 21 48 / 0.35);
 }
 
-[data-theme='soft'] dialog.photo-editor {
+[data-theme='soft'] :is(dialog.photo-editor, dialog.box-dialog) {
 	border-color: transparent;
 	box-shadow: var(--shadow-card);
 }

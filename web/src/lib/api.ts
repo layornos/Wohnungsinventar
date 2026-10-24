@@ -95,11 +95,20 @@ export type Item = {
 	move: MoveDetails | null;
 };
 
-export type BoxSummary = { id: number; number: number; label: string };
+/** targetRoom: the room of the new apartment everything in the box goes to, unless an item has its own. */
+export type BoxSummary = { id: number; number: number; label: string; targetRoom: Named | null };
 export type Box = BoxSummary & { count: number };
 
-/** Origin room, target room and box of an item in the active move. */
-export type MoveDetails = { originRoom: Named | null; targetRoom: Named | null; box: BoxSummary | null };
+/**
+ * Origin room, target room and box of an item in the active move. targetRoom is the effective one: the item's
+ * own target room, otherwise that of its box (then targetRoomFromBox is true).
+ */
+export type MoveDetails = {
+	originRoom: Named | null;
+	targetRoom: Named | null;
+	targetRoomFromBox: boolean;
+	box: BoxSummary | null;
+};
 
 export type Move = {
 	id: number;
@@ -115,6 +124,16 @@ export function boxName(b: BoxSummary): string {
 	return b.label ? `Box ${b.number} · ${b.label}` : `Box ${b.number}`;
 }
 
+/** Name of the box with its target room, e.g. "Box 3 · Bücher → Küche". */
+export function boxTitle(b: BoxSummary): string {
+	return b.targetRoom ? `${boxName(b)} → ${b.targetRoom.name}` : boxName(b);
+}
+
+/** Path of the unpack mode of a box; QR code and NFC tag lead there. */
+export function unpackPath(boxId: number): string {
+	return `/boxen/${boxId}/auspacken`;
+}
+
 export type ItemListEntry = {
 	id: number;
 	name: string;
@@ -124,6 +143,12 @@ export type ItemListEntry = {
 	place: string;
 	move: MoveDetails | null;
 };
+
+/** Item in the packing list of a box; previousPlace is the path of its placement before unpacking. */
+export type PackedItem = ItemListEntry & { previousPlace: string };
+
+/** Answer of packing a storage location into a box or unpacking items from it. */
+export type BoxChange = { count: number; box: Box };
 
 /** One page of the item list; more says whether further pages follow. */
 export type ItemPage = { items: ItemListEntry[]; more: boolean };

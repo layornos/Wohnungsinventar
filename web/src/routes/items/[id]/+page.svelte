@@ -142,11 +142,12 @@
 		})
 		.catch((e) => (error = errorText(e)));
 
+	// The select shows only the item's own target room; one inherited from the box is the empty choice.
 	$effect(() => {
 		const d = item?.move;
 		detailsBefore = {
 			origin: d?.originRoom ? String(d.originRoom.id) : '',
-			target: d?.targetRoom ? String(d.targetRoom.id) : '',
+			target: d?.targetRoom && !d.targetRoomFromBox ? String(d.targetRoom.id) : '',
 			box: d?.box ? String(d.box.id) : ''
 		};
 		details = { ...detailsBefore };
@@ -285,6 +286,9 @@
 				{#if move}
 					<section>
 						<h2>Umzug</h2>
+						{#if item.move?.targetRoom && item.move.targetRoomFromBox && item.move.box}
+							<p>Zielraum: {item.move.targetRoom.name} <span class="muted">(von <a href="/boxen/{item.move.box.id}">Box {item.move.box.number}</a>)</span></p>
+						{/if}
 						<div class="filter">
 							<label>
 								Herkunftsraum
@@ -298,9 +302,9 @@
 								</select>
 							</label>
 							<label>
-								Zielraum
+								{item.move?.box?.targetRoom ? 'Eigener Zielraum' : 'Zielraum'}
 								<select bind:value={details.target}>
-									<option value="">–</option>
+									<option value="">{item.move?.box?.targetRoom ? `Wie die Box (${item.move.box.targetRoom.name})` : '–'}</option>
 									{#each newRooms as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 								</select>
 							</label>

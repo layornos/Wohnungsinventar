@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { api, ApiError, boxName, errorText, type ItemListEntry, type Move, type Apartment } from '#lib/api.ts';
-	import { loadMove, loadApartments } from '#lib/move.ts';
+	import { api, ApiError, boxTitle, errorText, type Box, type ItemListEntry, type Move, type Apartment, type Named } from '#lib/api.ts';
+	import { loadMove, loadApartments, loadMoveRooms } from '#lib/move.ts';
+	import NewBoxDialog from '#lib/NewBoxDialog.svelte';
 
 	let move = $state<Move | null>(null);
 	let loaded = $state(false);
@@ -10,7 +11,8 @@
 	let oldApartment = $state('');
 	let newApartment = $state('');
 	let number = $state('');
-	let newBox = $state('');
+	let newRooms = $state<Named[]>([]);
+	let creatingBox = $state(false);
 	let withoutTargetRoom = $state<ItemListEntry[] | null>(null);
 	let error = $state('');
 	let busy = $state(false);
@@ -20,6 +22,7 @@
 			move = await loadMove();
 			completed = (await api<{ moves: Move[] }>('GET', '/api/moves')).moves;
 			if (!move) apartments = await loadApartments();
+			else newRooms = (await loadMoveRooms(move)).new;
 		} catch (e) {
 			error = errorText(e);
 		} finally {
@@ -48,9 +51,9 @@
 		await run(() => api('POST', '/api/move', { oldApartmentId: Number(oldApartment), newApartmentId: Number(newApartment) }));
 	}
 
-	async function createBox(event: SubmitEvent) {
-		event.preventDefault();
-		if (await run(() => api('POST', '/api/move/boxes', { label: newBox }))) newBox = '';
+	async function boxCreated(b: Box | null) {
+		creatingBox = false;
+		if (b) await load();
 	}
 
 	async function openBox(event: SubmitEvent) {
@@ -113,17 +116,20 @@
 			<ul class="rows">
 				{#each move.boxes as b (b.id)}
 					<li>
-						<a href="/boxen/{b.id}">{boxName(b)}</a>
+						<a href="/boxen/{b.id}">{boxTitle(b)}</a>
 						<span class="muted">{b.count} Items</span>
 					</li>
 				{:else}
 					<li class="muted">Noch keine Boxen.</li>
 				{/each}
 			</ul>
-			<form class="inline" onsubmit={createBox}>
-				<input aria-label="Bezeichnung der neuen Box" placeholder="Bezeichnung (optional)" bind:value={newBox} />
-				<button type="submit" class="secondary" disabled={busy}>Neue Box</button>
-			</form>
+			<div class="button-row">
+				<button class="secondary" disabled={busy} onclick={() => (creatingBox = true)}>Neue Box</button>
+				{#if move.boxes.length > 0}<a class="button secondary" href="/umzug/etiketten">Alle Etiketten drucken</a>{/if}
+			</div>
+			{#if creatingBox}
+				<NewBoxDialog rooms={newRooms} done={boxCreated} />
+			{/if}
 		</section>
 
 		<section>
