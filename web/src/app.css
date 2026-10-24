@@ -180,6 +180,12 @@ body {
 	min-height: 48px;
 }
 
+.bottom-bar > button.camera-button {
+	flex: 1;
+	justify-content: center;
+	min-height: 48px;
+}
+
 .bottom-bar button.menu-button,
 .bottom-bar a.add-button {
 	flex-shrink: 0;
