@@ -1,10 +1,25 @@
 <script lang="ts">
-	import { api, boxName, errorText, DISPOSITIONS, type Box, type ItemPage, type ItemListEntry, type Person, type PlaceEntry } from '#lib/api.ts';
+	import {
+		api,
+		boxName,
+		changeItems,
+		errorText,
+		DISPOSITIONS,
+		type Box,
+		type ItemPage,
+		type ItemListEntry,
+		type ItemsChange,
+		type Person,
+		type Place,
+		type PlaceEntry
+	} from '#lib/api.ts';
 	import ItemGrid from '#lib/ItemGrid.svelte';
+	import PlacePicker from '#lib/PlacePicker.svelte';
 	import { useBottomBar } from '#lib/bottomBar.svelte.ts';
-	import { loadPlaces } from '#lib/places.ts';
+	import { loadPlaces, placementBody } from '#lib/places.ts';
 	import { loadMove } from '#lib/move.ts';
 	import { loadPersons } from '#lib/persons.ts';
+	import { untrack } from 'svelte';
 	import type { Snapshot } from './$types';
 
 	let search = $state('');
@@ -22,6 +37,15 @@
 	let loading = $state(false);
 	let error = $state('');
 	let pageNumber = 1;
+
+	// Selection mode: entered by a long press on an item or the "Auswählen" button; taps then toggle items.
+	let selecting = $state(false);
+	let selected = $state<number[]>([]);
+	// Open while the place for the selected items is being chosen.
+	let choosingPlace = $state(false);
+	let newPlace = $state<Place | null>(null);
+	let busy = $state(false);
+	let notice = $state('');
 
 	// Search and filters are kept when coming back from an item.
 	export const snapshot: Snapshot<{ search: string; owner: string; disposition: string; place: string; box: string }> = {
@@ -77,8 +101,67 @@
 		return () => clearTimeout(t);
 	});
 
-	// Search and "Erfassen" move into the bottom bar on narrow screens.
-	$effect(() => useBottomBar(barContent));
+	// Search and "Erfassen" move into the bottom bar on narrow screens; in selection mode the actions take their place.
+	$effect(() => useBottomBar(selecting ? selectionActions : barContent));
+
+	function startSelecting(id?: number) {
+		selecting = true;
+		notice = '';
+		if (id !== undefined && !selected.includes(id)) selected = [...selected, id];
+	}
+
+	function stopSelecting() {
+		selecting = false;
+		selected = [];
+		choosingPlace = false;
+		newPlace = null;
+	}
+
+	function toggle(id: number) {
+		selected = selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id];
+	}
+
+	// The notice disappears after a while by itself.
+	$effect(() => {
+		if (!notice) return;
+		const t = setTimeout(() => (notice = ''), 4000);
+		return () => clearTimeout(t);
+	});
+
+	async function apply(change: ItemsChange) {
+		if (selected.length === 0 || busy) return;
+		busy = true;
+		error = '';
+		try {
+			const count = await changeItems(selected, change);
+			stopSelecting();
+			notice = count === 1 ? '1 Item geändert' : `${count} Items geändert`;
+			await load(true);
+		} catch (e) {
+			error = errorText(e);
+		} finally {
+			busy = false;
+		}
+	}
+
+	// The selects apply right away: choose the disposition, done.
+	function applyDisposition(e: Event & { currentTarget: HTMLSelectElement }) {
+		const value = e.currentTarget.value;
+		e.currentTarget.value = '';
+		if (value) apply({ disposition: value === 'undecided' ? null : (value as ItemsChange['disposition']) });
+	}
+
+	function applyOwner(e: Event & { currentTarget: HTMLSelectElement }) {
+		const value = e.currentTarget.value;
+		e.currentTarget.value = '';
+		if (value) apply({ addOwnerId: Number(value) });
+	}
+
+	// Choosing a place in the picker applies it as well (only newPlace triggers this).
+	$effect(() => {
+		const p = newPlace;
+		if (p) untrack(() => apply(placementBody(p)));
+	});
 </script>
 
 {#snippet barContent()}
@@ -86,9 +169,37 @@
 	<a class="button add-button" href="/items/neu" aria-label="Item erfassen">+</a>
 {/snippet}
 
+<!-- Actions for the selected items: in the bottom bar on narrow screens, in the selection bar on wide ones. -->
+{#snippet selectionActions()}
+	<div class="selection-actions">
+		<select aria-label="Verbleib setzen" disabled={busy || selected.length === 0} onchange={applyDisposition}>
+			<option value="">Verbleib …</option>
+			{#each DISPOSITIONS as d (d.value)}
+				<option value={d.value}>{d.name}</option>
+			{/each}
+			<option value="undecided">Offen</option>
+		</select>
+		<select aria-label="Besitzer hinzufügen" disabled={busy || selected.length === 0} onchange={applyOwner}>
+			<option value="">Besitzer + …</option>
+			{#each persons as p (p.id)}
+				<option value={String(p.id)}>{p.name}</option>
+			{/each}
+		</select>
+		<button
+			class="secondary"
+			aria-expanded={choosingPlace}
+			disabled={busy || selected.length === 0}
+			onclick={() => (choosingPlace = !choosingPlace)}>Platz …</button
+		>
+	</div>
+{/snippet}
+
 <main class="page wide">
 	<header class="header with-menu">
 		<h1>Inventar</h1>
+		{#if !selecting}
+			<button class="secondary select-start" onclick={() => startSelecting()}>Auswählen</button>
+		{/if}
 	</header>
 
 	<div class="filter">
@@ -124,8 +235,29 @@
 	{#if error}
 		<p class="error" role="alert">{error}</p>
 	{/if}
+	{#if notice}
+		<p class="notice" role="status">{notice}</p>
+	{/if}
 
-	<ItemGrid {items} />
+	{#if selecting}
+		<div class="selection-bar">
+			<div class="selection-row">
+				<span class="selection-count">{selected.length} ausgewählt</span>
+				<button class="secondary small" onclick={() => (selected = [...new Set([...selected, ...items.map((i) => i.id)])])}>Alle</button>
+				<button class="secondary small" onclick={() => (selected = [])}>Keine</button>
+				<button class="small" onclick={stopSelecting}>Fertig</button>
+			</div>
+			<div class="selection-wide">{@render selectionActions()}</div>
+			{#if choosingPlace}
+				<div class="selection-place">
+					<PlacePicker bind:places bind:value={newPlace} title={selected.length === 1 ? 'Platz für 1 Item' : `Platz für ${selected.length} Items`} noneAllowed={false} create />
+					<button class="secondary" onclick={() => (choosingPlace = false)}>Abbrechen</button>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<ItemGrid {items} selected={selecting ? selected : null} ontoggle={toggle} onlongpress={(id) => (selecting ? toggle(id) : startSelecting(id))} />
 
 	{#if !loading && items.length === 0 && !error}
 		<p class="muted">Keine Items gefunden.</p>
@@ -134,5 +266,7 @@
 		<button class="secondary full-width" onclick={() => load(false)} disabled={loading}>Mehr laden</button>
 	{/if}
 
-	<a class="button floating on-wide" href="/items/neu">+ Erfassen</a>
+	{#if !selecting}
+		<a class="button floating on-wide" href="/items/neu">+ Erfassen</a>
+	{/if}
 </main>

@@ -163,3 +163,19 @@ label.chip:has(input:focus-visible) {
 		top: 24px;
 	}
 }
+
+/* ===== Multi-select on the start page: from 1024px the actions sit in the selection bar above the list. ===== */
+@media (min-width: 1024px) {
+	.selection-wide {
+		display: flex;
+	}
+
+	.selection-place {
+		position: static;
+		max-height: 50vh;
+		padding: 0;
+		background: none;
+		border: none;
+		box-shadow: none;
+	}
+}
