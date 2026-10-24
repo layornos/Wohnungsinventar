@@ -115,6 +115,8 @@ type Deps struct {
 	Now    func() time.Time
 	// Client holds the files of the built client; the embedded ones if not set.
 	Client fs.FS
+	// Suggester proposes names and descriptions from photos; nil turns the feature off (ADR-0006).
+	Suggester Suggester
 }
 
 type server struct {
@@ -146,6 +148,8 @@ func New(d Deps) http.Handler {
 	protected.HandleFunc("POST /api/logout", s.logout)
 	protected.HandleFunc("GET /api/me", s.me)
 	protected.HandleFunc("PUT /api/me/theme", s.setTheme)
+	protected.HandleFunc("GET /api/features", s.features)
+	protected.HandleFunc("POST /api/suggestions", s.suggest)
 	protected.HandleFunc("GET /api/persons", s.listPersons)
 	protected.HandleFunc("POST /api/persons", s.createPerson)
 	protected.HandleFunc("PUT /api/persons/{id}", s.renamePerson)
