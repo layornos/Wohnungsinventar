@@ -154,6 +154,7 @@ Code, comments, API paths, JSON fields, database tables and CLI commands are Eng
 | Besitzer | `Owner` |
 | Item | `Item` |
 | Foto / Hauptfoto | `Photo` / `MainPhoto` |
+| Vorschlag (Name und Beschreibung aus dem Foto, ADR-0006) | `Suggestion` |
 | Wohnung | `Apartment` |
 | Raum | `Room` |
 | Lagerort | `StorageLocation` |

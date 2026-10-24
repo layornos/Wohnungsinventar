@@ -14,6 +14,7 @@ import (
 	"inventar/internal/mail"
 	"inventar/internal/server"
 	"inventar/internal/store"
+	"inventar/internal/suggest"
 )
 
 func serve(ctx context.Context, c command) error {
@@ -28,14 +29,20 @@ func serve(ctx context.Context, c command) error {
 	}
 	defer st.Close()
 
+	deps := server.Deps{
+		Config: cfg,
+		Store:  st,
+		Mailer: mail.New(cfg, log),
+		Logger: log,
+	}
+	if cfg.WithSuggestions() {
+		claude := suggest.NewClaude(cfg.Anthropic.APIKey, cfg.Anthropic.Model)
+		deps.Suggester = claude
+		log.Info("suggestions from photos enabled, photos are sent to Anthropic (ADR-0006)", "model", claude.Model())
+	}
 	srv := &http.Server{
-		Addr: cfg.Addr,
-		Handler: server.New(server.Deps{
-			Config: cfg,
-			Store:  st,
-			Mailer: mail.New(cfg, log),
-			Logger: log,
-		}),
+		Addr:              cfg.Addr,
+		Handler:           server.New(deps),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 

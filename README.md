@@ -74,8 +74,10 @@ Das Skript baut mit `make build-pi`, lädt das Binary unter einem temporären Na
 | `INVENTAR_SMTP_USER` | Gmail-Adresse | – |
 | `INVENTAR_SMTP_PASSWORD` | Gmail-App-Passwort | – |
 | `INVENTAR_SMTP_FROM` | Absender | `INVENTAR_SMTP_USER` |
+| `INVENTAR_ANTHROPIC_API_KEY` | API-Schlüssel für die Claude API. Aktiviert Vorschläge für Name und Beschreibung aus dem ersten Foto beim Erfassen; das Foto wird dafür an Anthropic geschickt (ADR-0006). Ohne Schlüssel ist die Funktion aus. | – |
+| `INVENTAR_ANTHROPIC_MODEL` | Claude-Modell für die Vorschläge, nur zusammen mit dem Schlüssel | `claude-haiku-5-5` |
 
-Token und Passwörter gehören in die Umgebungsdatei auf dem Pi, nicht ins Repository. Unvollständige oder widersprüchliche Angaben, z. B. eine Domain ohne Token oder `INVENTAR_BEHIND_PROXY` zusammen mit DuckDNS, verhindern den Start mit einer klaren Fehlermeldung.
+Token, Passwörter und der API-Schlüssel gehören in die Umgebungsdatei auf dem Pi, nicht ins Repository. Unvollständige oder widersprüchliche Angaben, z. B. eine Domain ohne Token oder `INVENTAR_BEHIND_PROXY` zusammen mit DuckDNS, verhindern den Start mit einer klaren Fehlermeldung.
 
 Ohne Proxy kann der Server TLS auch selbst übernehmen: Mit DuckDNS holt er das Let's-Encrypt-Zertifikat per DNS-01 und erneuert es. Der Pi muss dafür von außen nicht erreichbar sein. Damit Port 443 ohne root nutzbar ist: `sudo setcap cap_net_bind_service=+ep inventar-linux-arm64`.
 

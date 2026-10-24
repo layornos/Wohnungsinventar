@@ -7,6 +7,7 @@
 	import OwnerPicker from '#lib/OwnerPicker.svelte';
 	import PhotoEditor from '#lib/PhotoEditor.svelte';
 	import PhotoInput from '#lib/PhotoInput.svelte';
+	import NameSuggestion from '#lib/NameSuggestion.svelte';
 	import { loadPlaces, lastPlace, rememberLastPlace } from '#lib/places.ts';
 	import { loadPersons } from '#lib/persons.ts';
 	import PlacePicker from '#lib/PlacePicker.svelte';
@@ -154,6 +155,7 @@
 				Beschreibung (optional)
 				<textarea bind:value={description} rows="2"></textarea>
 			</label>
+			<NameSuggestion photo={photos[0]?.file} bind:name bind:description />
 			<OwnerPicker {persons} bind:selected={owners} />
 			<PlacePicker bind:places bind:value={place} create />
 			<DispositionPicker bind:value={disposition} />

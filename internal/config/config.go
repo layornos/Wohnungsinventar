@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 const DefaultMaxPhotoSize = 20 << 20
@@ -19,6 +20,15 @@ type Config struct {
 	BehindProxy bool
 	DuckDNS     DuckDNS
 	SMTP        SMTP
+	Anthropic   Anthropic
+}
+
+// Anthropic enables name and description suggestions from photos with Claude (ADR-0006) when
+// the API key is set. The key must never be logged.
+type Anthropic struct {
+	APIKey string
+	// Model is the Claude model; empty means the default of the suggest package.
+	Model string
 }
 
 // DuckDNS enables HTTPS with a certificate via DNS-01 (ADR-0004) when domain and token are set.
@@ -39,6 +49,9 @@ type SMTP struct {
 func (c Config) WithTLS() bool  { return c.DuckDNS.Domain != "" }
 func (c Config) WithSMTP() bool { return c.SMTP.Host != "" }
 
+// WithSuggestions reports whether photos may be sent to Anthropic for suggestions.
+func (c Config) WithSuggestions() bool { return c.Anthropic.APIKey != "" }
+
 func Load(getenv func(string) string) (Config, error) {
 	c := Config{
 		DataDir: getenv("INVENTAR_DATA_DIR"),
@@ -52,6 +65,10 @@ func Load(getenv func(string) string) (Config, error) {
 			User:     getenv("INVENTAR_SMTP_USER"),
 			Password: getenv("INVENTAR_SMTP_PASSWORD"),
 			From:     getenv("INVENTAR_SMTP_FROM"),
+		},
+		Anthropic: Anthropic{
+			APIKey: strings.TrimSpace(getenv("INVENTAR_ANTHROPIC_API_KEY")),
+			Model:  strings.TrimSpace(getenv("INVENTAR_ANTHROPIC_MODEL")),
 		},
 	}
 	if c.DataDir == "" {
@@ -108,6 +125,9 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 	} else if c.SMTP.User != "" || c.SMTP.Password != "" || c.SMTP.From != "" || port != "" {
 		return Config{}, errors.New("SMTP settings are set, but INVENTAR_SMTP_HOST is missing")
+	}
+	if c.Anthropic.Model != "" && !c.WithSuggestions() {
+		return Config{}, errors.New("INVENTAR_ANTHROPIC_MODEL is set, but INVENTAR_ANTHROPIC_API_KEY is missing")
 	}
 	return c, nil
 }
