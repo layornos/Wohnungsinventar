@@ -131,8 +131,8 @@ body {
 .page {
 	max-width: 720px;
 	margin: 0 auto;
-	/* Room below the content, so the floating buttons never cover the last entry. */
-	padding: max(16px, env(safe-area-inset-top)) 16px 96px;
+	/* Room below the content for the bottom bar. */
+	padding: max(16px, env(safe-area-inset-top)) 16px calc(var(--bottom-bar-height) + 24px);
 }
 
 .page.narrow {
@@ -150,23 +150,51 @@ body {
 	justify-content: flex-start;
 }
 
-/* Side menu: floating ☰ button at the bottom left, opposite the floating "Erfassen" button. */
-button.menu-button {
+/* Bottom bar on narrow screens: ☰ button and page controls within thumb reach. It is a solid layer; the page
+   leaves room for it, so content never runs underneath (padding of .page). */
+:root {
+	--bottom-bar-height: calc(68px + env(safe-area-inset-bottom));
+}
+
+.bottom-bar {
 	position: fixed;
-	left: 16px;
-	bottom: max(16px, env(safe-area-inset-bottom));
+	left: 0;
+	right: 0;
+	bottom: 0;
 	z-index: 10;
-	width: 56px;
-	height: 56px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: var(--bottom-bar-height);
+	padding: 10px 16px max(10px, env(safe-area-inset-bottom));
+	box-sizing: border-box;
+	background: var(--surface-solid);
+	border-top: 1px solid var(--border);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
+}
+
+.bottom-bar > input {
+	flex: 1;
+	min-width: 0;
+	min-height: 48px;
+}
+
+.bottom-bar button.menu-button,
+.bottom-bar a.add-button {
+	flex-shrink: 0;
+	justify-content: center;
+	width: 48px;
+	min-height: 48px;
 	padding: 0;
 	font-size: 1.4em;
 	line-height: 1;
-	box-shadow: var(--shadow-floating);
 }
 
-/* Pages with a bar at the bottom: the button sits above it. */
-body:has(.action-bar) button.menu-button {
-	bottom: calc(max(16px, env(safe-area-inset-bottom)) + 80px);
+/* Controls that the bottom bar replaces on narrow screens; shown again from 1024px (desktop.css). */
+.on-wide,
+a.button.on-wide {
+	display: none;
 }
 
 /* Side menu: modal <dialog> at the left edge */
@@ -598,7 +626,7 @@ label.chip input {
 	grid-template-columns: minmax(0, 1fr);
 	list-style: none;
 	margin: 0;
-	padding: 0 0 80px;
+	padding: 0;
 }
 
 .item-grid li + li {
@@ -1022,7 +1050,8 @@ button.pack img {
 
 .action-bar {
 	position: sticky;
-	bottom: 0;
+	/* Directly above the bottom bar. */
+	bottom: var(--bottom-bar-height);
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -1310,12 +1339,12 @@ label.theme-card:has(input:checked) {
 }
 
 /* Pills for buttons; whatever is more of a field, list row or part of a photo keeps its shape. */
-[data-theme='soft'] :is(button, a.button):not(.menu-button, .menu-link, .menu-close, .select-button, .pack, .photo-choice, .photo-delete, .crop, .handle, .results button) {
+[data-theme='soft'] :is(button, a.button):not(.menu-button, .add-button, .menu-link, .menu-close, .select-button, .pack, .photo-choice, .photo-delete, .crop, .handle, .results button) {
 	border-radius: 999px;
 	font-weight: 700;
 }
 
-[data-theme='soft'] button.menu-button {
+[data-theme='soft'] .bottom-bar :is(button.menu-button, a.add-button) {
 	border-radius: 16px;
 }
 
@@ -1343,6 +1372,11 @@ label.theme-card:has(input:checked) {
 
 [data-theme='soft'] a.button.floating {
 	box-shadow: var(--shadow-floating);
+}
+
+[data-theme='soft'] .bottom-bar {
+	border-top-color: transparent;
+	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
 }
 
 [data-theme='soft'] dialog.side-menu {

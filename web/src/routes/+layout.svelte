@@ -3,7 +3,7 @@
 	import favicon from '#lib/assets/favicon.svg';
 	import { LOGIN, INVITATION, toLogin } from '#lib/api.ts';
 	import { updateThemeColor } from '#lib/theme.svelte.ts';
-	import MenuButton from '#lib/MenuButton.svelte';
+	import BottomBar from '#lib/BottomBar.svelte';
 	import SideMenu from '#lib/SideMenu.svelte';
 	import { loadSession, session } from '#lib/session.svelte.ts';
 	import '../app.css';
@@ -38,7 +38,7 @@
 {#if session.loaded && (session.user || isPublic(page.url.pathname))}
 	<!--
 		On wide screens the menu is a sidebar to the left of every page (desktop.css); on narrow screens it is a
-		dialog that the floating ☰ button at the bottom left opens.
+		dialog that the ☰ button in the bottom bar opens.
 	-->
 	<div class="frame">
 		{#if session.user && !isPublic(page.url.pathname)}
@@ -49,7 +49,7 @@
 		</div>
 	</div>
 	{#if session.user && !isPublic(page.url.pathname)}
-		<MenuButton />
+		<BottomBar />
 		<SideMenu kind="dialog" />
 	{/if}
 {/if}

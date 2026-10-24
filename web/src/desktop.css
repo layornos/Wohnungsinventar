@@ -87,9 +87,27 @@ label.chip:has(input:focus-visible) {
 		border-right: 1px solid var(--border);
 	}
 
-	/* The menu is always visible; the menu button and dialog are not needed. */
-	button.menu-button {
+	/* The menu is always visible; the bottom bar with its menu button is not needed. */
+	.bottom-bar {
 		display: none;
+	}
+
+	/* What the bottom bar held on narrow screens goes back into the page. */
+	input.on-wide {
+		display: block;
+	}
+
+	a.button.on-wide {
+		display: inline-flex;
+	}
+
+	.action-bar {
+		bottom: 0;
+	}
+
+	/* Room for the floating "Erfassen" button below the last row. */
+	.page.wide:has(> .floating) {
+		padding-bottom: 96px;
 	}
 
 	.page {

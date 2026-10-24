@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { api, boxName, errorText, DISPOSITIONS, type Box, type ItemPage, type ItemListEntry, type Person, type PlaceEntry } from '#lib/api.ts';
 	import ItemGrid from '#lib/ItemGrid.svelte';
+	import { useBottomBar } from '#lib/bottomBar.svelte.ts';
 	import { loadPlaces } from '#lib/places.ts';
 	import { loadMove } from '#lib/move.ts';
 	import { loadPersons } from '#lib/persons.ts';
@@ -75,7 +76,15 @@
 		const t = setTimeout(() => load(true), 250);
 		return () => clearTimeout(t);
 	});
+
+	// Search and "Erfassen" move into the bottom bar on narrow screens.
+	$effect(() => useBottomBar(barContent));
 </script>
+
+{#snippet barContent()}
+	<input type="search" placeholder="Suchen …" aria-label="Nach Name suchen" bind:value={search} />
+	<a class="button add-button" href="/items/neu" aria-label="Item erfassen">+</a>
+{/snippet}
 
 <main class="page wide">
 	<header class="header with-menu">
@@ -83,7 +92,8 @@
 	</header>
 
 	<div class="filter">
-		<input type="search" placeholder="Suchen …" aria-label="Nach Name suchen" bind:value={search} />
+		<!-- On narrow screens the search sits in the bottom bar instead (barContent). -->
+		<input class="on-wide" type="search" placeholder="Suchen …" aria-label="Nach Name suchen" bind:value={search} />
 		<select aria-label="Besitzer" bind:value={owner}>
 			<option value="">Alle Besitzer</option>
 			{#each persons as p (p.id)}
@@ -124,5 +134,5 @@
 		<button class="secondary full-width" onclick={() => load(false)} disabled={loading}>Mehr laden</button>
 	{/if}
 
-	<a class="button floating" href="/items/neu">+ Erfassen</a>
+	<a class="button floating on-wide" href="/items/neu">+ Erfassen</a>
 </main>
