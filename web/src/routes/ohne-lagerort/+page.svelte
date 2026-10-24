@@ -62,7 +62,7 @@
 				</a>
 				{#if aktiv === item.id}
 					<div class="breit">
-						<PlatzAuswahl {plaetze} bind:wert={platz} ohneErlaubt={false} />
+						<PlatzAuswahl bind:plaetze bind:wert={platz} ohneErlaubt={false} anlegen />
 						<div class="knopfzeile">
 							<button disabled={laeuft || !platz} onclick={() => einsortieren(item)}>Einsortieren</button>
 							<button class="sekundaer" onclick={() => (aktiv = null)}>Abbrechen</button>

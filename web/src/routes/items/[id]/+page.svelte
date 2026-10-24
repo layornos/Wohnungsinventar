@@ -224,7 +224,7 @@
 		<section>
 			<h2>Platz</h2>
 			{#if platzWaehlen}
-				<PlatzAuswahl {plaetze} bind:wert={platz} />
+				<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
 				<div class="knopfzeile">
 					<button disabled={laeuft} onclick={platzSpeichern}>Speichern</button>
 					<button class="sekundaer" onclick={() => (platzWaehlen = false)}>Abbrechen</button>
