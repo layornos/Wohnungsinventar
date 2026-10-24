@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { api, boxName, fehlerText, VERBLEIBE, zurAnmeldung, type Box, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
+	import { api, boxName, fehlerText, VERBLEIBE, type Box, type ItemListenEintrag, type Person, type PlatzEintrag } from '#lib/api.ts';
 	import ItemRaster from '#lib/ItemRaster.svelte';
 	import Seitenmenue from '#lib/Seitenmenue.svelte';
 	import { ladePlaetze } from '#lib/plaetze.ts';
 	import { ladeUmzug } from '#lib/umzug.ts';
 	import { ladePersonen } from '#lib/personen.ts';
-	import { abmelden } from '#lib/sitzung.svelte.ts';
 	import type { Snapshot } from './$types';
 
 	let suche = $state('');
@@ -76,23 +75,11 @@
 		const t = setTimeout(() => laden(true), 250);
 		return () => clearTimeout(t);
 	});
-
-	async function abmeldenUndWeiter() {
-		fehler = '';
-		try {
-			await abmelden();
-		} catch {
-			// Ohne Antwort des Servers bleibt die Sitzung dort bestehen; nicht so tun, als wäre man abgemeldet.
-			fehler = 'Abmelden nicht möglich. Ist der Server erreichbar?';
-			return;
-		}
-		await zurAnmeldung();
-	}
 </script>
 
-<main class="seite">
+<main class="seite weit">
 	<header class="kopf mit-menue">
-		<Seitenmenue abmelden={abmeldenUndWeiter} />
+		<Seitenmenue />
 		<h1>Inventar</h1>
 	</header>
 

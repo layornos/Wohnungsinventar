@@ -97,7 +97,7 @@
 	}
 </script>
 
-<main class="seite">
+<main class="seite weit">
 	<header class="kopf">
 		<a class="knopf sekundaer" href={box ? '/umzug/packen?box=' + box : '/'}>{box ? '← Packen' : '← Liste'}</a>
 		<h1>Erfassen</h1>
@@ -110,38 +110,42 @@
 		</p>
 	{/if}
 
-	<form onsubmit={speichern}>
-		{#if fotos.length > 0}
-			<ul class="fotoleiste">
-				{#each fotos as f, i (f.vorschau)}
-					<li>
-						<img src={f.vorschau} alt="Foto {i + 1}" />
-						<button type="button" class="sekundaer klein" onclick={() => entfernen(i)} aria-label="Foto {i + 1} entfernen">×</button>
-						<button type="button" class="sekundaer klein foto-bearbeiten-knopf" onclick={() => (bearbeitet = i)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-		<FotoEingabe gewaehlt={hinzufuegen} />
-		{#if bearbeitet !== null}
-			<FotoBearbeiten quelle={fotos[bearbeitet].datei} fertig={bearbeitungFertig} />
-		{/if}
+	<form class="zweispaltig" onsubmit={speichern}>
+		<div class="fotospalte">
+			{#if fotos.length > 0}
+				<ul class="fotoleiste">
+					{#each fotos as f, i (f.vorschau)}
+						<li>
+							<img src={f.vorschau} alt="Foto {i + 1}" />
+							<button type="button" class="sekundaer klein" onclick={() => entfernen(i)} aria-label="Foto {i + 1} entfernen">×</button>
+							<button type="button" class="sekundaer klein foto-bearbeiten-knopf" onclick={() => (bearbeitet = i)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+			<FotoEingabe gewaehlt={hinzufuegen} />
+			{#if bearbeitet !== null}
+				<FotoBearbeiten quelle={fotos[bearbeitet].datei} fertig={bearbeitungFertig} />
+			{/if}
+		</div>
 
-		<label>
-			Name
-			<input bind:value={name} required autocomplete="off" />
-		</label>
-		<label>
-			Beschreibung (optional)
-			<textarea bind:value={beschreibung} rows="2"></textarea>
-		</label>
-		<BesitzerAuswahl {personen} bind:ausgewaehlt={besitzer} />
-		<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
-		<VerbleibAuswahl bind:wert={verbleib} />
+		<div class="angabenspalte">
+			<label>
+				Name
+				<input bind:value={name} required autocomplete="off" />
+			</label>
+			<label>
+				Beschreibung (optional)
+				<textarea bind:value={beschreibung} rows="2"></textarea>
+			</label>
+			<BesitzerAuswahl {personen} bind:ausgewaehlt={besitzer} />
+			<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
+			<VerbleibAuswahl bind:wert={verbleib} />
 
-		{#if fehler}
-			<p class="fehler" role="alert">{fehler}</p>
-		{/if}
-		<button type="submit" disabled={laeuft}>{laeuft ? 'Speichern …' : 'Speichern'}</button>
+			{#if fehler}
+				<p class="fehler" role="alert">{fehler}</p>
+			{/if}
+			<button type="submit" disabled={laeuft}>{laeuft ? 'Speichern …' : 'Speichern'}</button>
+		</div>
 	</form>
 </main>
