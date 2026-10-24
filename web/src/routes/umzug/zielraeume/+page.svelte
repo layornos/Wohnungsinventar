@@ -1,39 +1,41 @@
 <script lang="ts">
-	import { api, boxName, fehlerText, type Benannt, type Box, type ItemListenEintrag } from '#lib/api.ts';
-	import Packliste from '#lib/Packliste.svelte';
+	import { api, boxName, errorText, type Named, type Box, type ItemListEntry } from '#lib/api.ts';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import PackingList from '#lib/PackingList.svelte';
 
-	type Zielraum = { raum: Benannt; boxen: Box[]; items: ItemListenEintrag[] };
+	type TargetRoom = { room: Named; boxes: Box[]; items: ItemListEntry[] };
 
-	let zielraeume = $state<Zielraum[]>([]);
-	let fehler = $state('');
+	let targetRooms = $state<TargetRoom[]>([]);
+	let error = $state('');
 
-	api<{ zielraeume: Zielraum[] }>('GET', '/api/umzug/zielraeume')
-		.then((r) => (zielraeume = r.zielraeume))
-		.catch((e) => (fehler = fehlerText(e)));
+	api<{ targetRooms: TargetRoom[] }>('GET', '/api/move/target-rooms')
+		.then((r) => (targetRooms = r.targetRooms))
+		.catch((e) => (error = errorText(e)));
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/umzug">← Umzug</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/umzug">← Umzug</a>
 		<h1>Nach Zielraum</h1>
 	</header>
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
-	{#each zielraeume as z (z.raum.id)}
+	{#each targetRooms as t (t.room.id)}
 		<section>
-			<h2>{z.raum.name}</h2>
-			{#if z.boxen.length > 0}
-				<p class="knopfzeile">
-					{#each z.boxen as b (b.id)}<a class="marke" href="/boxen/{b.id}">{boxName(b)}</a>{/each}
+			<h2>{t.room.name}</h2>
+			{#if t.boxes.length > 0}
+				<p class="button-row">
+					{#each t.boxes as b (b.id)}<a class="badge" href="/boxen/{b.id}">{boxName(b)}</a>{/each}
 				</p>
 			{/if}
 			<details>
-				<summary>{z.items.length} Items</summary>
-				<Packliste items={z.items} />
+				<summary>{t.items.length} Items</summary>
+				<PackingList items={t.items} />
 			</details>
 		</section>
 	{:else}
-		<p class="leise">Die neue Wohnung hat noch keine Räume.</p>
+		<p class="muted">Die neue Wohnung hat noch keine Räume.</p>
 	{/each}
 </main>

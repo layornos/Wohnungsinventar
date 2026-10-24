@@ -6,18 +6,18 @@ export default defineConfig({
 	plugins: [
 		sveltekit({
 			compilerOptions: {
-				// Runes-Modus für eigenen Code erzwingen, Bibliotheken ausgenommen (entfällt mit Svelte 6).
+				// Force runes mode for our own code, libraries excluded (no longer needed with Svelte 6).
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
 
-			// Statischer Build als Single-Page-App; der Go-Server liefert ihn eingebettet aus
-			// und beantwortet unbekannte Pfade mit index.html.
+			// Static build as a single-page app; the Go server serves it embedded
+			// and answers unknown paths with index.html.
 			adapter: adapter({ fallback: 'index.html' })
 		})
 	],
 	server: {
-		// In der Entwicklung läuft der Go-Server auf localhost:8080.
+		// In development the Go server runs on localhost:8080.
 		proxy: { '/api': 'http://localhost:8080' }
 	}
 });

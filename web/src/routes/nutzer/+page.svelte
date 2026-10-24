@@ -1,145 +1,147 @@
 <script lang="ts">
-	import { api, ApiError, datumText, fehlerText, type Einladung, type Nutzer, type Person } from '#lib/api.ts';
-	import { ladePersonen } from '#lib/personen.ts';
+	import { api, ApiError, formatDateTime, errorText, type Invitation, type User, type Person } from '#lib/api.ts';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import { loadPersons } from '#lib/persons.ts';
 
-	let nutzer = $state<Nutzer[]>([]);
-	let einladungen = $state<Einladung[]>([]);
-	let personen = $state<Person[]>([]);
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let users = $state<User[]>([]);
+	let invitations = $state<Invitation[]>([]);
+	let persons = $state<Person[]>([]);
+	let error = $state('');
+	let busy = $state(false);
 
-	// "" heißt: neue Person, sonst die ID einer bestehenden Person ohne Nutzerzugang.
-	let personWahl = $state('');
+	// "" means: new person, otherwise the ID of an existing person without user access.
+	let personChoice = $state('');
 	let name = $state('');
 	let link = $state<{ name: string; url: string } | null>(null);
-	let kopiert = $state(false);
+	let copied = $state(false);
 
-	const ohneZugang = $derived(personen.filter((p) => !p.nutzer));
-	const kannTeilen = typeof navigator !== 'undefined' && 'share' in navigator;
+	const withoutAccess = $derived(persons.filter((p) => !p.isUser));
+	const canShare = typeof navigator !== 'undefined' && 'share' in navigator;
 
-	async function neuLaden() {
+	async function reload() {
 		try {
-			const [n, e, p] = await Promise.all([
-				api<{ nutzer: Nutzer[] }>('GET', '/api/nutzer'),
-				api<{ einladungen: Einladung[] }>('GET', '/api/einladungen'),
-				ladePersonen()
+			const [u, i, p] = await Promise.all([
+				api<{ users: User[] }>('GET', '/api/users'),
+				api<{ invitations: Invitation[] }>('GET', '/api/invitations'),
+				loadPersons()
 			]);
-			nutzer = n.nutzer;
-			einladungen = e.einladungen;
-			personen = p;
+			users = u.users;
+			invitations = i.invitations;
+			persons = p;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
-	neuLaden();
+	reload();
 
-	async function einladen(event: SubmitEvent) {
+	async function invite(event: SubmitEvent) {
 		event.preventDefault();
-		fehler = '';
-		laeuft = true;
+		error = '';
+		busy = true;
 		try {
-			const body = personWahl ? { personId: Number(personWahl) } : { name };
-			const e = await api<Einladung & { link: string }>('POST', '/api/einladungen', body);
-			link = { name: e.name, url: e.link };
-			kopiert = false;
-			personWahl = '';
+			const body = personChoice ? { personId: Number(personChoice) } : { name };
+			const i = await api<Invitation & { link: string }>('POST', '/api/invitations', body);
+			link = { name: i.name, url: i.link };
+			copied = false;
+			personChoice = '';
 			name = '';
-			await neuLaden();
+			await reload();
 		} catch (e) {
-			fehler =
-				e instanceof ApiError && e.code === 'bereits_nutzer'
+			error =
+				e instanceof ApiError && e.code === 'already_user'
 					? 'Diese Person hat schon einen Nutzerzugang.'
-					: fehlerText(e);
+					: errorText(e);
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	async function kopieren() {
+	async function copy() {
 		if (!link) return;
 		try {
 			await navigator.clipboard.writeText(link.url);
-			kopiert = true;
+			copied = true;
 		} catch {
-			fehler = 'Kopieren nicht möglich. Bitte den Link markieren und selbst kopieren.';
+			error = 'Kopieren nicht möglich. Bitte den Link markieren und selbst kopieren.';
 		}
 	}
 
-	async function teilen() {
+	async function share() {
 		if (!link) return;
 		try {
 			await navigator.share({ title: 'Einladung zum Inventar', text: `Einladung für ${link.name}`, url: link.url });
 		} catch {
-			// Abbrechen im Teilen-Menü ist kein Fehler.
+			// Cancelling the share sheet is not an error.
 		}
 	}
 
-	async function zurueckziehen(e: Einladung) {
-		if (!confirm(`Einladung für ${e.name} zurückziehen? Der Link funktioniert dann nicht mehr.`)) return;
-		fehler = '';
-		laeuft = true;
+	async function revoke(i: Invitation) {
+		if (!confirm(`Einladung für ${i.name} zurückziehen? Der Link funktioniert dann nicht mehr.`)) return;
+		error = '';
+		busy = true;
 		try {
-			await api('DELETE', `/api/einladungen/${e.id}`);
-			await neuLaden();
-		} catch (err) {
-			fehler = fehlerText(err);
+			await api('DELETE', `/api/invitations/${i.id}`);
+			await reload();
+		} catch (e) {
+			error = errorText(e);
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/">← Liste</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/">← Liste</a>
 		<h1>Nutzer</h1>
 	</header>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	<ul class="zeilen">
-		{#each nutzer as n (n.personId)}
+	<ul class="rows">
+		{#each users as u (u.personId)}
 			<li>
-				<span>{n.name}</span>
-				<span class="leise">{n.email}</span>
+				<span>{u.name}</span>
+				<span class="muted">{u.email}</span>
 			</li>
 		{/each}
 	</ul>
 
 	<section>
 		<h2>Einladen</h2>
-		<p class="leise">
+		<p class="muted">
 			Du bekommst einen Link, den du selbst weiterschickst. Er funktioniert einmal und läuft nach 7 Tagen ab.
 		</p>
-		<form onsubmit={einladen}>
+		<form onsubmit={invite}>
 			<label>
 				Person
-				<select bind:value={personWahl}>
+				<select bind:value={personChoice}>
 					<option value="">Neue Person</option>
-					{#each ohneZugang as p (p.id)}
+					{#each withoutAccess as p (p.id)}
 						<option value={String(p.id)}>{p.name}</option>
 					{/each}
 				</select>
 			</label>
-			{#if !personWahl}
+			{#if !personChoice}
 				<label>
 					Name
 					<input placeholder="z. B. Kim" bind:value={name} required />
 				</label>
 			{/if}
-			<button type="submit" disabled={laeuft}>Einladung erstellen</button>
+			<button type="submit" disabled={busy}>Einladung erstellen</button>
 		</form>
 
 		{#if link}
-			<div class="hinweis">
+			<div class="notice">
 				<p>Einladungslink für {link.name}. Er wird nur jetzt angezeigt.</p>
 				<input readonly aria-label="Einladungslink" value={link.url} onfocus={(e) => e.currentTarget.select()} />
-				<div class="knopfzeile">
-					<button type="button" onclick={kopieren}>{kopiert ? 'Kopiert' : 'Kopieren'}</button>
-					{#if kannTeilen}
-						<button type="button" class="sekundaer" onclick={teilen}>Teilen …</button>
+				<div class="button-row">
+					<button type="button" onclick={copy}>{copied ? 'Kopiert' : 'Kopieren'}</button>
+					{#if canShare}
+						<button type="button" class="secondary" onclick={share}>Teilen …</button>
 					{/if}
 				</div>
 			</div>
@@ -148,17 +150,17 @@
 
 	<section>
 		<h2>Offene Einladungen</h2>
-		{#if einladungen.length === 0}
-			<p class="leise">Keine offenen Einladungen.</p>
+		{#if invitations.length === 0}
+			<p class="muted">Keine offenen Einladungen.</p>
 		{:else}
-			<ul class="zeilen">
-				{#each einladungen as e (e.id)}
+			<ul class="rows">
+				{#each invitations as i (i.id)}
 					<li>
 						<span>
-							{e.name}
-							<span class="leise">· von {e.ersteller} · läuft ab {datumText(e.laeuftAbAm)}</span>
+							{i.name}
+							<span class="muted">· von {i.createdBy} · läuft ab {formatDateTime(i.expiresAt)}</span>
 						</span>
-						<button class="sekundaer klein" disabled={laeuft} onclick={() => zurueckziehen(e)}>Zurückziehen</button>
+						<button class="secondary small" disabled={busy} onclick={() => revoke(i)}>Zurückziehen</button>
 					</li>
 				{/each}
 			</ul>

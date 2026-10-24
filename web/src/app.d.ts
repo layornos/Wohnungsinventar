@@ -1,4 +1,4 @@
-// Globale Typen von SvelteKit; bisher werden keine App-Typen erweitert.
+// Global SvelteKit types; no app types are extended so far.
 declare global {
 	namespace App {}
 }

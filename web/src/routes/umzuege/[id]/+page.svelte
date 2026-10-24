@@ -1,34 +1,36 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { api, boxName, datumKurz, fehlerText, type Umzug } from '#lib/api.ts';
+	import { api, boxName, formatDate, errorText, type Move } from '#lib/api.ts';
+	import MenuButton from '#lib/MenuButton.svelte';
 
-	let umzug = $state<Umzug | null>(null);
-	let fehler = $state('');
+	let move = $state<Move | null>(null);
+	let error = $state('');
 
 	$effect(() => {
-		api<Umzug>('GET', `/api/umzuege/${page.params.id}`)
-			.then((u) => (umzug = u))
-			.catch((e) => (fehler = fehlerText(e)));
+		api<Move>('GET', `/api/moves/${page.params.id}`)
+			.then((m) => (move = m))
+			.catch((e) => (error = errorText(e)));
 	});
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/umzug">← Umzug</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/umzug">← Umzug</a>
 	</header>
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
-	{#if umzug}
-		<h1>{umzug.alteWohnung.name} → {umzug.neueWohnung.name}</h1>
-		<p class="leise">
-			Angelegt am {datumKurz(umzug.erstelltAm)}{#if umzug.abgeschlossenAm}, abgeschlossen am {datumKurz(umzug.abgeschlossenAm)}{/if}
+	{#if move}
+		<h1>{move.oldApartment.name} → {move.newApartment.name}</h1>
+		<p class="muted">
+			Angelegt am {formatDate(move.createdAt)}{#if move.completedAt}, abgeschlossen am {formatDate(move.completedAt)}{/if}
 		</p>
-		<ul class="zeilen">
-			{#each umzug.boxen as b (b.id)}
-				<li><a href="/boxen/{b.id}">{boxName(b)}</a> <span class="leise">{b.anzahl} Items</span></li>
+		<ul class="rows">
+			{#each move.boxes as b (b.id)}
+				<li><a href="/boxen/{b.id}">{boxName(b)}</a> <span class="muted">{b.count} Items</span></li>
 			{:else}
-				<li class="leise">Keine Boxen.</li>
+				<li class="muted">Keine Boxen.</li>
 			{/each}
 		</ul>
 	{/if}

@@ -1,160 +1,162 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { api, boxName, fehlerText, type Benannt, type ItemListenEintrag, type Umzug } from '#lib/api.ts';
-	import { ladeUmzug, ladeUmzugsraeume, type AngabenAenderung } from '#lib/umzug.ts';
+	import { api, boxName, errorText, type Named, type ItemListEntry, type ItemPage, type Move } from '#lib/api.ts';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import { loadMove, loadMoveRooms, type MoveDetailsChange } from '#lib/move.ts';
 
-	let umzug = $state<Umzug | null>(null);
-	let alteRaeume = $state<Benannt[]>([]);
-	let neueRaeume = $state<Benannt[]>([]);
+	let move = $state<Move | null>(null);
+	let oldRooms = $state<Named[]>([]);
+	let newRooms = $state<Named[]>([]);
 	let box = $state(page.url.searchParams.get('box') ?? '');
-	let herkunft = $state('');
-	let suche = $state('');
-	let items = $state<ItemListenEintrag[]>([]);
-	let weitere = $state(false);
-	let auswahl = $state<number[]>([]);
-	let zielraum = $state('');
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let origin = $state('');
+	let search = $state('');
+	let items = $state<ItemListEntry[]>([]);
+	let more = $state(false);
+	let selection = $state<number[]>([]);
+	let targetRoom = $state('');
+	let error = $state('');
+	let busy = $state(false);
 
-	const aktiveBox = $derived(umzug?.boxen.find((b) => String(b.id) === box));
+	const activeBox = $derived(move?.boxes.find((b) => String(b.id) === box));
 
-	async function umzugLaden() {
+	async function reloadMove() {
 		try {
-			umzug = await ladeUmzug();
-			if (umzug) ({ alt: alteRaeume, neu: neueRaeume } = await ladeUmzugsraeume(umzug));
+			move = await loadMove();
+			if (move) ({ old: oldRooms, new: newRooms } = await loadMoveRooms(move));
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
-	umzugLaden();
+	reloadMove();
 
-	async function itemsLaden() {
-		const p = new URLSearchParams({ proSeite: '100' });
-		if (herkunft) p.set('herkunftsraum', herkunft);
-		if (suche.trim()) p.set('q', suche.trim());
+	async function loadItems() {
+		const p = new URLSearchParams({ perPage: '100' });
+		if (origin) p.set('originRoom', origin);
+		if (search.trim()) p.set('q', search.trim());
 		try {
-			({ items, weitere } = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', '/api/items?' + p));
+			({ items, more } = await api<ItemPage>('GET', '/api/items?' + p));
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 
 	$effect(() => {
-		void [herkunft, suche];
-		const t = setTimeout(itemsLaden, 250);
+		void [origin, search];
+		const t = setTimeout(loadItems, 250);
 		return () => clearTimeout(t);
 	});
 
-	async function ausfuehren(aktion: () => Promise<unknown>) {
-		fehler = '';
-		laeuft = true;
+	async function run(action: () => Promise<unknown>) {
+		error = '';
+		busy = true;
 		try {
-			await aktion();
-			await Promise.all([itemsLaden(), umzugLaden()]);
+			await action();
+			await Promise.all([loadItems(), reloadMove()]);
 			return true;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 			return false;
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	function einpacken(item: ItemListenEintrag) {
-		if (!aktiveBox) {
-			fehler = 'Bitte zuerst oben eine Box wählen.';
+	function pack(item: ItemListEntry) {
+		if (!activeBox) {
+			error = 'Bitte zuerst oben eine Box wählen.';
 			return;
 		}
-		const raus = item.umzug?.box?.id === aktiveBox.id;
-		const aenderung: AngabenAenderung = { boxId: raus ? null : aktiveBox.id };
-		ausfuehren(() => api('PATCH', `/api/items/${item.id}/umzug`, aenderung));
+		const out = item.move?.box?.id === activeBox.id;
+		const change: MoveDetailsChange = { boxId: out ? null : activeBox.id };
+		run(() => api('PATCH', `/api/items/${item.id}/move`, change));
 	}
 
-	function umschalten(id: number) {
-		auswahl = auswahl.includes(id) ? auswahl.filter((a) => a !== id) : [...auswahl, id];
+	function toggle(id: number) {
+		selection = selection.includes(id) ? selection.filter((s) => s !== id) : [...selection, id];
 	}
 
-	async function sammeln(aenderung: AngabenAenderung) {
-		if (await ausfuehren(() => api('POST', '/api/umzug/sammeln', { itemIds: auswahl, ...aenderung }))) auswahl = [];
+	async function bulk(change: MoveDetailsChange) {
+		if (await run(() => api('POST', '/api/move/bulk', { itemIds: selection, ...change }))) selection = [];
 	}
 
-	async function neueBoxAnlegen() {
-		await ausfuehren(async () => {
-			const b = await api<{ id: number }>('POST', '/api/umzug/boxen', { bezeichnung: '' });
+	async function createBox() {
+		await run(async () => {
+			const b = await api<{ id: number }>('POST', '/api/move/boxes', { label: '' });
 			box = String(b.id);
 		});
 	}
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/umzug">← Umzug</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/umzug">← Umzug</a>
 		<h1>Packen</h1>
 	</header>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	{#if umzug}
-		<div class="packkopf">
+	{#if move}
+		<div class="pack-header">
 			<label>
 				Aktive Box
 				<select bind:value={box}>
 					<option value="">Keine</option>
-					{#each umzug.boxen as b (b.id)}<option value={String(b.id)}>{boxName(b)} ({b.anzahl})</option>{/each}
+					{#each move.boxes as b (b.id)}<option value={String(b.id)}>{boxName(b)} ({b.count})</option>{/each}
 				</select>
 			</label>
-			<button class="sekundaer" disabled={laeuft} onclick={neueBoxAnlegen}>Neue Box</button>
-			{#if aktiveBox}
-				<a class="knopf" href="/items/neu?box={aktiveBox.id}">+ Neu in {boxName(aktiveBox)}</a>
+			<button class="secondary" disabled={busy} onclick={createBox}>Neue Box</button>
+			{#if activeBox}
+				<a class="button" href="/items/neu?box={activeBox.id}">+ Neu in {boxName(activeBox)}</a>
 			{/if}
 		</div>
 
 		<div class="filter">
-			<select aria-label="Herkunftsraum" bind:value={herkunft}>
+			<select aria-label="Herkunftsraum" bind:value={origin}>
 				<option value="">Alle Räume</option>
-				{#each alteRaeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+				{#each oldRooms as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 			</select>
-			<input type="search" placeholder="Suchen …" aria-label="Suchen" bind:value={suche} />
+			<input type="search" placeholder="Suchen …" aria-label="Suchen" bind:value={search} />
 		</div>
 
-		<p class="leise">Antippen packt ein Item in die aktive Box oder nimmt es wieder heraus.</p>
+		<p class="muted">Antippen packt ein Item in die aktive Box oder nimmt es wieder heraus.</p>
 
-		<ul class="zeilen">
+		<ul class="rows">
 			{#each items as item (item.id)}
 				<li>
-					<input type="checkbox" class="gross" aria-label="{item.name} auswählen" checked={auswahl.includes(item.id)} onchange={() => umschalten(item.id)} />
-					<button class="packen" class:drin={!!aktiveBox && item.umzug?.box?.id === aktiveBox.id} disabled={laeuft} onclick={() => einpacken(item)}>
-						<img src={item.vorschauUrl} alt="" loading="lazy" />
+					<input type="checkbox" class="large" aria-label="{item.name} auswählen" checked={selection.includes(item.id)} onchange={() => toggle(item.id)} />
+					<button class="pack" class:packed={!!activeBox && item.move?.box?.id === activeBox.id} disabled={busy} onclick={() => pack(item)}>
+						<img src={item.thumbnailUrl} alt="" loading="lazy" />
 						<span>
 							{item.name}
-							<span class="leise klein-text">
-								{item.umzug?.box ? boxName(item.umzug.box) : 'in keiner Box'} · {item.umzug?.zielraum?.name ?? 'kein Zielraum'}
+							<span class="muted small-text">
+								{item.move?.box ? boxName(item.move.box) : 'in keiner Box'} · {item.move?.targetRoom?.name ?? 'kein Zielraum'}
 							</span>
 						</span>
 					</button>
 				</li>
 			{:else}
-				<li class="leise">Keine Items.</li>
+				<li class="muted">Keine Items.</li>
 			{/each}
 		</ul>
-		{#if weitere}<p class="leise">Es gibt weitere Items; grenze mit Raum oder Suche ein.</p>{/if}
+		{#if more}<p class="muted">Es gibt weitere Items; grenze mit Raum oder Suche ein.</p>{/if}
 
-		{#if auswahl.length > 0}
-			<div class="leiste">
-				<span>{auswahl.length} ausgewählt</span>
-				<select aria-label="Zielraum" bind:value={zielraum}>
+		{#if selection.length > 0}
+			<div class="action-bar">
+				<span>{selection.length} ausgewählt</span>
+				<select aria-label="Zielraum" bind:value={targetRoom}>
 					<option value="">Zielraum …</option>
-					{#each neueRaeume as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
+					{#each newRooms as r (r.id)}<option value={String(r.id)}>{r.name}</option>{/each}
 				</select>
-				<button disabled={laeuft || !zielraum} onclick={() => sammeln({ zielraumId: Number(zielraum) })}>Zielraum setzen</button>
-				{#if aktiveBox}
-					<button class="sekundaer" disabled={laeuft} onclick={() => sammeln({ boxId: aktiveBox.id })}>In {boxName(aktiveBox)}</button>
+				<button disabled={busy || !targetRoom} onclick={() => bulk({ targetRoomId: Number(targetRoom) })}>Zielraum setzen</button>
+				{#if activeBox}
+					<button class="secondary" disabled={busy} onclick={() => bulk({ boxId: activeBox.id })}>In {boxName(activeBox)}</button>
 				{/if}
 			</div>
 		{/if}
 	{:else}
-		<p class="leise">Es läuft kein Umzug. <a href="/umzug">Umzug anlegen</a></p>
+		<p class="muted">Es läuft kein Umzug. <a href="/umzug">Umzug anlegen</a></p>
 	{/if}
 </main>

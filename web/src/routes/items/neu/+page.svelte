@@ -1,151 +1,153 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { api, fehlerText, type Item, type Person, type Platz, type PlatzEintrag, type Verbleib } from '#lib/api.ts';
-	import BesitzerAuswahl from '#lib/BesitzerAuswahl.svelte';
-	import FotoBearbeiten from '#lib/FotoBearbeiten.svelte';
-	import FotoEingabe from '#lib/FotoEingabe.svelte';
-	import { ladePlaetze, letzterPlatz, letztenPlatzMerken } from '#lib/plaetze.ts';
-	import { ladePersonen } from '#lib/personen.ts';
-	import PlatzAuswahl from '#lib/PlatzAuswahl.svelte';
-	import { sitzung } from '#lib/sitzung.svelte.ts';
-	import VerbleibAuswahl from '#lib/VerbleibAuswahl.svelte';
+	import { api, errorText, type Item, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
+	import DispositionPicker from '#lib/DispositionPicker.svelte';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import OwnerPicker from '#lib/OwnerPicker.svelte';
+	import PhotoEditor from '#lib/PhotoEditor.svelte';
+	import PhotoInput from '#lib/PhotoInput.svelte';
+	import { loadPlaces, lastPlace, rememberLastPlace } from '#lib/places.ts';
+	import { loadPersons } from '#lib/persons.ts';
+	import PlacePicker from '#lib/PlacePicker.svelte';
+	import { session } from '#lib/session.svelte.ts';
 
-	type Gewaehlt = { datei: File; vorschau: string };
+	type Chosen = { file: File; preview: string };
 
-	let personen = $state<Person[]>([]);
-	let fotos = $state<Gewaehlt[]>([]);
+	let persons = $state<Person[]>([]);
+	let photos = $state<Chosen[]>([]);
 	let name = $state('');
-	let beschreibung = $state('');
-	let besitzer = $state<number[]>(sitzung.nutzer ? [sitzung.nutzer.personId] : []);
-	let verbleib = $state<Verbleib | null>(null);
-	let fehler = $state('');
-	let laeuft = $state(false);
-	let gespeichert = $state<Item | null>(null);
-	// Aus dem Pack-Modus kommen neue Items direkt in die aktive Box.
+	let description = $state('');
+	let owners = $state<number[]>(session.user ? [session.user.personId] : []);
+	let disposition = $state<Disposition | null>(null);
+	let error = $state('');
+	let busy = $state(false);
+	let saved = $state<Item | null>(null);
+	// From the packing mode new items go straight into the active box.
 	const box = page.url.searchParams.get('box');
-	let plaetze = $state<PlatzEintrag[]>([]);
-	let platz = $state<Platz | null>(null);
+	let places = $state<PlaceEntry[]>([]);
+	let place = $state<Place | null>(null);
 
-	ladePersonen()
-		.then((p) => (personen = p))
-		.catch((e) => (fehler = fehlerText(e)));
+	loadPersons()
+		.then((p) => (persons = p))
+		.catch((e) => (error = errorText(e)));
 
-	// Der zuletzt gewählte Platz ist vorausgewählt, damit sich ein Regal schnell durcharbeiten lässt.
-	ladePlaetze()
+	// The last chosen place is preselected so a shelf can be worked through quickly.
+	loadPlaces()
 		.then((p) => {
-			plaetze = p;
-			const letzter = letzterPlatz();
-			platz = p.some((e) => e.art === letzter?.art && e.id === letzter?.id) ? letzter : null;
+			places = p;
+			const last = lastPlace();
+			place = p.some((e) => e.kind === last?.kind && e.id === last?.id) ? last : null;
 		})
-		.catch((e) => (fehler = fehlerText(e)));
+		.catch((e) => (error = errorText(e)));
 
-	function hinzufuegen(dateien: File[]) {
-		fotos = [...fotos, ...dateien.map((datei) => ({ datei, vorschau: URL.createObjectURL(datei) }))];
+	function add(files: File[]) {
+		photos = [...photos, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))];
 	}
 
-	// Index des Fotos, das gerade gedreht oder zugeschnitten wird.
-	let bearbeitet = $state<number | null>(null);
+	// Index of the photo currently being rotated or cropped.
+	let editing = $state<number | null>(null);
 
-	function bearbeitungFertig(datei: File | null) {
-		const i = bearbeitet;
-		bearbeitet = null;
-		if (i === null || !datei) return;
-		URL.revokeObjectURL(fotos[i].vorschau);
-		fotos[i] = { datei, vorschau: URL.createObjectURL(datei) };
+	function editDone(file: File | null) {
+		const i = editing;
+		editing = null;
+		if (i === null || !file) return;
+		URL.revokeObjectURL(photos[i].preview);
+		photos[i] = { file, preview: URL.createObjectURL(file) };
 	}
 
-	function entfernen(i: number) {
-		URL.revokeObjectURL(fotos[i].vorschau);
-		fotos = fotos.filter((_, j) => j !== i);
+	function remove(i: number) {
+		URL.revokeObjectURL(photos[i].preview);
+		photos = photos.filter((_, j) => j !== i);
 	}
 
-	async function speichern(event: SubmitEvent) {
+	async function save(event: SubmitEvent) {
 		event.preventDefault();
-		fehler = '';
-		if (fotos.length === 0) {
-			fehler = 'Bitte mindestens ein Foto aufnehmen.';
+		error = '';
+		if (photos.length === 0) {
+			error = 'Bitte mindestens ein Foto aufnehmen.';
 			return;
 		}
-		if (besitzer.length === 0) {
-			fehler = 'Bitte mindestens einen Besitzer wählen.';
+		if (owners.length === 0) {
+			error = 'Bitte mindestens einen Besitzer wählen.';
 			return;
 		}
 		const form = new FormData();
 		form.set('name', name);
-		form.set('beschreibung', beschreibung);
-		if (verbleib) form.set('verbleib', verbleib);
-		if (platz) form.set(platz.art, String(platz.id));
+		form.set('description', description);
+		if (disposition) form.set('disposition', disposition);
+		if (place) form.set(place.kind, String(place.id));
 		if (box) form.set('box', box);
-		for (const id of besitzer) form.append('besitzer', String(id));
-		for (const f of fotos) form.append('foto', f.datei);
+		for (const id of owners) form.append('owner', String(id));
+		for (const p of photos) form.append('photo', p.file);
 
-		laeuft = true;
+		busy = true;
 		try {
-			gespeichert = await api<Item>('POST', '/api/items', form);
-			letztenPlatzMerken(platz);
-			// Bereit fürs nächste Item; Besitzer und Platz bleiben, weil oft ähnliche Items folgen.
-			for (const f of fotos) URL.revokeObjectURL(f.vorschau);
-			fotos = [];
+			saved = await api<Item>('POST', '/api/items', form);
+			rememberLastPlace(place);
+			// Ready for the next item; owners and place stay, because similar items often follow.
+			for (const p of photos) URL.revokeObjectURL(p.preview);
+			photos = [];
 			name = '';
-			beschreibung = '';
-			verbleib = null;
+			description = '';
+			disposition = null;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 </script>
 
-<main class="seite weit">
-	<header class="kopf">
-		<a class="knopf sekundaer" href={box ? '/umzug/packen?box=' + box : '/'}>{box ? '← Packen' : '← Liste'}</a>
+<main class="page wide">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href={box ? '/umzug/packen?box=' + box : '/'}>{box ? '← Packen' : '← Liste'}</a>
 		<h1>Erfassen</h1>
 	</header>
-	{#if box}<p class="hinweis">Neue Items kommen direkt in die aktive Box.</p>{/if}
+	{#if box}<p class="notice">Neue Items kommen direkt in die aktive Box.</p>{/if}
 
-	{#if gespeichert}
-		<p class="hinweis" role="status">
-			Gespeichert: <a href="/items/{gespeichert.id}">{gespeichert.name}</a>
+	{#if saved}
+		<p class="notice" role="status">
+			Gespeichert: <a href="/items/{saved.id}">{saved.name}</a>
 		</p>
 	{/if}
 
-	<form class="zweispaltig" onsubmit={speichern}>
-		<div class="fotospalte">
-			{#if fotos.length > 0}
-				<ul class="fotoleiste">
-					{#each fotos as f, i (f.vorschau)}
+	<form class="two-column" onsubmit={save}>
+		<div class="photo-column">
+			{#if photos.length > 0}
+				<ul class="photo-strip">
+					{#each photos as p, i (p.preview)}
 						<li>
-							<img src={f.vorschau} alt="Foto {i + 1}" />
-							<button type="button" class="sekundaer klein" onclick={() => entfernen(i)} aria-label="Foto {i + 1} entfernen">×</button>
-							<button type="button" class="sekundaer klein foto-bearbeiten-knopf" onclick={() => (bearbeitet = i)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
+							<img src={p.preview} alt="Foto {i + 1}" />
+							<button type="button" class="secondary small" onclick={() => remove(i)} aria-label="Foto {i + 1} entfernen">×</button>
+							<button type="button" class="secondary small photo-edit-button" onclick={() => (editing = i)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
 						</li>
 					{/each}
 				</ul>
 			{/if}
-			<FotoEingabe gewaehlt={hinzufuegen} />
-			{#if bearbeitet !== null}
-				<FotoBearbeiten quelle={fotos[bearbeitet].datei} fertig={bearbeitungFertig} />
+			<PhotoInput chosen={add} />
+			{#if editing !== null}
+				<PhotoEditor source={photos[editing].file} done={editDone} />
 			{/if}
 		</div>
 
-		<div class="angabenspalte">
+		<div class="details-column">
 			<label>
 				Name
 				<input bind:value={name} required autocomplete="off" />
 			</label>
 			<label>
 				Beschreibung (optional)
-				<textarea bind:value={beschreibung} rows="2"></textarea>
+				<textarea bind:value={description} rows="2"></textarea>
 			</label>
-			<BesitzerAuswahl {personen} bind:ausgewaehlt={besitzer} />
-			<PlatzAuswahl bind:plaetze bind:wert={platz} anlegen />
-			<VerbleibAuswahl bind:wert={verbleib} />
+			<OwnerPicker {persons} bind:selected={owners} />
+			<PlacePicker bind:places bind:value={place} create />
+			<DispositionPicker bind:value={disposition} />
 
-			{#if fehler}
-				<p class="fehler" role="alert">{fehler}</p>
+			{#if error}
+				<p class="error" role="alert">{error}</p>
 			{/if}
-			<button type="submit" disabled={laeuft}>{laeuft ? 'Speichern …' : 'Speichern'}</button>
+			<button type="submit" disabled={busy}>{busy ? 'Speichern …' : 'Speichern'}</button>
 		</div>
 	</form>
 </main>

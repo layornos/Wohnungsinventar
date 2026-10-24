@@ -1,158 +1,161 @@
 import { goto } from '$app/navigation';
-import type { Design } from './design.svelte.ts';
+import type { Theme } from './theme.svelte.ts';
 
-/** Fachlicher Fehler der API, z. B. code "anmeldung_fehlgeschlagen". */
+/** Domain error of the API, e.g. code "login_failed". */
 export class ApiError extends Error {
 	constructor(
 		readonly status: number,
 		readonly code: string,
-		meldung: string,
-		/** Die vollständige Fehlerantwort, z. B. mit der Liste der Items ohne Zielraum. */
-		readonly daten: Record<string, unknown> = {}
+		message: string,
+		/** The full error response, e.g. with the list of items without a target room. */
+		readonly data: Record<string, unknown> = {}
 	) {
-		super(meldung);
+		super(message);
 	}
 }
 
-export const ANMELDUNG = '/anmeldung';
+export const LOGIN = '/anmeldung';
 
-export function zurAnmeldung() {
-	return goto(ANMELDUNG, { replaceState: true });
+export function toLogin() {
+	return goto(LOGIN, { replaceState: true });
 }
 
-/** design ist null, solange der Nutzer noch nie eines gewählt hat. */
-export type Nutzer = { personId: number; name: string; email: string; design: Design | null };
+/** theme is null as long as the user has never chosen one. */
+export type User = { personId: number; name: string; email: string; theme: Theme | null };
 
-export type Person = { id: number; name: string; nutzer: boolean };
+export type Person = { id: number; name: string; isUser: boolean };
 
-/** Offene Einladung; personId ist null, wenn die Person erst beim Annehmen angelegt wird. */
-export type Einladung = {
+/** Open invitation; personId is null if the person is only created on acceptance. */
+export type Invitation = {
 	id: number;
 	personId: number | null;
 	name: string;
-	ersteller: string;
-	erstelltAm: string;
-	laeuftAbAm: string;
+	createdBy: string;
+	createdAt: string;
+	expiresAt: string;
 };
 
-/** Öffentliche Seite für Einladungslinks; der Token steht im Fragment. */
-export const EINLADUNG = '/einladung';
+/** Public page for invitation links; the token is in the fragment. */
+export const INVITATION = '/einladung';
 
-export function datumText(iso: string): string {
+export function formatDateTime(iso: string): string {
 	return new Date(iso).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export function datumKurz(iso: string): string {
+export function formatDate(iso: string): string {
 	return new Date(iso).toLocaleDateString('de-DE');
 }
 
-/** null heißt: Verbleib noch offen. */
-export type Verbleib = 'behalten' | 'verkaufen' | 'spaeter_verkaufen' | 'verschenken';
+/** null means: disposition still undecided. */
+export type Disposition = 'keep' | 'sell' | 'sell_later' | 'give_away';
 
-export const VERBLEIBE: { wert: Verbleib; name: string }[] = [
-	{ wert: 'behalten', name: 'Behalten' },
-	{ wert: 'verkaufen', name: 'Verkaufen' },
-	{ wert: 'spaeter_verkaufen', name: 'Später verkaufen' },
-	{ wert: 'verschenken', name: 'Verschenken' }
+export const DISPOSITIONS: { value: Disposition; name: string }[] = [
+	{ value: 'keep', name: 'Behalten' },
+	{ value: 'sell', name: 'Verkaufen' },
+	{ value: 'sell_later', name: 'Später verkaufen' },
+	{ value: 'give_away', name: 'Verschenken' }
 ];
 
-export function verbleibName(v: Verbleib | null): string {
-	return VERBLEIBE.find((e) => e.wert === v)?.name ?? 'Offen';
+export function dispositionName(d: Disposition | null): string {
+	return DISPOSITIONS.find((e) => e.value === d)?.name ?? 'Offen';
 }
 
-export type Foto = { id: number; hauptfoto: boolean; url: string; vorschauUrl: string };
+export type Photo = { id: number; mainPhoto: boolean; url: string; thumbnailUrl: string };
 
-export type Benannt = { id: number; name: string };
+export type Named = { id: number; name: string };
 
-/** Wo etwas liegt: Wohnung › Raum › Lagerorte von außen nach innen. */
-export type Pfad = { wohnung: Benannt; raum: Benannt; lagerorte: Benannt[] };
+/** Where something is: apartment › room › storage locations from outside to inside. */
+export type Path = { apartment: Named; room: Named; storageLocations: Named[] };
 
-export function pfadText(p: Pfad): string {
-	return [p.wohnung, p.raum, ...p.lagerorte].map((o) => o.name).join(' › ');
+export function pathText(p: Path): string {
+	return [p.apartment, p.room, ...p.storageLocations].map((o) => o.name).join(' › ');
 }
 
-/** Ein Raum oder Lagerort als Platz für ein Item oder einen Lagerort. */
-export type Platz = { art: 'raum' | 'lagerort'; id: number };
-export type PlatzEintrag = Platz & { pfad: string };
+/** A room or storage location as the place for an item or a storage location. */
+export type Place = { kind: 'room' | 'storageLocation'; id: number };
+export type PlaceEntry = Place & { path: string };
 
-export type LagerortKnoten = Benannt & { moebel: Benannt | null; unter: LagerortKnoten[] };
-/** unterbaum: IDs des Lagerorts und aller Unterlagerorte. */
-export type Lagerort = Benannt & { pfad: Pfad; moebel: Benannt | null; unter: Benannt[]; unterbaum: number[] };
-export type Raum = Benannt & { wohnung: Benannt; lagerorte: LagerortKnoten[] };
-export type Wohnung = Benannt & { raeume: Benannt[] };
+export type StorageLocationNode = Named & { furniture: Named | null; children: StorageLocationNode[] };
+/** subtree: IDs of the storage location and all of its nested storage locations. */
+export type StorageLocation = Named & { path: Path; furniture: Named | null; children: Named[]; subtree: number[] };
+export type Room = Named & { apartment: Named; storageLocations: StorageLocationNode[] };
+export type Apartment = Named & { rooms: Named[] };
 
 export type Item = {
 	id: number;
 	name: string;
-	beschreibung: string;
-	verbleib: Verbleib | null;
-	erstelltAm: string;
-	geaendertAm: string;
-	besitzer: Person[];
-	fotos: Foto[];
-	platzierung: Pfad | null;
-	moebelLagerorte: Benannt[];
-	umzug: Umzugsangaben | null;
+	description: string;
+	disposition: Disposition | null;
+	createdAt: string;
+	updatedAt: string;
+	owners: Person[];
+	photos: Photo[];
+	placement: Path | null;
+	furnitureStorageLocations: Named[];
+	move: MoveDetails | null;
 };
 
-export type BoxKurz = { id: number; nummer: number; bezeichnung: string };
-export type Box = BoxKurz & { anzahl: number };
+export type BoxSummary = { id: number; number: number; label: string };
+export type Box = BoxSummary & { count: number };
 
-/** Herkunftsraum, Zielraum und Box eines Items im laufenden Umzug. */
-export type Umzugsangaben = { herkunftsraum: Benannt | null; zielraum: Benannt | null; box: BoxKurz | null };
+/** Origin room, target room and box of an item in the active move. */
+export type MoveDetails = { originRoom: Named | null; targetRoom: Named | null; box: BoxSummary | null };
 
-export type Umzug = {
+export type Move = {
 	id: number;
-	alteWohnung: Benannt;
-	neueWohnung: Benannt;
-	laufend: boolean;
-	erstelltAm: string;
-	abgeschlossenAm: string | null;
-	boxen: Box[];
+	oldApartment: Named;
+	newApartment: Named;
+	active: boolean;
+	createdAt: string;
+	completedAt: string | null;
+	boxes: Box[];
 };
 
-export function boxName(b: BoxKurz): string {
-	return b.bezeichnung ? `Box ${b.nummer} · ${b.bezeichnung}` : `Box ${b.nummer}`;
+export function boxName(b: BoxSummary): string {
+	return b.label ? `Box ${b.number} · ${b.label}` : `Box ${b.number}`;
 }
 
-export type ItemListenEintrag = {
+export type ItemListEntry = {
 	id: number;
 	name: string;
-	verbleib: Verbleib | null;
-	vorschauUrl: string;
-	/** Name des Lagerorts oder, ohne Lagerort, des Raums; leer ohne Platzierung. */
-	platz: string;
-	umzug: Umzugsangaben | null;
+	disposition: Disposition | null;
+	thumbnailUrl: string;
+	/** Name of the storage location or, without one, of the room; empty without placement. */
+	place: string;
+	move: MoveDetails | null;
 };
 
-/** Meldung für einen Fehler, ob von der API oder weil der Server nicht erreichbar ist. */
-export function fehlerText(e: unknown): string {
+/** One page of the item list; more says whether further pages follow. */
+export type ItemPage = { items: ItemListEntry[]; more: boolean };
+
+/** Message for an error, whether from the API or because the server cannot be reached. */
+export function errorText(e: unknown): string {
 	return e instanceof ApiError ? e.message : 'Der Server ist nicht erreichbar.';
 }
 
 /**
- * Ruft die API auf; FormData geht als multipart, alles andere als JSON.
- * Bei 401 wird zur Anmeldung umgeleitet, außer `ohneUmleitung` ist gesetzt.
+ * Calls the API; FormData is sent as multipart, everything else as JSON.
+ * On 401 it redirects to the login page unless `noRedirect` is set.
  */
 export async function api<T>(
 	method: string,
 	path: string,
 	body?: unknown,
-	opts: { ohneUmleitung?: boolean } = {}
+	opts: { noRedirect?: boolean } = {}
 ): Promise<T> {
-	const alsJSON = body !== undefined && !(body instanceof FormData);
+	const asJSON = body !== undefined && !(body instanceof FormData);
 	const res = await fetch(path, {
 		method,
-		headers: alsJSON ? { 'Content-Type': 'application/json' } : {},
-		body: alsJSON ? JSON.stringify(body) : (body as FormData | undefined)
+		headers: asJSON ? { 'Content-Type': 'application/json' } : {},
+		body: asJSON ? JSON.stringify(body) : (body as FormData | undefined)
 	});
 	if (res.status === 204) return undefined as T;
 	const data = await res.json().catch(() => ({}));
 	if (!res.ok) {
-		if (res.status === 401 && !opts.ohneUmleitung) {
-			await zurAnmeldung();
+		if (res.status === 401 && !opts.noRedirect) {
+			await toLogin();
 		}
-		throw new ApiError(res.status, data.code ?? 'unbekannt', data.meldung ?? res.statusText, data);
+		throw new ApiError(res.status, data.code ?? 'unknown', data.message ?? res.statusText, data);
 	}
 	return data as T;
 }

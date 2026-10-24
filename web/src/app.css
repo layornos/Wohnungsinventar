@@ -1,115 +1,115 @@
 /*
- * Drei Designs, gesteuert über <html data-design="minimal|neon|weich"> (gesetzt in app.html, gewechselt in
- * lib/design.svelte.ts). Alles Farbige läuft über die Tokens hier; die Regeln weiter unten gelten für alle,
- * nur Abweichungen im Aufbau (Liste vs. Kacheln, Milchglas, Schatten statt Ränder) stehen in den Abschnitten
- * „Design Neon“ und „Design Weich & farbig“ am Ende.
- * Breakpoints für breite Bildschirme gehören nicht hierher, sondern nach desktop.css.
+ * Three themes, controlled by <html data-theme="minimal|neon|soft"> (set in app.html, switched in
+ * lib/theme.svelte.ts). Everything coloured goes through the tokens here; the rules further down apply to all,
+ * only differences in structure (list vs. tiles, frosted glass, shadows instead of borders) are in the sections
+ * "Theme Neon" and "Theme Soft" at the end.
+ * Breakpoints for wide screens don't belong here but in desktop.css.
  */
 
-/* Minimal (Standard): weiß, fast monochrom, feine Linien. Inter, falls installiert – nichts wird nachgeladen. */
+/* Minimal (default): white, almost monochrome, thin lines. Inter if installed – nothing is downloaded. */
 :root {
-	--hintergrund: #ffffff;
-	--flaeche: #fafafa;
-	/* Undurchsichtige Fläche für Dialoge, Leisten und Knöpfe über Fotos. */
-	--flaeche-fest: #ffffff;
-	--feld: #ffffff;
+	--background: #ffffff;
+	--surface: #fafafa;
+	/* Opaque surface for dialogs, bars and buttons over photos. */
+	--surface-solid: #ffffff;
+	--field: #ffffff;
 	--text: #18181b;
-	--text-leise: #71717a;
-	--akzent: #18181b;
-	--akzent-text: #ffffff;
-	--rand: #e4e4e7;
-	--fehler: #dc2626;
+	--text-muted: #71717a;
+	--accent: #18181b;
+	--accent-text: #ffffff;
+	--border: #e4e4e7;
+	--error: #dc2626;
 	--radius: 8px;
-	--radius-gross: 10px;
-	--schrift: Inter, 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--schatten: 0 1px 2px rgb(0 0 0 / 0.05);
-	--schatten-schwebend: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
-	--leuchten: none;
-	--leuchten-stark: none;
-	--glas: none;
-	--themenfarbe: #ffffff;
+	--radius-large: 10px;
+	--font: Inter, 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+	--shadow-floating: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
+	--glow: none;
+	--glow-strong: none;
+	--glass: none;
+	--theme-color: #ffffff;
 
-	/* Verbleib: Punktfarbe (Minimal) bzw. Etikett-Grund und -Text (Neon). */
-	--verbleib-verkaufen: #ea580c;
-	--verbleib-behalten: #16a34a;
-	--verbleib-offen: #a1a1aa;
-	--verbleib-verschenken: #db2777;
-	--verbleib-spaeter: #ca8a04;
+	/* Disposition: dot colour (Minimal) or badge background and text (Neon). */
+	--disposition-sell: #ea580c;
+	--disposition-keep: #16a34a;
+	--disposition-undecided: #a1a1aa;
+	--disposition-give-away: #db2777;
+	--disposition-sell-later: #ca8a04;
 
-	/* Schatten für Karten (Items, Designwahl); Weich hebt sie etwas stärker ab. */
-	--schatten-karte: var(--schatten);
+	/* Shadow for cards (items, theme picker); Soft lifts them a bit more. */
+	--shadow-card: var(--shadow);
 
 	color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
-	:root:not([data-design='neon'], [data-design='weich']) {
-		--hintergrund: #09090b;
-		--flaeche: #18181b;
-		--flaeche-fest: #18181b;
-		--feld: #09090b;
+	:root:not([data-theme='neon'], [data-theme='soft']) {
+		--background: #09090b;
+		--surface: #18181b;
+		--surface-solid: #18181b;
+		--field: #09090b;
 		--text: #fafafa;
-		--text-leise: #a1a1aa;
-		--akzent: #fafafa;
-		--akzent-text: #18181b;
-		--rand: #27272a;
-		--fehler: #f87171;
-		--schatten: none;
-		--schatten-schwebend: 0 6px 20px rgb(0 0 0 / 0.6);
-		--themenfarbe: #09090b;
-		--verbleib-offen: #71717a;
+		--text-muted: #a1a1aa;
+		--accent: #fafafa;
+		--accent-text: #18181b;
+		--border: #27272a;
+		--error: #f87171;
+		--shadow: none;
+		--shadow-floating: 0 6px 20px rgb(0 0 0 / 0.6);
+		--theme-color: #09090b;
+		--disposition-undecided: #71717a;
 	}
 }
 
-/* Neon: immer dunkel, Milchglas-Flächen, Mint mit Leuchten. Space Grotesk, falls installiert. */
-:root[data-design='neon'] {
-	--hintergrund: #09090f;
-	--flaeche: rgb(255 255 255 / 0.055);
-	--flaeche-fest: rgb(20 20 31 / 0.94);
-	--feld: rgb(255 255 255 / 0.05);
+/* Neon: always dark, frosted-glass surfaces, mint with glow. Space Grotesk if installed. */
+:root[data-theme='neon'] {
+	--background: #09090f;
+	--surface: rgb(255 255 255 / 0.055);
+	--surface-solid: rgb(20 20 31 / 0.94);
+	--field: rgb(255 255 255 / 0.05);
 	--text: #f4f4fa;
-	--text-leise: #a8a8bf;
-	--akzent: #7df9c8;
-	--akzent-text: #062019;
-	--rand: rgb(255 255 255 / 0.13);
-	--fehler: #fca5a5;
+	--text-muted: #a8a8bf;
+	--accent: #7df9c8;
+	--accent-text: #062019;
+	--border: rgb(255 255 255 / 0.13);
+	--error: #fca5a5;
 	--radius: 14px;
-	--radius-gross: 20px;
-	--schrift: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--schatten: none;
-	--schatten-schwebend: 0 0 28px rgb(125 249 200 / 0.5);
-	--leuchten: 0 0 20px rgb(125 249 200 / 0.4);
-	--leuchten-stark: 0 0 32px rgb(125 249 200 / 0.55);
-	--glas: blur(16px);
-	--themenfarbe: #09090f;
+	--radius-large: 20px;
+	--font: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--shadow: none;
+	--shadow-floating: 0 0 28px rgb(125 249 200 / 0.5);
+	--glow: 0 0 20px rgb(125 249 200 / 0.4);
+	--glow-strong: 0 0 32px rgb(125 249 200 / 0.55);
+	--glass: blur(16px);
+	--theme-color: #09090f;
 	color-scheme: dark;
 }
 
 /*
- * Weich & farbig: immer hell, große Rundungen, sanfte Schatten statt Ränder, Violett als Akzent.
- * Plus Jakarta Sans, falls installiert. Leiser Text hat 5,0:1 auf dem Hintergrund und 5,6:1 auf Flächen.
+ * Soft ("Weich & farbig"): always light, large radii, gentle shadows instead of borders, violet as accent.
+ * Plus Jakarta Sans if installed. Muted text has 5.0:1 on the background and 5.6:1 on surfaces.
  */
-:root[data-design='weich'] {
-	--hintergrund: #f3f0fa;
-	--flaeche: #ffffff;
-	--flaeche-fest: #ffffff;
-	--feld: #ffffff;
+:root[data-theme='soft'] {
+	--background: #f3f0fa;
+	--surface: #ffffff;
+	--surface-solid: #ffffff;
+	--field: #ffffff;
 	--text: #1b1530;
-	--text-leise: #6b6385;
-	--akzent: #5b3bea;
-	--akzent-text: #ffffff;
-	--rand: #e6e1f3;
-	--fehler: #c81e1e;
+	--text-muted: #6b6385;
+	--accent: #5b3bea;
+	--accent-text: #ffffff;
+	--border: #e6e1f3;
+	--error: #c81e1e;
 	--radius: 18px;
-	--radius-gross: 22px;
-	--schrift: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--schatten: 0 4px 14px rgb(60 40 140 / 0.08);
-	--schatten-karte: 0 6px 20px rgb(60 40 140 / 0.08);
-	--schatten-schwebend: 0 12px 28px rgb(91 59 234 / 0.4);
-	--leuchten: 0 4px 14px rgb(60 40 140 / 0.1);
-	--leuchten-stark: 0 6px 18px rgb(91 59 234 / 0.3);
-	--glas: none;
-	--themenfarbe: #f3f0fa;
+	--radius-large: 22px;
+	--font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--shadow: 0 4px 14px rgb(60 40 140 / 0.08);
+	--shadow-card: 0 6px 20px rgb(60 40 140 / 0.08);
+	--shadow-floating: 0 12px 28px rgb(91 59 234 / 0.4);
+	--glow: 0 4px 14px rgb(60 40 140 / 0.1);
+	--glow-strong: 0 6px 18px rgb(91 59 234 / 0.3);
+	--glass: none;
+	--theme-color: #f3f0fa;
 	color-scheme: light;
 }
 
@@ -119,44 +119,49 @@
 
 body {
 	margin: 0;
-	background: var(--hintergrund);
+	background: var(--background);
 	color: var(--text);
-	font-family: var(--schrift);
+	font-family: var(--font);
 	font-size: 17px;
 	line-height: 1.45;
 	-webkit-font-smoothing: antialiased;
 }
 
 
-.seite {
+.page {
 	max-width: 720px;
 	margin: 0 auto;
 	padding: max(16px, env(safe-area-inset-top)) 16px 32px;
 }
 
-.seite.schmal {
+.page.narrow {
 	max-width: 420px;
 }
 
-.kopf {
+.header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
 }
 
-.kopf.mit-menue {
+.header.with-menu {
 	justify-content: flex-start;
 }
 
-/* Seitenmenü: modaler <dialog> am linken Rand */
-button.menueknopf {
+/* The ☰ button and the back link stay together on the left, the rest of the header moves to the right. */
+.header > .menu-button + * {
+	margin-right: auto;
+}
+
+/* Side menu: modal <dialog> at the left edge */
+button.menu-button {
 	padding: 6px 14px;
 	font-size: 1.3em;
 	line-height: 1;
 }
 
-dialog.seitenmenue {
+dialog.side-menu {
 	margin: 0;
 	padding: 0;
 	inset: 0 auto 0 0;
@@ -164,33 +169,33 @@ dialog.seitenmenue {
 	height: 100%;
 	max-height: none;
 	border: none;
-	border-right: 1px solid var(--rand);
-	background: var(--flaeche-fest);
+	border-right: 1px solid var(--border);
+	background: var(--surface-solid);
 	color: var(--text);
-	-webkit-backdrop-filter: var(--glas);
-	backdrop-filter: var(--glas);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
 }
 
-dialog.seitenmenue::backdrop {
+dialog.side-menu::backdrop {
 	background: rgb(0 0 0 / 0.45);
 }
 
-/* Seitenleiste auf breiten Bildschirmen (Anordnung in desktop.css): Minimal dezent grau, Neon Milchglas, Weich weiß mit Schatten. */
-nav.seitenleiste {
-	background: var(--flaeche);
-	-webkit-backdrop-filter: var(--glas);
-	backdrop-filter: var(--glas);
+/* Sidebar on wide screens (layout in desktop.css): Minimal subtle grey, Neon frosted glass, Soft white with shadow. */
+nav.sidebar {
+	background: var(--surface);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
 }
 
-/* Menüinhalt: Kopf mit Marke, Gruppen mit kleinen Titeln, unten Konto, Einstellungen und Abmelden. */
-.menueinhalt {
+/* Menu content: header with brand, groups with small titles, at the bottom the user, settings and logout. */
+.menu-content {
 	display: flex;
 	flex-direction: column;
 	min-height: 100%;
 	padding: max(16px, env(safe-area-inset-top)) 12px max(16px, env(safe-area-inset-bottom));
 }
 
-.menuekopf {
+.menu-header {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -199,13 +204,13 @@ nav.seitenleiste {
 	margin-bottom: 12px;
 }
 
-.menuemarke {
+.menu-brand {
 	font-size: 1.15rem;
 	font-weight: 700;
 	letter-spacing: -0.01em;
 }
 
-nav.menueinhalt button.menue-schliessen {
+nav.menu-content button.menu-close {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -214,21 +219,21 @@ nav.menueinhalt button.menue-schliessen {
 	padding: 0;
 	border-radius: var(--radius);
 	background: transparent;
-	color: var(--text-leise);
+	color: var(--text-muted);
 	box-shadow: none;
 }
 
-nav.menueinhalt .menuetitel {
+nav.menu-content .menu-title {
 	margin: 20px 0 4px;
 	padding: 0 12px;
 	font-size: 0.72rem;
 	font-weight: 600;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: var(--text-leise);
+	color: var(--text-muted);
 }
 
-.menuegruppe {
+.menu-group {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -236,7 +241,7 @@ nav.menueinhalt .menuetitel {
 	gap: 2px;
 }
 
-nav.menueinhalt .menuelink {
+nav.menu-content .menu-link {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -259,55 +264,55 @@ nav.menueinhalt .menuelink {
 		color 0.15s;
 }
 
-nav.menueinhalt .menuelink .menuesymbol {
+nav.menu-content .menu-link .menu-icon {
 	flex-shrink: 0;
-	color: var(--text-leise);
+	color: var(--text-muted);
 	transition: color 0.15s;
 }
 
-nav.menueinhalt .menuelink[aria-current='page'] {
-	background: color-mix(in srgb, var(--akzent) 10%, transparent);
+nav.menu-content .menu-link[aria-current='page'] {
+	background: color-mix(in srgb, var(--accent) 10%, transparent);
 	font-weight: 600;
 }
 
-nav.menueinhalt .menuelink[aria-current='page'] .menuesymbol {
-	color: var(--akzent);
+nav.menu-content .menu-link[aria-current='page'] .menu-icon {
+	color: var(--accent);
 }
 
 @media (hover: hover) {
-	nav.menueinhalt .menuelink:hover,
-	nav.menueinhalt button.menue-schliessen:hover {
+	nav.menu-content .menu-link:hover,
+	nav.menu-content button.menu-close:hover {
 		background: color-mix(in srgb, var(--text) 6%, transparent);
 	}
 
-	nav.menueinhalt .menuelink:hover .menuesymbol {
+	nav.menu-content .menu-link:hover .menu-icon {
 		color: var(--text);
 	}
 }
 
-.menuefuss {
+.menu-footer {
 	margin-top: auto;
 	padding-top: 16px;
-	border-top: 1px solid var(--rand);
+	border-top: 1px solid var(--border);
 	display: grid;
 	gap: 8px;
 }
 
-.menuekonto {
+.menu-user {
 	margin: 0;
 	padding: 0 12px;
 	display: grid;
 	min-width: 0;
 }
 
-.menuekonto-name {
+.menu-user-name {
 	font-weight: 600;
 	font-size: 0.95rem;
 }
 
-.menuekonto-email {
+.menu-user-email {
 	font-size: 0.8rem;
-	color: var(--text-leise);
+	color: var(--text-muted);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -333,33 +338,33 @@ textarea {
 	font-weight: 400;
 	min-height: 48px;
 	padding: 10px 12px;
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	border-radius: var(--radius);
-	background: var(--feld);
+	background: var(--field);
 	color: var(--text);
 	transition: border-color 0.15s;
 }
 
 input::placeholder,
 textarea::placeholder {
-	color: var(--text-leise);
+	color: var(--text-muted);
 }
 
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
 	outline: none;
-	border-color: var(--akzent);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 18%, transparent);
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 textarea {
 	resize: vertical;
 }
 
-/* Große Tippflächen fürs Handy */
+/* Large touch targets for the phone */
 button,
-a.knopf {
+a.button {
 	font: inherit;
 	font-size: 0.95rem;
 	font-weight: 600;
@@ -367,9 +372,9 @@ a.knopf {
 	padding: 10px 18px;
 	border: none;
 	border-radius: var(--radius);
-	background: var(--akzent);
-	color: var(--akzent-text);
-	box-shadow: var(--leuchten);
+	background: var(--accent);
+	color: var(--accent-text);
+	box-shadow: var(--glow);
 	cursor: pointer;
 	transition:
 		background-color 0.15s,
@@ -382,45 +387,45 @@ button:disabled {
 	cursor: default;
 }
 
-a.knopf {
+a.button {
 	display: inline-flex;
 	align-items: center;
 	text-decoration: none;
 }
 
-button.sekundaer,
-a.knopf.sekundaer {
-	background: var(--flaeche);
+button.secondary,
+a.button.secondary {
+	background: var(--surface);
 	color: var(--text);
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	box-shadow: none;
 }
 
 
-.fehler {
-	color: var(--fehler);
+.error {
+	color: var(--error);
 	margin: 0;
 }
 
-button.klein {
+button.small {
 	min-height: 40px;
 	padding: 6px 12px;
 }
 
-button.gefahr {
+button.danger {
 	background: transparent;
-	color: var(--fehler);
-	border: 1px solid var(--fehler);
+	color: var(--error);
+	border: 1px solid var(--error);
 	box-shadow: none;
 }
 
-button.breit {
+button.full-width {
 	width: 100%;
 	margin-top: 16px;
 }
 
 a {
-	color: var(--akzent);
+	color: var(--accent);
 	text-underline-offset: 3px;
 }
 
@@ -442,24 +447,24 @@ section {
 	margin-top: 28px;
 }
 
-.leise {
-	color: var(--text-leise);
+.muted {
+	color: var(--text-muted);
 }
 
-.hinweis {
+.notice {
 	padding: 12px 14px;
-	border-radius: var(--radius-gross);
-	background: var(--flaeche);
-	border: 1px solid var(--rand);
-	-webkit-backdrop-filter: var(--glas);
-	backdrop-filter: var(--glas);
+	border-radius: var(--radius-large);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
 }
 
-.beschreibung {
+.description {
 	white-space: pre-wrap;
 }
 
-.knopfzeile {
+.button-row {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -477,54 +482,54 @@ form.inline input {
 	flex: 1 1 12em;
 }
 
-.marke {
+.badge {
 	display: inline-block;
 	padding: 2px 10px;
 	border-radius: 999px;
-	background: var(--akzent);
-	color: var(--akzent-text);
+	background: var(--accent);
+	color: var(--accent-text);
 	font-size: 0.8em;
 	font-weight: 600;
 }
 
-/* Verbleib: in Minimal ein Farbpunkt mit leisem Text, in Neon ein Etikett (siehe „Design Neon“). */
-.verbleib {
-	--punkt: var(--verbleib-offen);
+/* Disposition: in Minimal a coloured dot with muted text, in Neon a badge (see "Theme Neon"). */
+.disposition {
+	--dot: var(--disposition-undecided);
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
-	color: var(--text-leise);
+	color: var(--text-muted);
 	font-size: 0.8rem;
 	font-weight: 500;
 	white-space: nowrap;
 }
 
-.verbleib::before {
+.disposition::before {
 	content: '';
 	flex: none;
 	width: 7px;
 	height: 7px;
 	border-radius: 50%;
-	background: var(--punkt);
+	background: var(--dot);
 }
 
-.verbleib[data-verbleib='verkaufen'] {
-	--punkt: var(--verbleib-verkaufen);
+.disposition[data-disposition='sell'] {
+	--dot: var(--disposition-sell);
 }
 
-.verbleib[data-verbleib='behalten'] {
-	--punkt: var(--verbleib-behalten);
+.disposition[data-disposition='keep'] {
+	--dot: var(--disposition-keep);
 }
 
-.verbleib[data-verbleib='verschenken'] {
-	--punkt: var(--verbleib-verschenken);
+.disposition[data-disposition='give_away'] {
+	--dot: var(--disposition-give-away);
 }
 
-.verbleib[data-verbleib='spaeter_verkaufen'] {
-	--punkt: var(--verbleib-spaeter);
+.disposition[data-disposition='sell_later'] {
+	--dot: var(--disposition-sell-later);
 }
 
-/* Auswahl als antippbare Chips */
+/* Choices as tappable chips */
 fieldset.chips {
 	display: flex;
 	flex-wrap: wrap;
@@ -546,24 +551,24 @@ label.chip {
 	gap: 6px;
 	min-height: 44px;
 	padding: 6px 14px;
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	border-radius: 999px;
-	background: var(--flaeche);
+	background: var(--surface);
 	font-size: 0.95rem;
 	font-weight: 500;
 	cursor: pointer;
 }
 
 label.chip:has(input:checked) {
-	border-color: var(--akzent);
-	outline: 1px solid var(--akzent);
-	box-shadow: var(--leuchten);
+	border-color: var(--accent);
+	outline: 1px solid var(--accent);
+	box-shadow: var(--glow);
 }
 
 label.chip input {
 	min-height: 0;
 	margin: 0;
-	accent-color: var(--akzent);
+	accent-color: var(--accent);
 }
 
 .filter {
@@ -577,8 +582,8 @@ label.chip input {
 	grid-column: 1 / -1;
 }
 
-/* Item-Übersicht. Minimal: Liste mit kleiner Vorschau; Neon macht daraus Kacheln. */
-.raster {
+/* Item overview. Minimal: list with small thumbnail; Neon turns it into tiles. */
+.item-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr);
 	list-style: none;
@@ -586,63 +591,63 @@ label.chip input {
 	padding: 0 0 80px;
 }
 
-.raster li + li {
-	border-top: 1px solid var(--rand);
+.item-grid li + li {
+	border-top: 1px solid var(--border);
 }
 
-.karte {
+.card {
 	display: grid;
 	grid-template-columns: 56px minmax(0, 1fr) auto;
 	align-items: center;
 	gap: 12px;
 	padding: 10px 6px;
-	border-radius: var(--radius-gross);
+	border-radius: var(--radius-large);
 	color: var(--text);
 	text-decoration: none;
 }
 
-.karte img {
+.card img {
 	display: block;
 	width: 56px;
 	height: 56px;
 	object-fit: cover;
 	border-radius: 8px;
-	background: var(--rand);
+	background: var(--border);
 }
 
-.karte-text {
+.card-text {
 	display: grid;
 	min-width: 0;
 }
 
-.karte-name {
+.card-name {
 	font-size: 15px;
 	font-weight: 500;
 	overflow-wrap: anywhere;
 }
 
-.karte-ort {
-	color: var(--text-leise);
+.card-place {
+	color: var(--text-muted);
 	font-size: 13px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.schwebend {
+.floating {
 	position: fixed;
 	right: 16px;
 	bottom: max(16px, env(safe-area-inset-bottom));
-	box-shadow: var(--schatten-schwebend);
+	box-shadow: var(--shadow-floating);
 }
 
-.grossfoto {
+.large-photo {
 	position: relative;
 	margin: 0 0 12px;
 }
 
-/* Dunkler Kreis mit hellem Rand: bleibt auf hellen wie dunklen Fotos sichtbar. */
-.grossfoto button.foto-loeschen {
+/* Dark circle with light border: stays visible on light and dark photos. */
+.large-photo button.photo-delete {
 	position: absolute;
 	top: 8px;
 	right: 8px;
@@ -659,16 +664,16 @@ label.chip input {
 	box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
 
-.grossfoto img {
+.large-photo img {
 	display: block;
 	width: 100%;
 	max-height: 60vh;
 	object-fit: contain;
-	border-radius: var(--radius-gross);
-	background: var(--flaeche);
+	border-radius: var(--radius-large);
+	background: var(--surface);
 }
 
-.fotoleiste {
+.photo-strip {
 	display: flex;
 	gap: 8px;
 	overflow-x: auto;
@@ -677,12 +682,12 @@ label.chip input {
 	padding: 0;
 }
 
-.fotoleiste li {
+.photo-strip li {
 	position: relative;
 	flex: none;
 }
 
-.fotoleiste img {
+.photo-strip img {
 	display: block;
 	width: 72px;
 	height: 72px;
@@ -690,55 +695,55 @@ label.chip input {
 	border-radius: 8px;
 }
 
-.fotoleiste li > button.klein {
+.photo-strip li > button.small {
 	position: absolute;
 	top: 2px;
 	right: 2px;
 	min-height: 32px;
 	padding: 0 10px;
-	background: var(--flaeche-fest);
+	background: var(--surface-solid);
 }
 
-/* Bearbeiten-Knopf unten links, das Entfernen-× bleibt oben rechts. */
-.fotoleiste li > button.klein.foto-bearbeiten-knopf {
+/* Edit button bottom left, the remove × stays top right. */
+.photo-strip li > button.small.photo-edit-button {
 	top: auto;
 	right: auto;
 	bottom: 2px;
 	left: 2px;
 }
 
-/* Foto drehen und zuschneiden: modaler <dialog> über die ganze Seite */
-dialog.foto-bearbeiten {
+/* Rotate and crop a photo: modal <dialog> over the whole page */
+dialog.photo-editor {
 	width: 100%;
 	max-width: 720px;
 	max-height: 100dvh;
 	margin: auto;
 	padding: 0;
-	border: 1px solid var(--rand);
-	border-radius: var(--radius-gross);
-	background: var(--flaeche-fest);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-large);
+	background: var(--surface-solid);
 	color: var(--text);
-	-webkit-backdrop-filter: var(--glas);
-	backdrop-filter: var(--glas);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
 }
 
-dialog.foto-bearbeiten::backdrop {
+dialog.photo-editor::backdrop {
 	background: rgb(0 0 0 / 0.6);
 }
 
-.bearbeiten-inhalt {
+.editor-content {
 	display: grid;
 	gap: 12px;
 	padding: max(16px, env(safe-area-inset-top)) 24px max(16px, env(safe-area-inset-bottom));
 }
 
-.bearbeiten-inhalt h2 {
+.editor-content h2 {
 	margin: 0;
 	font-size: 1.1em;
 }
 
-/* Die Bühne hat genau das Seitenverhältnis des gedrehten Bildes; der Zuschnitt liegt in Prozent darüber. */
-.buehne {
+/* The stage has exactly the aspect ratio of the rotated image; the crop lies on top in percent. */
+.stage {
 	position: relative;
 	justify-self: center;
 	max-width: 100%;
@@ -747,25 +752,25 @@ dialog.foto-bearbeiten::backdrop {
 	-webkit-user-select: none;
 }
 
-.buehne canvas {
+.stage canvas {
 	display: block;
 	width: 100%;
 	height: 100%;
 }
 
-.abdunklung {
+.dimming {
 	position: absolute;
 	inset: 0;
 	overflow: hidden;
 	pointer-events: none;
 }
 
-.ausschnitt-schatten {
+.crop-shadow {
 	position: absolute;
 	box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
 }
 
-.buehne button.ausschnitt {
+.stage button.crop {
 	position: absolute;
 	min-height: 0;
 	padding: 0;
@@ -776,8 +781,8 @@ dialog.foto-bearbeiten::backdrop {
 	touch-action: none;
 }
 
-/* Große, unsichtbare Tippfläche mit kleinem sichtbarem Punkt in der Mitte. */
-.buehne button.griff {
+/* Large invisible touch target with a small visible dot in the middle. */
+.stage button.handle {
 	position: absolute;
 	width: 44px;
 	height: 44px;
@@ -785,73 +790,73 @@ dialog.foto-bearbeiten::backdrop {
 	padding: 0;
 	transform: translate(-50%, -50%);
 	border-radius: 50%;
-	background: radial-gradient(circle, #ffffff 0 9px, var(--akzent) 9px 12px, transparent 12px);
+	background: radial-gradient(circle, #ffffff 0 9px, var(--accent) 9px 12px, transparent 12px);
 	cursor: crosshair;
 	touch-action: none;
 }
 
-.buehne button:focus-visible {
-	outline: 3px solid var(--akzent);
+.stage button:focus-visible {
+	outline: 3px solid var(--accent);
 	outline-offset: 2px;
 }
 
-button.foto-wahl {
+button.photo-choice {
 	min-height: 0;
 	padding: 0;
 	border: 3px solid transparent;
 	background: none;
 }
 
-button.foto-wahl.aktiv {
-	border-color: var(--akzent);
+button.photo-choice.active {
+	border-color: var(--accent);
 }
 
-.zeilen {
+.rows {
 	list-style: none;
 	margin: 0 0 12px;
 	padding: 0;
 }
 
-.zeilen li {
+.rows li {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
 	padding: 10px 0;
-	border-bottom: 1px solid var(--rand);
+	border-bottom: 1px solid var(--border);
 }
 
-.zeilen form.inline {
+.rows form.inline {
 	flex: 1;
 	margin: 0;
 }
 
-.filter .ganz {
+.filter .span-all {
 	grid-column: 1 / -1;
 }
 
-.feldname {
+.field-name {
 	font-size: 0.9em;
 	font-weight: 500;
 }
 
-.platzwahl {
+.place-picker {
 	display: grid;
 	gap: 6px;
 }
 
-button.auswahl {
+button.select-button {
 	justify-content: flex-start;
 	text-align: left;
-	background: var(--feld);
+	background: var(--field);
 	color: var(--text);
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	box-shadow: none;
 	font-weight: 500;
 }
 
-.trefferliste {
+.results {
 	display: grid;
 	gap: 4px;
 	max-height: 50vh;
@@ -861,22 +866,22 @@ button.auswahl {
 	padding: 0;
 }
 
-.trefferliste button {
+.results button {
 	width: 100%;
 	text-align: left;
-	background: var(--flaeche);
+	background: var(--surface);
 	color: var(--text);
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	box-shadow: none;
 	font-weight: 500;
 }
 
-.trefferliste button.aktiv {
-	border-color: var(--akzent);
-	outline: 1px solid var(--akzent);
+.results button.active {
+	border-color: var(--accent);
+	outline: 1px solid var(--accent);
 }
 
-.mit-bild {
+.with-image {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -885,86 +890,86 @@ button.auswahl {
 	font-weight: 500;
 }
 
-.mit-bild img {
+.with-image img {
 	width: 48px;
 	height: 48px;
 	object-fit: cover;
 	border-radius: 8px;
 	flex: none;
-	background: var(--rand);
+	background: var(--border);
 }
 
-.einsortieren .breit {
+.assign .full-width {
 	flex-basis: 100%;
 	display: grid;
 	gap: 8px;
 }
 
-.pfad {
-	color: var(--text-leise);
+.path {
+	color: var(--text-muted);
 	overflow-wrap: anywhere;
 }
 
-ul.baum {
+ul.tree {
 	list-style: none;
 	margin: 0;
 	padding-left: 0;
 }
 
-ul.baum ul.baum {
+ul.tree ul.tree {
 	padding-left: 18px;
-	border-left: 2px solid var(--rand);
+	border-left: 2px solid var(--border);
 	margin-left: 6px;
 }
 
-ul.baum li {
+ul.tree li {
 	padding: 6px 0;
 }
 
-ul.baum a {
+ul.tree a {
 	display: inline-block;
 	min-height: 32px;
 	font-weight: 500;
 }
 
-.klein-text {
+.small-text {
 	display: block;
 	font-size: 0.85em;
 	font-weight: 400;
 }
 
-.marke.box {
-	background: var(--flaeche);
+.badge.box {
+	background: var(--surface);
 	color: var(--text);
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 }
 
-a.marke {
+a.badge {
 	text-decoration: none;
 }
 
-.kacheln {
+.tiles {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 	gap: 8px;
 	margin: 16px 0;
 }
 
-.kacheln a.knopf {
+.tiles a.button {
 	justify-content: center;
 }
 
-form.gross input {
+form.large input {
 	font-size: 1.6em;
 	flex: 1 1 6em;
 }
 
-h1.boxnummer {
+h1.box-number {
 	font-size: 2.6em;
 	letter-spacing: -0.03em;
 }
 
-.packkopf {
+.pack-header {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: end;
@@ -972,40 +977,40 @@ h1.boxnummer {
 	margin-bottom: 12px;
 }
 
-input[type='checkbox'].gross {
+input[type='checkbox'].large {
 	min-height: 0;
 	width: 28px;
 	height: 28px;
-	accent-color: var(--akzent);
+	accent-color: var(--accent);
 }
 
-button.packen {
+button.pack {
 	flex: 1;
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	text-align: left;
-	background: var(--flaeche);
+	background: var(--surface);
 	color: var(--text);
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	box-shadow: none;
 	font-weight: 500;
 }
 
-button.packen.drin {
-	border-color: var(--akzent);
-	outline: 1px solid var(--akzent);
-	box-shadow: var(--leuchten);
+button.pack.packed {
+	border-color: var(--accent);
+	outline: 1px solid var(--accent);
+	box-shadow: var(--glow);
 }
 
-button.packen img {
+button.pack img {
 	width: 48px;
 	height: 48px;
 	object-fit: cover;
 	border-radius: 8px;
 }
 
-.leiste {
+.action-bar {
 	position: sticky;
 	bottom: 0;
 	display: flex;
@@ -1013,82 +1018,82 @@ button.packen img {
 	align-items: center;
 	gap: 8px;
 	padding: 12px max(12px, env(safe-area-inset-bottom));
-	background: var(--flaeche-fest);
-	border-top: 1px solid var(--rand);
-	-webkit-backdrop-filter: var(--glas);
-	backdrop-filter: var(--glas);
+	background: var(--surface-solid);
+	border-top: 1px solid var(--border);
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
 }
 
-/* Einstellungen: Designwahl als Karten mit kleiner Farbvorschau; das Radio bleibt sichtbar und bedienbar. */
-fieldset.designwahl {
+/* Settings: theme picker as cards with a small colour preview; the radio stays visible and usable. */
+fieldset.theme-picker {
 	min-width: 0;
 	margin: 0;
 	padding: 0;
 	border: none;
 }
 
-fieldset.designwahl legend {
+fieldset.theme-picker legend {
 	padding: 0;
 }
 
-fieldset.designwahl legend h2 {
+fieldset.theme-picker legend h2 {
 	margin: 0 0 4px;
 }
 
-fieldset.designwahl p {
+fieldset.theme-picker p {
 	margin: 0;
 }
 
-.designkarten {
+.theme-cards {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 	gap: 12px;
 	margin-top: 16px;
 }
 
-label.designkarte {
+label.theme-card {
 	display: grid;
 	gap: 10px;
 	padding: 10px;
-	border: 1px solid var(--rand);
-	border-radius: var(--radius-gross);
-	background: var(--flaeche);
-	box-shadow: var(--schatten-karte);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-large);
+	background: var(--surface);
+	box-shadow: var(--shadow-card);
 	font-size: 1rem;
 	font-weight: 400;
 	cursor: pointer;
 }
 
-label.designkarte:has(input:checked) {
-	border-color: var(--akzent);
-	outline: 1px solid var(--akzent);
+label.theme-card:has(input:checked) {
+	border-color: var(--accent);
+	outline: 1px solid var(--accent);
 }
 
-.designkarte-zeile {
+.theme-card-row {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 }
 
-.designkarte input {
+.theme-card input {
 	flex: none;
 	width: 22px;
 	height: 22px;
 	min-height: 0;
 	margin: 0;
-	accent-color: var(--akzent);
+	accent-color: var(--accent);
 }
 
-.designkarte-text {
+.theme-card-text {
 	display: grid;
 }
 
-.designkarte-name {
+.theme-card-name {
 	font-weight: 600;
 }
 
-/* Miniatur: große Fläche links, kleine Fläche und Akzent rechts, in den Farben des jeweiligen Designs. */
-.designvorschau {
+/* Miniature: large surface left, small surface and accent right, in the colours of the respective theme. */
+.theme-preview {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
 	grid-template-rows: 1fr 1fr;
@@ -1096,52 +1101,52 @@ label.designkarte:has(input:checked) {
 	height: 72px;
 	padding: 8px;
 	border: 1px solid rgb(128 128 128 / 0.25);
-	border-radius: calc(var(--radius-gross) - 4px);
-	background: var(--v-grund);
+	border-radius: calc(var(--radius-large) - 4px);
+	background: var(--p-background);
 }
 
-.designvorschau span {
-	border-radius: var(--v-radius);
-	background: var(--v-flaeche);
-	box-shadow: var(--v-schatten, none);
+.theme-preview span {
+	border-radius: var(--p-radius);
+	background: var(--p-surface);
+	box-shadow: var(--p-shadow, none);
 }
 
-.designvorschau span:first-child {
+.theme-preview span:first-child {
 	grid-row: 1 / -1;
 }
 
-.designvorschau span:last-child {
-	background: var(--v-akzent);
+.theme-preview span:last-child {
+	background: var(--p-accent);
 }
 
-.designvorschau[data-vorschau='minimal'] {
-	--v-grund: #ffffff;
-	--v-flaeche: #f4f4f5;
-	--v-akzent: #18181b;
-	--v-radius: 4px;
+.theme-preview[data-preview='minimal'] {
+	--p-background: #ffffff;
+	--p-surface: #f4f4f5;
+	--p-accent: #18181b;
+	--p-radius: 4px;
 }
 
-.designvorschau[data-vorschau='neon'] {
-	--v-grund: #09090f;
-	--v-flaeche: rgb(255 255 255 / 0.12);
-	--v-akzent: #7df9c8;
-	--v-radius: 8px;
+.theme-preview[data-preview='neon'] {
+	--p-background: #09090f;
+	--p-surface: rgb(255 255 255 / 0.12);
+	--p-accent: #7df9c8;
+	--p-radius: 8px;
 }
 
-.designvorschau[data-vorschau='weich'] {
-	--v-grund: #f3f0fa;
-	--v-flaeche: #ffffff;
-	--v-akzent: #5b3bea;
-	--v-radius: 12px;
-	--v-schatten: 0 2px 6px rgb(60 40 140 / 0.12);
+.theme-preview[data-preview='soft'] {
+	--p-background: #f3f0fa;
+	--p-surface: #ffffff;
+	--p-accent: #5b3bea;
+	--p-radius: 12px;
+	--p-shadow: 0 2px 6px rgb(60 40 140 / 0.12);
 }
 
 /*
- * Design Neon: Lichtflecken im Hintergrund, Milchglas-Flächen, Überschrift in Versalien
- * und Kacheln statt Liste für die Item-Übersicht.
+ * Theme Neon: light blobs in the background, frosted-glass surfaces, upper-case heading
+ * and tiles instead of a list for the item overview.
  */
-[data-design='neon'] body::before,
-[data-design='neon'] body::after {
+[data-theme='neon'] body::before,
+[data-theme='neon'] body::after {
 	content: '';
 	position: fixed;
 	z-index: -1;
@@ -1152,239 +1157,239 @@ label.designkarte:has(input:checked) {
 	pointer-events: none;
 }
 
-[data-design='neon'] body::before {
+[data-theme='neon'] body::before {
 	top: -140px;
 	left: -160px;
 	background: #6d28d9;
 	opacity: 0.45;
 }
 
-[data-design='neon'] body::after {
+[data-theme='neon'] body::after {
 	top: 35vh;
 	right: -200px;
 	background: #0ea5a4;
 	opacity: 0.3;
 }
 
-[data-design='neon'] h1 {
+[data-theme='neon'] h1 {
 	font-size: 1.5rem;
 	font-weight: 700;
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
 }
 
-[data-design='neon'] h1.boxnummer {
+[data-theme='neon'] h1.box-number {
 	font-size: 2.4em;
 	letter-spacing: 0.06em;
 }
 
-[data-design='neon'] button.sekundaer,
-[data-design='neon'] a.knopf.sekundaer,
-[data-design='neon'] .karte {
-	-webkit-backdrop-filter: var(--glas);
-	backdrop-filter: var(--glas);
+[data-theme='neon'] button.secondary,
+[data-theme='neon'] a.button.secondary,
+[data-theme='neon'] .card {
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
 }
 
-[data-design='neon'] input:focus-visible,
-[data-design='neon'] select:focus-visible,
-[data-design='neon'] textarea:focus-visible {
+[data-theme='neon'] input:focus-visible,
+[data-theme='neon'] select:focus-visible,
+[data-theme='neon'] textarea:focus-visible {
 	box-shadow: 0 0 18px rgb(125 249 200 / 0.35);
 }
 
-[data-design='neon'] .marke.box {
-	color: var(--akzent);
+[data-theme='neon'] .badge.box {
+	color: var(--accent);
 	border-color: rgb(125 249 200 / 0.45);
 }
 
-[data-design='neon'] .raster {
+[data-theme='neon'] .item-grid {
 	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 	gap: 12px;
 }
 
-[data-design='neon'] .raster li + li {
+[data-theme='neon'] .item-grid li + li {
 	border-top: none;
 }
 
-[data-design='neon'] .karte {
+[data-theme='neon'] .card {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
 	gap: 8px;
 	height: 100%;
 	padding: 0 0 12px;
-	border: 1px solid var(--rand);
+	border: 1px solid var(--border);
 	border-radius: 14px;
-	background: var(--flaeche);
+	background: var(--surface);
 	overflow: hidden;
 	transition:
 		border-color 0.15s,
 		box-shadow 0.15s;
 }
 
-[data-design='neon'] .karte:hover {
+[data-theme='neon'] .card:hover {
 	box-shadow: 0 0 22px rgb(125 249 200 / 0.18);
 }
 
-[data-design='neon'] .karte img {
+[data-theme='neon'] .card img {
 	width: 100%;
 	height: 130px;
 	border-radius: 0;
 }
 
-[data-design='neon'] .karte-text,
-[data-design='neon'] .karte .verbleib {
+[data-theme='neon'] .card-text,
+[data-theme='neon'] .card .disposition {
 	margin: 0 12px;
 }
 
-[data-design='neon'] .karte .verbleib {
+[data-theme='neon'] .card .disposition {
 	align-self: flex-start;
 	margin-top: auto;
 }
 
-[data-design='neon'] .verbleib {
+[data-theme='neon'] .disposition {
 	padding: 3px 9px;
 	border-radius: 999px;
-	background: var(--grund, rgb(255 255 255 / 0.1));
-	color: var(--schrift-farbe, #d4d4e0);
+	background: var(--badge-background, rgb(255 255 255 / 0.1));
+	color: var(--badge-text, #d4d4e0);
 	font-size: 0.7rem;
 	font-weight: 600;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 }
 
-[data-design='neon'] .verbleib::before {
+[data-theme='neon'] .disposition::before {
 	display: none;
 }
 
-[data-design='neon'] .verbleib[data-verbleib='verkaufen'] {
-	--grund: rgb(251 146 60 / 0.18);
-	--schrift-farbe: #fdba74;
+[data-theme='neon'] .disposition[data-disposition='sell'] {
+	--badge-background: rgb(251 146 60 / 0.18);
+	--badge-text: #fdba74;
 }
 
-[data-design='neon'] .verbleib[data-verbleib='behalten'] {
-	--grund: rgb(125 249 200 / 0.16);
-	--schrift-farbe: #7df9c8;
+[data-theme='neon'] .disposition[data-disposition='keep'] {
+	--badge-background: rgb(125 249 200 / 0.16);
+	--badge-text: #7df9c8;
 }
 
-[data-design='neon'] .verbleib[data-verbleib='verschenken'] {
-	--grund: rgb(244 114 182 / 0.18);
-	--schrift-farbe: #f9a8d4;
+[data-theme='neon'] .disposition[data-disposition='give_away'] {
+	--badge-background: rgb(244 114 182 / 0.18);
+	--badge-text: #f9a8d4;
 }
 
-[data-design='neon'] .verbleib[data-verbleib='spaeter_verkaufen'] {
-	--grund: rgb(250 204 21 / 0.16);
-	--schrift-farbe: #fde68a;
+[data-theme='neon'] .disposition[data-disposition='sell_later'] {
+	--badge-background: rgb(250 204 21 / 0.16);
+	--badge-text: #fde68a;
 }
 
 /*
- * Design Weich & farbig: sanfte Schatten statt Ränder, Knöpfe und Filter als Pillen, fette Überschrift
- * und Kacheln mit Pastell-Etiketten für die Item-Übersicht.
+ * Theme Soft: gentle shadows instead of borders, buttons and filters as pills, bold heading
+ * and tiles with pastel badges for the item overview.
  */
-[data-design='weich'] h1 {
+[data-theme='soft'] h1 {
 	font-size: 30px;
 	font-weight: 800;
 	letter-spacing: -0.02em;
 }
 
-[data-design='weich'] h1.boxnummer {
+[data-theme='soft'] h1.box-number {
 	font-size: 2.6em;
 }
 
-[data-design='weich'] h2 {
+[data-theme='soft'] h2 {
 	font-weight: 700;
 }
 
-/* Pillen für Knöpfe; was eher Feld, Listenzeile oder Teil eines Fotos ist, behält seine Form. */
-[data-design='weich'] :is(button, a.knopf):not(.menueknopf, .menuelink, .menue-schliessen, .auswahl, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button) {
+/* Pills for buttons; whatever is more of a field, list row or part of a photo keeps its shape. */
+[data-theme='soft'] :is(button, a.button):not(.menu-button, .menu-link, .menu-close, .select-button, .pack, .photo-choice, .photo-delete, .crop, .handle, .results button) {
 	border-radius: 999px;
 	font-weight: 700;
 }
 
-[data-design='weich'] button.menueknopf {
+[data-theme='soft'] button.menu-button {
 	border-radius: 16px;
 }
 
-[data-design='weich'] :is(button.sekundaer, a.knopf.sekundaer, label.chip, button.packen, button.auswahl, .trefferliste button, .hinweis),
-[data-design='weich'] :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
+[data-theme='soft'] :is(button.secondary, a.button.secondary, label.chip, button.pack, button.select-button, .results button, .notice),
+[data-theme='soft'] :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
 	border-color: transparent;
-	box-shadow: var(--schatten);
+	box-shadow: var(--shadow);
 }
 
-[data-design='weich'] :is(input, select, textarea):focus-visible {
-	border-color: var(--akzent);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--akzent) 22%, transparent);
+[data-theme='soft'] :is(input, select, textarea):focus-visible {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-[data-design='weich'] label.chip:has(input:checked) {
+[data-theme='soft'] label.chip:has(input:checked) {
 	outline: none;
-	border-color: var(--akzent);
+	border-color: var(--accent);
 	background: #ece8f8;
 }
 
-[data-design='weich'] button.packen.drin,
-[data-design='weich'] .trefferliste button.aktiv {
-	border-color: var(--akzent);
+[data-theme='soft'] button.pack.packed,
+[data-theme='soft'] .results button.active {
+	border-color: var(--accent);
 }
 
-[data-design='weich'] a.knopf.schwebend {
-	box-shadow: var(--schatten-schwebend);
+[data-theme='soft'] a.button.floating {
+	box-shadow: var(--shadow-floating);
 }
 
-[data-design='weich'] dialog.seitenmenue {
+[data-theme='soft'] dialog.side-menu {
 	border-right: none;
-	box-shadow: var(--schatten-karte);
+	box-shadow: var(--shadow-card);
 }
 
-[data-design='weich'] :is(dialog.seitenmenue, dialog.foto-bearbeiten)::backdrop {
+[data-theme='soft'] :is(dialog.side-menu, dialog.photo-editor)::backdrop {
 	background: rgb(27 21 48 / 0.35);
 }
 
-[data-design='weich'] dialog.foto-bearbeiten {
+[data-theme='soft'] dialog.photo-editor {
 	border-color: transparent;
-	box-shadow: var(--schatten-karte);
+	box-shadow: var(--shadow-card);
 }
 
-/* Seitenleiste: weiße Fläche, vom Inhalt nur durch den Schatten abgesetzt (Rand aus desktop.css entfällt). */
-[data-design='weich'] nav.seitenleiste {
+/* Sidebar: white surface, set off from the content only by the shadow (the border from desktop.css is dropped). */
+[data-theme='soft'] nav.sidebar {
 	border-right-color: transparent;
-	box-shadow: var(--schatten);
+	box-shadow: var(--shadow);
 }
 
-[data-design='weich'] .leiste {
+[data-theme='soft'] .action-bar {
 	border-top-color: transparent;
 	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
 }
 
-[data-design='weich'] label.designkarte {
+[data-theme='soft'] label.theme-card {
 	border-color: transparent;
 }
 
-[data-design='weich'] label.designkarte:has(input:checked) {
-	border-color: var(--akzent);
+[data-theme='soft'] label.theme-card:has(input:checked) {
+	border-color: var(--accent);
 }
 
-[data-design='weich'] .marke {
+[data-theme='soft'] .badge {
 	padding: 3px 10px;
 	font-size: 12px;
 	font-weight: 700;
 }
 
-[data-design='weich'] .marke.box {
+[data-theme='soft'] .badge.box {
 	background: #eef0f4;
 	color: #3a4150;
 	border-color: transparent;
 }
 
-[data-design='weich'] .raster {
+[data-theme='soft'] .item-grid {
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 12px;
 }
 
-[data-design='weich'] .raster li + li {
+[data-theme='soft'] .item-grid li + li {
 	border-top: none;
 }
 
-[data-design='weich'] .karte {
+[data-theme='soft'] .card {
 	display: flex;
 	flex-direction: column;
 	align-items: stretch;
@@ -1392,91 +1397,91 @@ label.designkarte:has(input:checked) {
 	height: 100%;
 	padding: 8px;
 	border-radius: 22px;
-	background: var(--flaeche);
-	box-shadow: var(--schatten-karte);
+	background: var(--surface);
+	box-shadow: var(--shadow-card);
 	transition: box-shadow 0.15s;
 }
 
-[data-design='weich'] .karte:hover {
+[data-theme='soft'] .card:hover {
 	box-shadow: 0 10px 26px rgb(60 40 140 / 0.14);
 }
 
-[data-design='weich'] .karte img {
+[data-theme='soft'] .card img {
 	width: 100%;
 	height: 132px;
 	border-radius: 16px;
 }
 
-[data-design='weich'] .karte-name {
+[data-theme='soft'] .card-name {
 	font-weight: 700;
 }
 
-[data-design='weich'] .karte-text,
-[data-design='weich'] .karte .verbleib {
+[data-theme='soft'] .card-text,
+[data-theme='soft'] .card .disposition {
 	margin: 0 4px;
 }
 
-[data-design='weich'] .karte .verbleib {
+[data-theme='soft'] .card .disposition {
 	align-self: flex-start;
 	margin-top: auto;
 	margin-bottom: 4px;
 }
 
-[data-design='weich'] .verbleib {
+[data-theme='soft'] .disposition {
 	padding: 3px 10px;
 	border-radius: 999px;
-	background: var(--grund, #ece8f8);
-	color: var(--schrift-farbe, #4c3f75);
+	background: var(--badge-background, #ece8f8);
+	color: var(--badge-text, #4c3f75);
 	font-size: 12px;
 	font-weight: 700;
 }
 
-[data-design='weich'] .verbleib::before {
+[data-theme='soft'] .disposition::before {
 	display: none;
 }
 
-[data-design='weich'] .verbleib[data-verbleib='verkaufen'] {
-	--grund: #ffe4d6;
-	--schrift-farbe: #9a3412;
+[data-theme='soft'] .disposition[data-disposition='sell'] {
+	--badge-background: #ffe4d6;
+	--badge-text: #9a3412;
 }
 
-[data-design='weich'] .verbleib[data-verbleib='behalten'] {
-	--grund: #dcf5e7;
-	--schrift-farbe: #166534;
+[data-theme='soft'] .disposition[data-disposition='keep'] {
+	--badge-background: #dcf5e7;
+	--badge-text: #166534;
 }
 
-[data-design='weich'] .verbleib[data-verbleib='verschenken'] {
-	--grund: #fce4f1;
-	--schrift-farbe: #9d174d;
+[data-theme='soft'] .disposition[data-disposition='give_away'] {
+	--badge-background: #fce4f1;
+	--badge-text: #9d174d;
 }
 
-[data-design='weich'] .verbleib[data-verbleib='spaeter_verkaufen'] {
-	--grund: #fff1c2;
-	--schrift-farbe: #854d0e;
+[data-theme='soft'] .disposition[data-disposition='sell_later'] {
+	--badge-background: #fff1c2;
+	--badge-text: #854d0e;
 }
 
-/* Seitenmenü je Design: Neon mit leuchtender aktiver Zeile und Versalien-Marke, Weich mit runderen Zeilen. */
-[data-design='neon'] .menuemarke {
+/* Side menu per theme: Neon with a glowing active row and upper-case brand, Soft with rounder rows. */
+[data-theme='neon'] .menu-brand {
 	letter-spacing: 0.12em;
 	text-transform: uppercase;
 }
 
-[data-design='neon'] nav.menueinhalt .menuelink[aria-current='page'] {
-	color: var(--akzent);
+[data-theme='neon'] nav.menu-content .menu-link[aria-current='page'] {
+	color: var(--accent);
 	background: rgb(125 249 200 / 0.1);
 	box-shadow: inset 0 0 0 1px rgb(125 249 200 / 0.35);
 }
 
-[data-design='weich'] .menuemarke {
+[data-theme='soft'] .menu-brand {
 	font-size: 1.35rem;
 	font-weight: 800;
 }
 
-[data-design='weich'] nav.menueinhalt :is(.menuelink, button.menue-schliessen) {
+[data-theme='soft'] nav.menu-content :is(.menu-link, button.menu-close) {
 	border-radius: 14px;
 }
 
-[data-design='weich'] nav.menueinhalt .menuelink[aria-current='page'] {
+[data-theme='soft'] nav.menu-content .menu-link[aria-current='page'] {
 	background: #ece8f8;
 	font-weight: 700;
 }

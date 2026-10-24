@@ -1,16 +1,16 @@
 
-// Speichert nur die App-Hülle zwischen; API-Antworten werden nie zwischengespeichert.
+// Caches only the app shell; API responses are never cached.
 import { assets, immutable } from '$app/manifest';
 import { version } from '$app/env';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
-const CACHE = `huelle-${version}`;
-// Pfade aus dem Manifest sind relativ zum Basispfad; die App läuft unter "/".
-const absolut = ({ path }: { path: string }) => '/' + path.replace(/^\//, '');
-const HUELLE = [...immutable.map(absolut), ...assets.map(absolut), '/'];
+const CACHE = `shell-${version}`;
+// Paths from the manifest are relative to the base path; the app runs under "/".
+const absolute = ({ path }: { path: string }) => '/' + path.replace(/^\//, '');
+const SHELL = [...immutable.map(absolute), ...assets.map(absolute), '/'];
 
 sw.addEventListener('install', (event) => {
-	event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(HUELLE)));
+	event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
 });
 
 sw.addEventListener('activate', (event) => {
@@ -27,7 +27,7 @@ sw.addEventListener('fetch', (event) => {
 		return;
 	}
 	if (event.request.mode === 'navigate') {
-		// Seiten zuerst vom Netz, offline die zwischengespeicherte Hülle.
+		// Pages from the network first, offline the cached shell.
 		event.respondWith(fetch(event.request).catch(async () => (await caches.match('/')) ?? Response.error()));
 		return;
 	}

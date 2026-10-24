@@ -1,121 +1,123 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, fehlerText, type ItemListenEintrag, type Raum } from '#lib/api.ts';
-	import ItemRaster from '#lib/ItemRaster.svelte';
-	import LagerortBaum from '#lib/LagerortBaum.svelte';
+	import { api, errorText, type ItemListEntry, type ItemPage, type Room } from '#lib/api.ts';
+	import ItemGrid from '#lib/ItemGrid.svelte';
+	import MenuButton from '#lib/MenuButton.svelte';
+	import StorageLocationTree from '#lib/StorageLocationTree.svelte';
 
 	const id = $derived(Number(page.params.id));
 
-	let raum = $state<Raum | null>(null);
-	let items = $state<ItemListenEintrag[]>([]);
-	let weitere = $state(false);
-	let neuerLagerort = $state('');
+	let room = $state<Room | null>(null);
+	let items = $state<ItemListEntry[]>([]);
+	let more = $state(false);
+	let newStorageLocation = $state('');
 	let name = $state<string | null>(null);
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let error = $state('');
+	let busy = $state(false);
 
-	async function laden(raumID: number) {
-		fehler = '';
+	async function load(roomID: number) {
+		error = '';
 		try {
-			raum = await api<Raum>('GET', `/api/raeume/${raumID}`);
-			const r = await api<{ items: ItemListenEintrag[]; weitere: boolean }>('GET', `/api/items?raum=${raumID}&proSeite=100`);
+			room = await api<Room>('GET', `/api/rooms/${roomID}`);
+			const r = await api<ItemPage>('GET', `/api/items?room=${roomID}&perPage=100`);
 			items = r.items;
-			weitere = r.weitere;
+			more = r.more;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 
 	$effect(() => {
-		laden(id);
+		load(id);
 	});
 
-	async function ausfuehren(aktion: () => Promise<unknown>) {
-		fehler = '';
-		laeuft = true;
+	async function run(action: () => Promise<unknown>) {
+		error = '';
+		busy = true;
 		try {
-			await aktion();
-			await laden(id);
+			await action();
+			await load(id);
 			return true;
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 			return false;
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 
-	async function lagerortAnlegen(event: SubmitEvent) {
+	async function createStorageLocation(event: SubmitEvent) {
 		event.preventDefault();
-		if (await ausfuehren(() => api('POST', '/api/lagerorte', { name: neuerLagerort, raumId: id }))) neuerLagerort = '';
+		if (await run(() => api('POST', '/api/storage-locations', { name: newStorageLocation, roomId: id }))) newStorageLocation = '';
 	}
 
-	async function umbenennen(event: SubmitEvent) {
+	async function rename(event: SubmitEvent) {
 		event.preventDefault();
 		const n = name;
-		if (n !== null && (await ausfuehren(() => api('PUT', `/api/raeume/${id}`, { name: n })))) name = null;
+		if (n !== null && (await run(() => api('PUT', `/api/rooms/${id}`, { name: n })))) name = null;
 	}
 
-	async function loeschen() {
-		if (!raum || !confirm(`Raum „${raum.name}“ löschen?`)) return;
-		fehler = '';
+	async function remove() {
+		if (!room || !confirm(`Raum „${room.name}“ löschen?`)) return;
+		error = '';
 		try {
-			await api('DELETE', `/api/raeume/${id}`);
+			await api('DELETE', `/api/rooms/${id}`);
 			await goto('/wohnungen', { replaceState: true });
 		} catch (e) {
-			fehler = fehlerText(e);
+			error = errorText(e);
 		}
 	}
 </script>
 
-<main class="seite">
-	<header class="kopf">
-		<a class="knopf sekundaer" href="/wohnungen">← Wohnungen</a>
+<main class="page">
+	<header class="header">
+		<MenuButton />
+		<a class="button secondary" href="/wohnungen">← Wohnungen</a>
 	</header>
 
-	{#if fehler}
-		<p class="fehler" role="alert">{fehler}</p>
+	{#if error}
+		<p class="error" role="alert">{error}</p>
 	{/if}
 
-	{#if raum}
+	{#if room}
 		{#if name !== null}
-			<form class="inline" onsubmit={umbenennen}>
+			<form class="inline" onsubmit={rename}>
 				<input aria-label="Neuer Name" bind:value={name} required />
-				<button type="submit" disabled={laeuft}>Speichern</button>
-				<button type="button" class="sekundaer" onclick={() => (name = null)}>Abbrechen</button>
+				<button type="submit" disabled={busy}>Speichern</button>
+				<button type="button" class="secondary" onclick={() => (name = null)}>Abbrechen</button>
 			</form>
 		{:else}
-			<p class="leise">{raum.wohnung.name}</p>
-			<div class="kopf">
-				<h1>{raum.name}</h1>
-				<span class="knopfzeile">
-					<button class="sekundaer klein" onclick={() => (name = raum?.name ?? '')}>Umbenennen</button>
-					<button class="sekundaer klein" onclick={loeschen}>Löschen</button>
+			<p class="muted">{room.apartment.name}</p>
+			<div class="header">
+				<h1>{room.name}</h1>
+				<span class="button-row">
+					<button class="secondary small" onclick={() => (name = room?.name ?? '')}>Umbenennen</button>
+					<button class="secondary small" onclick={remove}>Löschen</button>
 				</span>
 			</div>
 		{/if}
 
 		<section>
 			<h2>Lagerorte</h2>
-			{#if raum.lagerorte.length > 0}
-				<LagerortBaum knoten={raum.lagerorte} />
+			{#if room.storageLocations.length > 0}
+				<StorageLocationTree nodes={room.storageLocations} />
 			{:else}
-				<p class="leise">Noch keine Lagerorte.</p>
+				<p class="muted">Noch keine Lagerorte.</p>
 			{/if}
-			<form class="inline" onsubmit={lagerortAnlegen}>
-				<input aria-label="Name des neuen Lagerorts" placeholder="z. B. Regal links" bind:value={neuerLagerort} required />
-				<button type="submit" class="sekundaer" disabled={laeuft}>Lagerort anlegen</button>
+			<form class="inline" onsubmit={createStorageLocation}>
+				<input aria-label="Name des neuen Lagerorts" placeholder="z. B. Regal links" bind:value={newStorageLocation} required />
+				<button type="submit" class="secondary" disabled={busy}>Lagerort anlegen</button>
 			</form>
 		</section>
 
 		<section>
 			<h2>Items in diesem Raum</h2>
 			{#if items.length > 0}
-				<ItemRaster {items} />
-				{#if weitere}<p class="leise">Es gibt weitere Items; die Liste zeigt die zuletzt geänderten.</p>{/if}
+				<ItemGrid {items} />
+				{#if more}<p class="muted">Es gibt weitere Items; die Liste zeigt die zuletzt geänderten.</p>{/if}
 			{:else}
-				<p class="leise">Keine Items.</p>
+				<p class="muted">Keine Items.</p>
 			{/if}
 		</section>
 	{/if}

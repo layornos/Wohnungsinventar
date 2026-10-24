@@ -2,86 +2,86 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { api, ApiError } from '#lib/api.ts';
-	import { einladungAnnehmen } from '#lib/sitzung.svelte.ts';
+	import { acceptInvitation } from '#lib/session.svelte.ts';
 
-	// Der Token steht im Fragment des Links, damit er nie an den Server geschickt wird, außer im Body.
+	// The token is in the link's fragment so it is never sent to the server, except in the body.
 	const token = page.url.hash.slice(1);
 
-	const MELDUNGEN: Record<string, string> = {
-		einladung_abgelaufen: 'Diese Einladung ist abgelaufen.',
-		einladung_verwendet: 'Diese Einladung wurde schon verwendet.',
-		einladung_zurueckgezogen: 'Diese Einladung wurde zurückgezogen.',
-		einladung_ungueltig: 'Diesen Einladungslink gibt es nicht. Prüfe, ob er vollständig ist.',
-		bereits_nutzer: 'Du hast schon einen Zugang. Melde dich einfach an.'
+	const MESSAGES: Record<string, string> = {
+		invitation_expired: 'Diese Einladung ist abgelaufen.',
+		invitation_used: 'Diese Einladung wurde schon verwendet.',
+		invitation_revoked: 'Diese Einladung wurde zurückgezogen.',
+		invitation_invalid: 'Diesen Einladungslink gibt es nicht. Prüfe, ob er vollständig ist.',
+		already_user: 'Du hast schon einen Zugang. Melde dich einfach an.'
 	};
 
-	/** Meldung, wenn die Einladung nicht (mehr) annehmbar ist; null bei anderen Fehlern. */
-	function zustandsMeldung(e: unknown): string | null {
-		return e instanceof ApiError && e.code in MELDUNGEN ? MELDUNGEN[e.code] : null;
+	/** Message if the invitation can't be accepted (any more); null for other errors. */
+	function stateMessage(e: unknown): string | null {
+		return e instanceof ApiError && e.code in MESSAGES ? MESSAGES[e.code] : null;
 	}
 
-	let einladung = $state<{ name: string; ersteller: string } | null>(null);
-	let unbrauchbar = $state('');
-	let fehler = $state('');
-	let laeuft = $state(false);
+	let invitation = $state<{ name: string; createdBy: string } | null>(null);
+	let unusable = $state('');
+	let error = $state('');
+	let busy = $state(false);
 	let email = $state('');
-	let passwort = $state('');
+	let password = $state('');
 
-	async function pruefen() {
+	async function check() {
 		try {
-			einladung = await api('POST', '/api/einladungen/pruefen', { token }, { ohneUmleitung: true });
+			invitation = await api('POST', '/api/invitations/check', { token }, { noRedirect: true });
 		} catch (e) {
-			unbrauchbar = zustandsMeldung(e) ?? 'Die Einladung lässt sich gerade nicht prüfen. Ist der Server erreichbar?';
+			unusable = stateMessage(e) ?? 'Die Einladung lässt sich gerade nicht prüfen. Ist der Server erreichbar?';
 		}
 	}
-	pruefen();
+	check();
 
-	async function annehmen(event: SubmitEvent) {
+	async function accept(event: SubmitEvent) {
 		event.preventDefault();
-		fehler = '';
-		laeuft = true;
+		error = '';
+		busy = true;
 		try {
-			await einladungAnnehmen(token, email, passwort);
+			await acceptInvitation(token, email, password);
 			await goto('/', { replaceState: true });
 		} catch (e) {
-			const zustand = zustandsMeldung(e);
-			if (zustand) {
-				unbrauchbar = zustand;
+			const state = stateMessage(e);
+			if (state) {
+				unusable = state;
 			} else if (e instanceof ApiError) {
-				fehler = e.code === 'email_vergeben' ? 'Diese E-Mail-Adresse ist schon vergeben. Bitte nimm eine andere.' : e.message;
+				error = e.code === 'email_taken' ? 'Diese E-Mail-Adresse ist schon vergeben. Bitte nimm eine andere.' : e.message;
 			} else {
-				fehler = 'Annehmen nicht möglich. Ist der Server erreichbar?';
+				error = 'Annehmen nicht möglich. Ist der Server erreichbar?';
 			}
 		} finally {
-			laeuft = false;
+			busy = false;
 		}
 	}
 </script>
 
-<main class="seite schmal">
+<main class="page narrow">
 	<h1>Einladung</h1>
-	{#if unbrauchbar}
-		<p class="fehler" role="alert">{unbrauchbar}</p>
+	{#if unusable}
+		<p class="error" role="alert">{unusable}</p>
 		<p>Bitte die Person, die dich eingeladen hat, um einen neuen Link.</p>
 		<p><a href="/anmeldung">Schon Nutzer? Zur Anmeldung</a></p>
-	{:else if einladung}
-		<p><strong>{einladung.ersteller}</strong> hat dich ({einladung.name}) zum Inventar eingeladen.</p>
-		<p class="leise">Lege fest, mit welcher E-Mail-Adresse und welchem Passwort du dich anmeldest.</p>
-		<form onsubmit={annehmen}>
+	{:else if invitation}
+		<p><strong>{invitation.createdBy}</strong> hat dich ({invitation.name}) zum Inventar eingeladen.</p>
+		<p class="muted">Lege fest, mit welcher E-Mail-Adresse und welchem Passwort du dich anmeldest.</p>
+		<form onsubmit={accept}>
 			<label>
 				E-Mail
 				<input type="email" autocomplete="username" bind:value={email} required />
 			</label>
 			<label>
 				Passwort (mindestens 8 Zeichen)
-				<input type="password" autocomplete="new-password" minlength="8" bind:value={passwort} required />
+				<input type="password" autocomplete="new-password" minlength="8" bind:value={password} required />
 			</label>
-			{#if fehler}
-				<p class="fehler" role="alert">{fehler}</p>
+			{#if error}
+				<p class="error" role="alert">{error}</p>
 			{/if}
-			<button type="submit" disabled={laeuft}>{laeuft ? 'Annehmen …' : 'Einladung annehmen'}</button>
+			<button type="submit" disabled={busy}>{busy ? 'Annehmen …' : 'Einladung annehmen'}</button>
 		</form>
 	{:else}
-		<p class="leise">Einladung wird geprüft …</p>
+		<p class="muted">Einladung wird geprüft …</p>
 	{/if}
 </main>
