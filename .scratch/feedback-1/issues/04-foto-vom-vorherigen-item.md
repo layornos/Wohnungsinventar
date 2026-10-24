@@ -1,6 +1,6 @@
 # Zweites Item zeigt das Foto des ersten
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Fehler
 
 ## Beobachtet

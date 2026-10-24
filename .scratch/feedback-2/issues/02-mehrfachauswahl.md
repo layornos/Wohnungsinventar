@@ -1,6 +1,6 @@
 # Mehrfachauswahl in der Item-Liste
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

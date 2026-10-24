@@ -1,6 +1,6 @@
 # DuckDNS-Domain vom DNS-Rebind-Schutz der FritzBox ausnehmen
 
-Status: ready-for-human
+Status: erledigt
 Blocked by: 02
 
 Blockiert die Entwicklung nicht.

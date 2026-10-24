@@ -1,6 +1,6 @@
 # Client: Pack-Modus, Auspack-Modus, Etikett mit QR und NFC
 
-Status: ready-for-agent
+Status: erledigt
 Spec: `../spec.md`
 
 ## Was

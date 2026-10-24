@@ -1,6 +1,6 @@
 # Serienmodus beim Erfassen und kleinere Fotos
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

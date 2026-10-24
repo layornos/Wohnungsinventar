@@ -1,6 +1,6 @@
 # Schriften einbetten
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Verbesserung
 
 ## Was

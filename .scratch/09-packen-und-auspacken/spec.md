@@ -1,6 +1,6 @@
 # Spec 09: Packen und Auspacken mit wenig Tipps
 
-Status: ready-for-agent
+Status: erledigt
 Blocked by: 04-umzug-und-boxen
 
 ## Problem Statement

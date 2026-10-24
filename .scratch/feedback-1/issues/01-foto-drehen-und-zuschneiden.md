@@ -1,6 +1,6 @@
 # Foto nach dem Aufnehmen drehen und zuschneiden
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

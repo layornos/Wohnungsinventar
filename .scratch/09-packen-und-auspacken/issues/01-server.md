@@ -1,6 +1,6 @@
 # Server: Zielraum der Box, Lagerort einpacken, Einräumen, Möbelinhalt, QR-Code
 
-Status: ready-for-agent
+Status: erledigt
 Spec: `../spec.md`
 
 ## Was

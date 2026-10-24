@@ -1,6 +1,6 @@
 # Foto löschen über ein ×-Symbol am Bild
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

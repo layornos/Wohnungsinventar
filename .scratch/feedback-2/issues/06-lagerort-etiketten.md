@@ -1,6 +1,6 @@
 # Etiketten mit QR-Code für Lagerorte
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

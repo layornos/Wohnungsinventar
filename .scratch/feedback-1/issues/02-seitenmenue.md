@@ -1,6 +1,6 @@
 # Seitenmenü statt Knopfleiste auf der Startseite
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

@@ -1,6 +1,6 @@
 # Hinweis bei neuer Version
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was

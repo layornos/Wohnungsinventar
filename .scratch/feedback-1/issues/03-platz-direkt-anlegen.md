@@ -1,6 +1,6 @@
 # Platz direkt in der Platzauswahl anlegen
 
-Status: ready-for-agent
+Status: erledigt
 Typ: Feature
 
 ## Was
