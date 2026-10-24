@@ -1,10 +1,20 @@
 <script lang="ts">
 	import { api, type ItemListEntry } from './api.ts';
 
-	let { chosen }: { chosen: (item: ItemListEntry) => void } = $props();
+	// clearOnChoose: after a tap the search starts over and keeps the focus, for choosing one item after another.
+	let { chosen, clearOnChoose = false }: { chosen: (item: ItemListEntry) => void; clearOnChoose?: boolean } = $props();
 
 	let search = $state('');
 	let results = $state<ItemListEntry[]>([]);
+	let input = $state<HTMLInputElement>();
+
+	function choose(item: ItemListEntry) {
+		chosen(item);
+		if (clearOnChoose) {
+			search = '';
+			input?.focus();
+		}
+	}
 
 	$effect(() => {
 		const q = search.trim();
@@ -23,11 +33,11 @@
 	});
 </script>
 
-<input type="search" placeholder="Item suchen, z. B. Schreibtisch" aria-label="Item suchen" bind:value={search} />
+<input type="search" placeholder="Item suchen, z. B. Schreibtisch" aria-label="Item suchen" bind:value={search} bind:this={input} />
 <ul class="results">
 	{#each results as item (item.id)}
 		<li>
-			<button type="button" class="secondary with-image" onclick={() => chosen(item)}>
+			<button type="button" class="secondary with-image" onclick={() => choose(item)}>
 				<img src={item.thumbnailUrl} alt="" />
 				{item.name}
 			</button>

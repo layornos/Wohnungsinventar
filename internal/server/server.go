@@ -186,6 +186,7 @@ func New(d Deps) http.Handler {
 		func(ctx context.Context, id int64) error { _, err := s.Store.GetItem(ctx, id); return err },
 		func(f *store.ItemFilter, id int64) { f.FurnitureID = id }))
 	protected.HandleFunc("PUT /api/storage-locations/{id}/furniture", s.setFurniture)
+	protected.HandleFunc("GET /api/storage-locations/{id}/qr", s.storageLocationQRCode)
 	protected.HandleFunc("PUT /api/items/{id}/placement", s.setPlacement)
 	protected.HandleFunc("GET /api/move", s.activeMove)
 	protected.HandleFunc("POST /api/move", s.createMove)
