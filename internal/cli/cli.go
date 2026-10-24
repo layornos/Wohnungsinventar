@@ -25,6 +25,7 @@ Commands:
   serve                                     Start the server
   create-user --name NAME --email EMAIL     Create a user (asks for the password)
   reset-password --email EMAIL              Set a new password and end all sessions
+  backup --to DIR                           Write a snapshot of database and photos to DIR
 
 Configuration via environment variables, see README.
 `
@@ -54,6 +55,8 @@ func Run(ctx context.Context, args []string, stdin io.Reader, stdout io.Writer, 
 		return createUser(ctx, c)
 	case "reset-password":
 		return resetPassword(ctx, c)
+	case "backup":
+		return backup(ctx, c)
 	case "help", "-h", "--help":
 		fmt.Fprint(stdout, usage)
 		return nil

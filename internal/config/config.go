@@ -14,8 +14,11 @@ type Config struct {
 	Addr    string
 	// MaxPhotoSize is the largest allowed photo file in bytes.
 	MaxPhotoSize int64
-	DuckDNS      DuckDNS
-	SMTP         SMTP
+	// BehindProxy means a reverse proxy in front terminates TLS (ADR-0005): requests count as
+	// HTTPS and X-Forwarded-Proto is trusted. Never set it when the server is reachable directly.
+	BehindProxy bool
+	DuckDNS     DuckDNS
+	SMTP        SMTP
 }
 
 // DuckDNS enables HTTPS with a certificate via DNS-01 (ADR-0004) when domain and token are set.
@@ -63,6 +66,17 @@ func Load(getenv func(string) string) (Config, error) {
 		c.MaxPhotoSize = int64(n) << 20
 	}
 
+	if v := getenv("INVENTAR_BEHIND_PROXY"); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("INVENTAR_BEHIND_PROXY is not a boolean (true/false): %q", v)
+		}
+		c.BehindProxy = b
+	}
+	if c.BehindProxy && (c.DuckDNS.Domain != "" || c.DuckDNS.Token != "") {
+		return Config{}, errors.New("INVENTAR_BEHIND_PROXY cannot be combined with INVENTAR_DUCKDNS_DOMAIN/INVENTAR_DUCKDNS_TOKEN: " +
+			"either the proxy terminates TLS or the server does it itself (ADR-0004, ADR-0005)")
+	}
 	if (c.DuckDNS.Domain == "") != (c.DuckDNS.Token == "") {
 		return Config{}, errors.New("INVENTAR_DUCKDNS_DOMAIN and INVENTAR_DUCKDNS_TOKEN must be set together")
 	}

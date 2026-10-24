@@ -23,18 +23,51 @@ Ohne DuckDNS-Angaben läuft der Server per HTTP. Browser behandeln `localhost` a
 
 ## Betrieb auf dem Pi
 
+Auf dem Pi (`kodi`, Debian 12 arm64) läuft der Server als systemd-Dienst per HTTP auf `127.0.0.1:8080`. Davor terminiert ein gemeinsamer Caddy für alle Dienste TLS mit DuckDNS-Zertifikaten (ADR-0005). Alle Dateien dafür liegen in [`deploy/`](deploy/).
+
+### Einmalige Einrichtung
+
+Auf dem Pi:
+
 ```sh
-make build-pi   # erzeugt bin/inventar-linux-arm64
+mkdir -p ~/inventar/bin ~/inventar/data
 ```
 
-Das Binary auf den Pi kopieren. Es enthält den Client und alle Migrationen.
+Vom Entwicklungsrechner aus `deploy/inventar.env.example` als `~/inventar/inventar.env` auf den Pi kopieren, anpassen und mit `chmod 600` schützen. Dann die Units installieren:
+
+```sh
+scp deploy/inventar.env.example layornos@kodi:inventar/inventar.env
+scp deploy/inventar.service deploy/inventar-backup.service deploy/inventar-backup.timer layornos@kodi:/tmp/
+ssh layornos@kodi 'chmod 600 ~/inventar/inventar.env && sudo mv /tmp/inventar*.service /tmp/inventar-backup.timer /etc/systemd/system/ && sudo systemctl daemon-reload'
+deploy/deploy.sh   # baut, kopiert das Binary und startet den Dienst
+ssh layornos@kodi 'sudo systemctl enable inventar.service && mkdir -p /mnt/NAS/Backup/inventar && sudo systemctl enable --now inventar-backup.timer'
+```
+
+Den Site-Block aus [`deploy/Caddyfile.snippet`](deploy/Caddyfile.snippet) in die Caddyfile übernehmen. Der Caddy-Container braucht das Plugin `caddy-dns/duckdns` und die Umgebungsvariablen `INVENTAR_DOMAIN` (z. B. `inventar-xyz.duckdns.org`) und `DUCKDNS_TOKEN`. Die Hinweise aus ADR-0004 zu DNS-Rebind-Schutz, VPN-DNS und fester IP gelten weiter.
+
+Danach den ersten Nutzer anlegen:
+
+```sh
+ssh -t layornos@kodi 'set -a; . ~/inventar/inventar.env; ~/inventar/bin/inventar create-user --name "Alex" --email alex@example.org'
+```
+
+### Updates
+
+```sh
+deploy/deploy.sh                                    # Ziel per INVENTAR_DEPLOY_HOST änderbar
+```
+
+Das Skript baut mit `make build-pi`, lädt das Binary unter einem temporären Namen hoch, ersetzt das alte und startet den Dienst neu. Es lässt sich beliebig oft ausführen. Das Binary enthält den Client und alle Migrationen; die Datenbank wird beim Start automatisch migriert.
+
+### Konfiguration
 
 | Variable | Bedeutung | Standard |
 |---|---|---|
-| `INVENTAR_DATA_DIR` | Verzeichnis für Datenbank, Fotos (Ordner `fotos`) und Zertifikate. Sollte auf der SSD liegen und gehört komplett ins Backup. | `./data` |
-| `INVENTAR_ADDR` | Adresse und Port | `:443` mit DuckDNS, sonst `localhost:8080` |
+| `INVENTAR_DATA_DIR` | Verzeichnis für Datenbank (`inventar.db`), Fotos (Ordner `fotos`) und ggf. Zertifikate. Sollte auf der SSD liegen. | `./data` |
+| `INVENTAR_ADDR` | Adresse und Port. Hinter dem Proxy `127.0.0.1:8080`. | `:443` mit DuckDNS, sonst `localhost:8080` |
+| `INVENTAR_BEHIND_PROXY` | `true`, wenn ein Reverse-Proxy davor TLS terminiert (ADR-0005). Der Server behandelt Anfragen dann als HTTPS (`Secure`-Cookie, `https`-Einladungslinks) und vertraut `X-Forwarded-Proto`. Nur setzen, wenn der Server ausschließlich über den Proxy erreichbar ist. Nicht mit DuckDNS kombinierbar. | `false` |
 | `INVENTAR_MAX_PHOTO_MB` | Größte erlaubte Fotodatei in MB | `20` |
-| `INVENTAR_DUCKDNS_DOMAIN` | z. B. `inventar-xyz.duckdns.org`. Aktiviert HTTPS (ADR-0004). | – |
+| `INVENTAR_DUCKDNS_DOMAIN` | z. B. `inventar-xyz.duckdns.org`. Der Server holt das Zertifikat selbst (ADR-0004), nur ohne Proxy. | – |
 | `INVENTAR_DUCKDNS_TOKEN` | DuckDNS-Token, Pflicht zusammen mit der Domain | – |
 | `INVENTAR_SMTP_HOST` | z. B. `smtp.gmail.com`. Aktiviert den Mailversand. | – |
 | `INVENTAR_SMTP_PORT` | | `587` |
@@ -42,16 +75,38 @@ Das Binary auf den Pi kopieren. Es enthält den Client und alle Migrationen.
 | `INVENTAR_SMTP_PASSWORD` | Gmail-App-Passwort | – |
 | `INVENTAR_SMTP_FROM` | Absender | `INVENTAR_SMTP_USER` |
 
-Token und Passwörter gehören in eine Umgebungsdatei auf dem Pi, nicht ins Repository. Unvollständige Angaben, z. B. eine Domain ohne Token, verhindern den Start mit einer klaren Fehlermeldung.
+Token und Passwörter gehören in die Umgebungsdatei auf dem Pi, nicht ins Repository. Unvollständige oder widersprüchliche Angaben, z. B. eine Domain ohne Token oder `INVENTAR_BEHIND_PROXY` zusammen mit DuckDNS, verhindern den Start mit einer klaren Fehlermeldung.
 
-Mit DuckDNS holt der Server das Let's-Encrypt-Zertifikat per DNS-01 selbst und erneuert es. Der Pi muss dafür von außen nicht erreichbar sein. Damit Port 443 ohne root nutzbar ist: `sudo setcap cap_net_bind_service=+ep inventar-linux-arm64`.
+Ohne Proxy kann der Server TLS auch selbst übernehmen: Mit DuckDNS holt er das Let's-Encrypt-Zertifikat per DNS-01 und erneuert es. Der Pi muss dafür von außen nicht erreichbar sein. Damit Port 443 ohne root nutzbar ist: `sudo setcap cap_net_bind_service=+ep inventar-linux-arm64`.
 
-Befehle:
+### Befehle
 
 ```sh
 inventar serve
 inventar create-user --name NAME --email EMAIL
 inventar reset-password --email EMAIL           # beendet alle Sitzungen des Nutzers
+inventar backup --to DIR                        # Sicherung von Datenbank und Fotos nach DIR
 ```
+
+### Backup
+
+`inventar backup --to DIR` liest wie `serve` das Datenverzeichnis aus `INVENTAR_DATA_DIR` und schreibt nach `DIR` eine konsistente Sicherung im selben Aufbau: `DIR/inventar.db` als Schnappschuss per `VACUUM INTO` (geht auch, während der Server läuft) und `DIR/fotos/`. Fotos werden nur kopiert, wenn sie neu sind oder sich Größe oder Änderungszeit geändert haben, nächtliche Läufe sind also billig. Gelöschte Fotos bleiben in der Sicherung liegen. Zertifikate werden nicht gesichert, sie lassen sich neu holen.
+
+Auf dem Pi startet `inventar-backup.timer` die Sicherung jede Nacht gegen 03:30 nach `/mnt/NAS/Backup/inventar`. War der Pi um diese Zeit aus, wird sie beim nächsten Start nachgeholt. Den letzten Lauf zeigt `systemctl status inventar-backup.service`, von Hand startet ihn `sudo systemctl start inventar-backup.service`. Die Sicherung enthält immer nur den letzten Stand; ältere Stände braucht es auf dem NAS (z. B. Snapshots).
+
+### Wiederherstellen
+
+```sh
+sudo systemctl stop inventar.service
+mv ~/inventar/data ~/inventar/data.alt                    # alten Stand aufheben
+mkdir -p ~/inventar/data
+cp /mnt/NAS/Backup/inventar/inventar.db ~/inventar/data/
+cp -a /mnt/NAS/Backup/inventar/fotos ~/inventar/data/
+sudo systemctl start inventar.service
+```
+
+Danach in der App prüfen, ob Items und Fotos da sind, und erst dann `~/inventar/data.alt` löschen. Fotos, die nach der Sicherung gelöscht wurden, liegen danach wieder im Ordner, werden aber von keinem Item mehr verwendet; das stört nicht.
+
+### Update von einer Version mit deutschen Befehlen
 
 Beim Update von einer Version mit deutschen Befehlen (`starten`, `nutzer-anlegen`, `passwort-zuruecksetzen`) Aufrufe und Dienstdatei anpassen und `INVENTAR_MAX_FOTO_MB` in `INVENTAR_MAX_PHOTO_MB` umbenennen. Die Datenbank wird beim Start automatisch migriert (englische Tabellennamen, Daten bleiben erhalten); alle Nutzer müssen sich danach einmal neu anmelden.

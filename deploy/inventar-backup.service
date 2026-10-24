@@ -1,0 +1,32 @@
+# Nightly snapshot of database and photos onto the NAS, started by inventar-backup.timer.
+# Install together with the timer, see README.
+[Unit]
+Description=Wohnungsinventar backup to the NAS
+RequiresMountsFor=/mnt/NAS/Backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=layornos
+Group=layornos
+WorkingDirectory=/home/layornos/inventar
+EnvironmentFile=/home/layornos/inventar/inventar.env
+ExecStart=/home/layornos/inventar/bin/inventar backup --to /mnt/NAS/Backup/inventar
+Nice=10
+IOSchedulingClass=idle
+
+# Hardening: writes only to the data directory (SQLite WAL files) and the backup folder.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/layornos/inventar/data /mnt/NAS/Backup/inventar
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+UMask=0027

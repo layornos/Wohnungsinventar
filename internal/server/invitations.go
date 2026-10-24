@@ -55,12 +55,24 @@ func invitationInvalid(w http.ResponseWriter) {
 // invitationLink builds the link from the address the app is currently opened under, so that
 // it is the same at home and via the VPN. The token is in the fragment and so, when the link
 // is opened, reaches neither the server nor its logs. The UI route stays German.
-func invitationLink(r *http.Request, token string) string {
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+func (s *server) invitationLink(r *http.Request, token string) string {
+	return s.scheme(r) + "://" + r.Host + "/einladung#" + token
+}
+
+// scheme is the scheme the browser opened the app with. Behind the proxy (ADR-0005) requests
+// arrive over plain HTTP, so HTTPS is assumed unless the proxy reports otherwise. Without the
+// proxy X-Forwarded-Proto would come from the client itself and is ignored.
+func (s *server) scheme(r *http.Request) string {
+	if s.Config.BehindProxy {
+		if r.Header.Get("X-Forwarded-Proto") == "http" {
+			return "http"
+		}
+		return "https"
 	}
-	return scheme + "://" + r.Host + "/einladung#" + token
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
 }
 
 func (s *server) createInvitation(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +107,7 @@ func (s *server) createInvitation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, struct {
 		invitationJSON
 		Link string `json:"link"`
-	}{toInvitationJSON(i), invitationLink(r, token)})
+	}{toInvitationJSON(i), s.invitationLink(r, token)})
 }
 
 func (s *server) listInvitations(w http.ResponseWriter, r *http.Request) {

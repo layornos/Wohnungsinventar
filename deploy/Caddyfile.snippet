@@ -1,0 +1,12 @@
+# Site block for the inventory app in the shared Caddyfile on the Pi (ADR-0005).
+# Caddy needs the caddy-dns/duckdns plugin and the environment variables
+# INVENTAR_DOMAIN (e.g. inventar-xyz.duckdns.org) and DUCKDNS_TOKEN.
+# With host networking 127.0.0.1 is the Pi itself. Caddy passes the original Host and sets
+# X-Forwarded-Proto/X-Forwarded-For; the app trusts them because INVENTAR_BEHIND_PROXY=true.
+{$INVENTAR_DOMAIN} {
+	tls {
+		dns duckdns {env.DUCKDNS_TOKEN}
+	}
+	encode
+	reverse_proxy 127.0.0.1:8080
+}

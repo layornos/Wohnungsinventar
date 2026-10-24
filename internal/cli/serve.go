@@ -48,6 +48,9 @@ func serve(ctx context.Context, c command) error {
 		srv.TLSConfig = tlsCfg
 		log.Info("server starting with HTTPS", "addr", cfg.Addr, "domain", cfg.DuckDNS.Domain)
 		go func() { errs <- srv.ListenAndServeTLS("", "") }()
+	} else if cfg.BehindProxy {
+		log.Info("server starting behind a reverse proxy that terminates TLS", "addr", cfg.Addr)
+		go func() { errs <- srv.ListenAndServe() }()
 	} else {
 		log.Info("server starting without TLS", "url", fmt.Sprintf("http://%s", cfg.Addr))
 		go func() { errs <- srv.ListenAndServe() }()

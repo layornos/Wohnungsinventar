@@ -107,7 +107,7 @@ func (s *server) setSessionCookie(w http.ResponseWriter, value string, maxAge in
 		Path:     "/",
 		MaxAge:   maxAge,
 		HttpOnly: true,
-		Secure:   s.Config.WithTLS(),
+		Secure:   s.Config.WithTLS() || s.Config.BehindProxy,
 		SameSite: http.SameSiteStrictMode,
 	})
 }

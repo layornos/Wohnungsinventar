@@ -22,6 +22,9 @@ import (
 // The name stays German so existing data directories keep working.
 const PhotoDir = "fotos"
 
+// DBFile is the name of the SQLite database in the data directory.
+const DBFile = "inventar.db"
+
 //go:embed migrations/*.sql
 var migrations embed.FS
 
@@ -34,7 +37,7 @@ func Open(ctx context.Context, dataDir string) (*Store, error) {
 	if err := os.MkdirAll(filepath.Join(dataDir, PhotoDir), 0o750); err != nil {
 		return nil, fmt.Errorf("create data directory: %w", err)
 	}
-	dsn := "file:" + url.PathEscape(filepath.Join(dataDir, "inventar.db")) +
+	dsn := "file:" + url.PathEscape(filepath.Join(dataDir, DBFile)) +
 		"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -49,6 +52,13 @@ func Open(ctx context.Context, dataDir string) (*Store, error) {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+// Snapshot writes a consistent copy of the database to path with VACUUM INTO. It is safe while
+// the server is running; path must not exist yet.
+func (s *Store) Snapshot(ctx context.Context, path string) error {
+	_, err := s.db.ExecContext(ctx, "VACUUM INTO ?", path)
+	return err
+}
 
 // migrate runs pending migrations on one connection with foreign keys switched off, so that a
 // migration can rebuild a table others refer to (SQLite's procedure for schema changes).

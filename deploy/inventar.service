@@ -1,0 +1,43 @@
+# Inventory server on the Pi behind the shared Caddy (ADR-0005).
+# Install: sudo cp deploy/inventar.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#          sudo systemctl enable --now inventar.service
+[Unit]
+Description=Wohnungsinventar server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=layornos
+Group=layornos
+WorkingDirectory=/home/layornos/inventar
+EnvironmentFile=/home/layornos/inventar/inventar.env
+ExecStart=/home/layornos/inventar/bin/inventar serve
+Restart=on-failure
+RestartSec=5s
+
+# Hardening: the file system is read-only except for the data directory.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/layornos/inventar/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

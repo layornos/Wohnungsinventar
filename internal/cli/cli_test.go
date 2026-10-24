@@ -27,6 +27,13 @@ func TestIncompleteConfigurationPreventsStart(t *testing.T) {
 		"SMTP port without host":       {"INVENTAR_SMTP_PORT": "587"},
 		"photo size not a number":      {"INVENTAR_MAX_PHOTO_MB": "lots"},
 		"photo size zero":              {"INVENTAR_MAX_PHOTO_MB": "0"},
+		"behind proxy not a boolean":   {"INVENTAR_BEHIND_PROXY": "maybe"},
+		"behind proxy with own TLS": {
+			"INVENTAR_BEHIND_PROXY":   "true",
+			"INVENTAR_DUCKDNS_DOMAIN": "inventar.duckdns.org",
+			"INVENTAR_DUCKDNS_TOKEN":  "abc",
+		},
+		"behind proxy with DuckDNS token": {"INVENTAR_BEHIND_PROXY": "1", "INVENTAR_DUCKDNS_TOKEN": "abc"},
 	}
 	for name, env := range cases {
 		t.Run(name, func(t *testing.T) {
