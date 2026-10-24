@@ -1,6 +1,6 @@
 # Code auf Englisch umstellen: verbindliche Zuordnung
 
-Status: ready-for-agent
+Status: erledigt
 
 Regel und Fachbegriffe: `CLAUDE.md` (Abschnitt „Code language“) und `CONTEXT.md` (Abschnitt „Code names“). Diese Datei legt den **Vertrag zwischen Server und Client** fest, damit beide Seiten parallel umbenannt werden können. Abweichungen nur nach Rücksprache.
 
