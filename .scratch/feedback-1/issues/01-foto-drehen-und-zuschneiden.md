@@ -11,11 +11,8 @@ Nach dem Aufnehmen oder Auswählen eines Fotos (Erfassen und Detailseite) will d
 
 - Drehen und Zuschneiden gibt es beim Erfassen **und** nachträglich an bereits gespeicherten Fotos.
 - Freies Format, kein festes Seitenverhältnis.
-
-## Noch zu klären bei der Umsetzung
-
-- Nachträglich: Original ersetzen oder als neues Foto speichern (Vorschlag: ersetzen, samt neuer Vorschau; die Foto-Adresse muss sich dabei ändern, siehe Issue 04).
-- Im Browser bearbeiten (Canvas, ggf. Bibliothek) oder serverseitig?
+- Nachträglich bearbeitet ersetzt das Foto das Original, samt neuer Vorschau. Die Foto-Adresse muss sich dabei ändern (siehe Issue 04).
+- Bearbeitet wird im Browser (Canvas, ggf. Bibliothek).
 
 ## Fertig, wenn
 

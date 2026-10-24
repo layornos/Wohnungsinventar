@@ -1,6 +1,7 @@
 # Verbleib beim ersten Item nicht übernommen
 
 Status: needs-info
+Beobachten: Der Nutzer meldet sich, wenn der Fehler erneut auftritt; bis dahin nicht weiter untersuchen.
 Typ: Fehler
 
 ## Beobachtet
