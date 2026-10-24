@@ -51,6 +51,7 @@ type ZugangStore interface {
 	SitzungAnlegen(ctx context.Context, tokenHash string, personID int64, jetzt, laeuftAb time.Time) error
 	SitzungsNutzer(ctx context.Context, tokenHash string, jetzt time.Time) (store.Nutzer, error)
 	SitzungLoeschen(ctx context.Context, tokenHash string) error
+	DesignSetzen(ctx context.Context, personID int64, d store.Design) (store.Nutzer, error)
 }
 
 type PersonenStore interface {
@@ -143,6 +144,7 @@ func New(d Deps) http.Handler {
 	geschuetzt := http.NewServeMux()
 	geschuetzt.HandleFunc("POST /api/abmeldung", s.abmelden)
 	geschuetzt.HandleFunc("GET /api/ich", s.ich)
+	geschuetzt.HandleFunc("PUT /api/ich/design", s.designSetzen)
 	geschuetzt.HandleFunc("GET /api/personen", s.personenAuflisten)
 	geschuetzt.HandleFunc("POST /api/personen", s.personAnlegen)
 	geschuetzt.HandleFunc("PUT /api/personen/{id}", s.personUmbenennen)

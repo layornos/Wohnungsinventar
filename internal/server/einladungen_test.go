@@ -62,6 +62,9 @@ func TestNachDemAnnehmenKannSichDieNeuePersonAnmelden(t *testing.T) {
 	if angenommen.Body["name"] != "Kim" || angenommen.Body["email"] != "kim@example.org" {
 		t.Fatalf("angenommen: %s", angenommen.Raw)
 	}
+	if v, da := angenommen.Body["design"]; !da || v != nil {
+		t.Fatalf("angenommen: design soll null sein: %s", angenommen.Raw)
+	}
 	// Nach dem Annehmen ist Kim direkt angemeldet …
 	if ich := kim.mustStatus(http.StatusOK, "GET", "/api/ich", nil); ich.Body["name"] != "Kim" {
 		t.Fatalf("ich: %s", ich.Raw)

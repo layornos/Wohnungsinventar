@@ -213,5 +213,5 @@ func (s *server) einladungAnnehmen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.sitzungsCookieSetzen(w, sitzung, int(sitzungsDauer.Seconds()))
-	schreibeJSON(w, http.StatusOK, alsNutzerJSON(n))
+	schreibeJSON(w, http.StatusOK, alsIchJSON(n))
 }

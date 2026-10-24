@@ -25,6 +25,21 @@ func alsNutzerJSON(n store.Nutzer) nutzerJSON {
 	return nutzerJSON{PersonID: n.PersonID, Name: n.Name, Email: n.Email}
 }
 
+// ichJSON ist der angemeldete Nutzer samt seinen Einstellungen, die andere Nutzer nicht sehen.
+type ichJSON struct {
+	nutzerJSON
+	// Design ist null, solange der Nutzer keins gewählt hat.
+	Design *store.Design `json:"design"`
+}
+
+func alsIchJSON(n store.Nutzer) ichJSON {
+	out := ichJSON{nutzerJSON: alsNutzerJSON(n)}
+	if n.Design != store.KeinDesign {
+		out.Design = &n.Design
+	}
+	return out
+}
+
 func (s *server) anmelden(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
@@ -56,7 +71,7 @@ func (s *server) anmelden(w http.ResponseWriter, r *http.Request) {
 		s.internerFehler(w, r, err)
 		return
 	}
-	schreibeJSON(w, http.StatusOK, alsNutzerJSON(n))
+	schreibeJSON(w, http.StatusOK, alsIchJSON(n))
 }
 
 // sitzungStarten legt eine Sitzung an und setzt das Cookie.
@@ -98,7 +113,26 @@ func (s *server) sitzungsCookieSetzen(w http.ResponseWriter, wert string, maxAge
 }
 
 func (s *server) ich(w http.ResponseWriter, r *http.Request) {
-	schreibeJSON(w, http.StatusOK, alsNutzerJSON(nutzerAus(r.Context())))
+	schreibeJSON(w, http.StatusOK, alsIchJSON(nutzerAus(r.Context())))
+}
+
+func (s *server) designSetzen(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Design store.Design `json:"design"`
+	}
+	if !leseJSON(w, r, &req) {
+		return
+	}
+	if !req.Design.Waehlbar() {
+		schreibeFehler(w, http.StatusBadRequest, "unbekanntes_design", "Unbekanntes Design")
+		return
+	}
+	n, err := s.Store.DesignSetzen(r.Context(), nutzerAus(r.Context()).PersonID, req.Design)
+	if err != nil {
+		s.storeFehler(w, r, err)
+		return
+	}
+	schreibeJSON(w, http.StatusOK, alsIchJSON(n))
 }
 
 type nutzerKey struct{}

@@ -271,8 +271,8 @@ func (s *Store) NutzerAuflisten(ctx context.Context) ([]Nutzer, error) {
 	defer rows.Close()
 	out := []Nutzer{}
 	for rows.Next() {
-		var n Nutzer
-		if err := rows.Scan(&n.PersonID, &n.Name, &n.Email, &n.PasswortHash); err != nil {
+		n, err := nutzerLesen(rows)
+		if err != nil {
 			return nil, err
 		}
 		out = append(out, n)

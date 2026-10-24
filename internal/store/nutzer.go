@@ -18,6 +18,26 @@ type Nutzer struct {
 	Name         string
 	Email        string
 	PasswortHash string
+	Design       Design
+}
+
+// Design ist die Gestaltung der Oberfläche, die ein Nutzer gewählt hat; KeinDesign heißt, noch keine.
+type Design string
+
+const (
+	KeinDesign Design = ""
+	Minimal    Design = "minimal"
+	Neon       Design = "neon"
+	Weich      Design = "weich"
+)
+
+// Waehlbar sagt, ob ein Nutzer dieses Design wählen kann.
+func (d Design) Waehlbar() bool {
+	switch d {
+	case Minimal, Neon, Weich:
+		return true
+	}
+	return false
 }
 
 func EmailNormalisieren(email string) string { return strings.ToLower(strings.TrimSpace(email)) }
@@ -47,19 +67,29 @@ func (s *Store) NutzerAnlegen(ctx context.Context, name, email, passwortHash str
 	return n, nil
 }
 
-const nutzerSelect = `SELECT n.person_id, p.name, n.email, n.passwort_hash FROM nutzer n JOIN person p ON p.id = n.person_id`
+const nutzerSelect = `SELECT n.person_id, p.name, n.email, n.passwort_hash, n.design FROM nutzer n JOIN person p ON p.id = n.person_id`
 
-func nutzerLesen(row *sql.Row) (Nutzer, error) {
+func nutzerLesen(z zeile) (Nutzer, error) {
 	var n Nutzer
-	err := row.Scan(&n.PersonID, &n.Name, &n.Email, &n.PasswortHash)
+	var design sql.NullString
+	err := z.Scan(&n.PersonID, &n.Name, &n.Email, &n.PasswortHash, &design)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Nutzer{}, ErrNichtGefunden
 	}
+	n.Design = Design(design.String)
 	return n, err
 }
 
 func (s *Store) NutzerPerEmail(ctx context.Context, email string) (Nutzer, error) {
 	return nutzerLesen(s.db.QueryRowContext(ctx, nutzerSelect+` WHERE n.email = ?`, EmailNormalisieren(email)))
+}
+
+// DesignSetzen speichert das gewählte Design am Nutzer und liefert ihn mit der neuen Einstellung.
+func (s *Store) DesignSetzen(ctx context.Context, personID int64, d Design) (Nutzer, error) {
+	if _, err := s.db.ExecContext(ctx, `UPDATE nutzer SET design = ? WHERE person_id = ?`, string(d), personID); err != nil {
+		return Nutzer{}, err
+	}
+	return nutzerLesen(s.db.QueryRowContext(ctx, nutzerSelect+` WHERE n.person_id = ?`, personID))
 }
 
 // PasswortSetzen ersetzt das Passwort und beendet alle Sitzungen des Nutzers.
