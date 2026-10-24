@@ -101,6 +101,10 @@ label.chip:has(input:focus-visible) {
 		display: inline-flex;
 	}
 
+	button.on-wide {
+		display: block;
+	}
+
 	.action-bar {
 		bottom: 0;
 	}
