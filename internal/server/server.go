@@ -76,6 +76,7 @@ type ItemStore interface {
 	ReplacePhoto(ctx context.Context, photoID int64, n store.NewPhoto, now time.Time) (string, store.Item, error)
 	DeletePhoto(ctx context.Context, photoID int64, now time.Time) (string, store.Item, error)
 	SetPlacement(ctx context.Context, itemID int64, p store.Place, now time.Time) (store.Item, error)
+	ChangeItems(ctx context.Context, itemIDs []int64, c store.ItemsChange, now time.Time) (int, error)
 }
 
 // PlaceStore covers apartments, rooms and storage locations.
@@ -152,6 +153,7 @@ func New(d Deps) http.Handler {
 	protected.HandleFunc("DELETE /api/persons/{id}", s.deletePerson)
 	protected.HandleFunc("GET /api/items", s.listItems)
 	protected.HandleFunc("POST /api/items", s.createItem)
+	protected.HandleFunc("POST /api/items/bulk", s.changeItems)
 	protected.HandleFunc("GET /api/items/{id}", s.getItem)
 	protected.HandleFunc("PUT /api/items/{id}", s.editItem)
 	protected.HandleFunc("DELETE /api/items/{id}", s.deleteItem)

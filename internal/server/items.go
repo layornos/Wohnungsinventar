@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -447,4 +448,67 @@ func (s *server) changeOwner(change func(ctx context.Context, itemID, personID i
 		item, err := change(r.Context(), itemID, personID, s.Now())
 		s.writeItem(w, r, item, err)
 	}
+}
+
+// changeItems applies one or more changes to several items at once, all or nothing:
+// {"itemIds": […], "disposition"?: string|null, "addOwnerId"?: id, "storageLocationId"?: id, "roomId"?: id}.
+// Only the fields given are changed; disposition null means undecided.
+func (s *server) changeItems(w http.ResponseWriter, r *http.Request) {
+	var fields map[string]json.RawMessage
+	if !readJSON(w, r, &fields) {
+		return
+	}
+	var req struct {
+		ItemIDs           []int64
+		AddOwnerID        int64
+		StorageLocationID int64
+		RoomID            int64
+	}
+	for name, target := range map[string]any{
+		"itemIds": &req.ItemIDs, "addOwnerId": &req.AddOwnerID, "storageLocationId": &req.StorageLocationID, "roomId": &req.RoomID,
+	} {
+		if raw, present := fields[name]; present {
+			if err := json.Unmarshal(raw, target); err != nil {
+				writeError(w, http.StatusBadRequest, "invalid_request", "Ungültiger Wert für "+name)
+				return
+			}
+		}
+	}
+	if len(req.ItemIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "invalid_request", "Bitte mindestens ein Item wählen")
+		return
+	}
+	c := store.ItemsChange{AddOwnerID: req.AddOwnerID}
+	if raw, present := fields["disposition"]; present {
+		var value *string
+		if err := json.Unmarshal(raw, &value); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid_disposition", "Unbekannter Verbleib")
+			return
+		}
+		d := store.Undecided
+		if value != nil {
+			var ok bool
+			if d, ok = readDisposition(w, *value); !ok {
+				return
+			}
+		}
+		c.Disposition = &d
+	}
+	if req.StorageLocationID != 0 || req.RoomID != 0 {
+		p, ok := placeFrom(w, req.StorageLocationID, req.RoomID)
+		if !ok {
+			return
+		}
+		c.Place = &p
+	}
+	if c.Disposition == nil && c.AddOwnerID == 0 && c.Place == nil {
+		writeError(w, http.StatusBadRequest, "invalid_request", "Keine Änderung angegeben")
+		return
+	}
+	count, err := s.Store.ChangeItems(r.Context(), req.ItemIDs, c, s.Now())
+	if err != nil {
+		s.storeError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"count": count})
 }

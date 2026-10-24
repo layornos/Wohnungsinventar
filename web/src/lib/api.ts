@@ -153,6 +153,22 @@ export type BoxChange = { count: number; box: Box };
 /** One page of the item list; more says whether further pages follow. */
 export type ItemPage = { items: ItemListEntry[]; more: boolean };
 
+/**
+ * Change for several items at once (POST /api/items/bulk); only the fields given are changed.
+ * disposition null sets it back to undecided; storageLocationId or roomId sets the placement.
+ */
+export type ItemsChange = {
+	disposition?: Disposition | null;
+	addOwnerId?: number;
+	storageLocationId?: number;
+	roomId?: number;
+};
+
+/** Applies the change to all items, all or nothing, and returns how many were changed. */
+export async function changeItems(itemIds: number[], change: ItemsChange): Promise<number> {
+	return (await api<{ count: number }>('POST', '/api/items/bulk', { itemIds, ...change })).count;
+}
+
 /** Message for an error, whether from the API or because the server cannot be reached. */
 export function errorText(e: unknown): string {
 	return e instanceof ApiError ? e.message : 'Der Server ist nicht erreichbar.';

@@ -647,3 +647,54 @@ func (s *Store) DeletePhoto(ctx context.Context, photoID int64, now time.Time) (
 	}
 	return file, item, nil
 }
+
+// ItemsChange is a change applied to several items at once; only the fields set are changed.
+type ItemsChange struct {
+	// Disposition, if set, replaces the disposition (Undecided included).
+	Disposition *Disposition
+	// AddOwnerID, if not 0, becomes an additional owner.
+	AddOwnerID int64
+	// Place, if set, becomes the placement, with the same rules as SetPlacement.
+	Place *Place
+}
+
+// ChangeItems applies the change to all items in one transaction: if one item is unknown or one
+// step fails, none of them changes. It returns the number of distinct items changed.
+func (s *Store) ChangeItems(ctx context.Context, itemIDs []int64, c ItemsChange, now time.Time) (int, error) {
+	seen := map[int64]bool{}
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
+		for _, id := range itemIDs {
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			res, err := tx.ExecContext(ctx, `UPDATE item SET updated_at = ? WHERE id = ?`, timeText(now), id)
+			if err != nil {
+				return err
+			}
+			if n, err := res.RowsAffected(); err != nil || n == 0 {
+				return errors.Join(err, ErrUnknownItem)
+			}
+			if c.Disposition != nil {
+				if _, err := tx.ExecContext(ctx, `UPDATE item SET disposition = ? WHERE id = ?`, dispositionValue(*c.Disposition), id); err != nil {
+					return err
+				}
+			}
+			if c.AddOwnerID != 0 {
+				if err := insertOwner(ctx, tx, id, c.AddOwnerID); err != nil {
+					return err
+				}
+			}
+			if c.Place != nil {
+				if err := setPlace(ctx, tx, id, *c.Place); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return len(seen), nil
+}
