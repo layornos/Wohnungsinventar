@@ -1,6 +1,6 @@
 # DuckDNS-Subdomain anlegen
 
-Status: ready-for-human
+Status: erledigt
 Blocked by: 01
 
 Blockiert die Entwicklung nicht.
@@ -17,6 +17,10 @@ Für HTTPS über die DNS-01-Challenge mit Let's Encrypt, ohne Portfreigabe (ADR-
 
 ## Fertig, wenn
 
-- [ ] Die Subdomain existiert und ist hier notiert: `__________.duckdns.org`
-- [ ] Der Token ist sicher abgelegt
-- [ ] `dig +short <subdomain>` von außerhalb des Heimnetzes liefert die private IP des Pi
+- [x] Die Subdomain existiert und ist hier notiert: `mosiminventar.duckdns.org`
+- [x] Der Token ist sicher abgelegt
+- [x] `dig +short <subdomain>` von außerhalb des Heimnetzes liefert die private IP des Pi
+
+## Comments
+
+2026-10-24: Token ist derselbe wie für die Filmdatenbank und liegt in `~/Projects/pi-proxy/.env` auf dem Pi. Caddy holt das Zertifikat (ADR-0005), nicht mehr der Inventar-Server.
