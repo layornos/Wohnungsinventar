@@ -6,15 +6,17 @@
 		<meta name="text-scale" content="scale" />
 		<meta name="theme-color" content="#ffffff" />
 		<script>
-			// Design vor dem ersten Rendern setzen, damit nicht kurz das falsche aufblitzt (siehe lib/design.ts).
+			// Design vor dem ersten Rendern setzen, damit nicht kurz das falsche aufblitzt (siehe lib/design.svelte.ts).
+			// Die Farben müssen zu --themenfarbe in app.css passen.
 			(function () {
 				var design = 'minimal';
 				try {
-					if (localStorage.getItem('inventar.design') === 'neon') design = 'neon';
+					var gespeichert = localStorage.getItem('inventar.design');
+					if (gespeichert === 'neon' || gespeichert === 'weich') design = gespeichert;
 				} catch (e) {}
 				document.documentElement.dataset.design = design;
 				var dunkel = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
-				var farbe = design === 'neon' ? '#09090f' : dunkel ? '#09090b' : '#ffffff';
+				var farbe = design === 'neon' ? '#09090f' : design === 'weich' ? '#f3f0fa' : dunkel ? '#09090b' : '#ffffff';
 				document.querySelector('meta[name="theme-color"]').setAttribute('content', farbe);
 			})();
 		</script>

@@ -7,7 +7,6 @@
 	import { page } from '$app/state';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { zurAnmeldung } from './api.ts';
-	import DesignWahl from './DesignWahl.svelte';
 	import { abmelden } from './sitzung.svelte.ts';
 
 	let { art = 'dialog' }: { art?: 'dialog' | 'leiste' } = $props();
@@ -87,7 +86,7 @@
 	{@render eintrag('/ohne-lagerort', 'Ohne Lagerort')}
 	{@render eintrag('/personen', 'Personen')}
 	{@render eintrag('/nutzer', 'Nutzer')}
-	<DesignWahl />
+	{@render eintrag('/einstellungen', 'Einstellungen')}
 	<button type="button" class="sekundaer" onclick={abmeldenUndWeiter}>Abmelden</button>
 	{#if fehler}
 		<p class="fehler" role="alert">{fehler}</p>

@@ -31,7 +31,7 @@ label.chip:has(input:focus-visible) {
 /* Maus: Zeigen hebt Antippbares hervor */
 @media (hover: hover) {
 	/* Hauptknöpfe (Fläche in Akzentfarbe) mischen etwas Seitenfarbe hinein statt durchsichtig zu werden:
-	   passt zu Schwarz und Weiß in Minimal wie zu Mint in Neon (dort leuchtet es zusätzlich stärker). */
+	   passt zu Schwarz und Weiß in Minimal wie zu Mint in Neon und Violett in Weich (Neon leuchtet, Weich schattet stärker). */
 	button:not(:disabled, .sekundaer, .gefahr, .klein, .packen, .foto-wahl, .foto-loeschen, .ausschnitt, .griff, .trefferliste button):hover,
 	a.knopf:not(.sekundaer):hover {
 		background-color: color-mix(in srgb, var(--akzent) 86%, var(--hintergrund));
@@ -63,8 +63,8 @@ label.chip:has(input:focus-visible) {
 		max-width: 640px;
 	}
 
-	/* Nur die Kacheln von Neon; Minimal bleibt eine Liste. */
-	[data-design='neon'] .raster {
+	/* Nur die Kacheln von Neon und Weich; Minimal bleibt eine Liste. */
+	:is([data-design='neon'], [data-design='weich']) .raster {
 		grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
 	}
 }
@@ -101,7 +101,7 @@ label.chip:has(input:focus-visible) {
 		max-width: 1200px;
 	}
 
-	[data-design='neon'] .seite.weit:has(> .raster) {
+	:is([data-design='neon'], [data-design='weich']) .seite.weit:has(> .raster) {
 		max-width: 1600px;
 	}
 
@@ -120,7 +120,7 @@ label.chip:has(input:focus-visible) {
 		flex: 2 1 16em;
 	}
 
-	[data-design='neon'] .raster {
+	:is([data-design='neon'], [data-design='weich']) .raster {
 		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 		gap: 16px;
 	}
