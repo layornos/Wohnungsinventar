@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -16,10 +17,12 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"inventar/internal/cli"
 	"inventar/internal/config"
 	"inventar/internal/mail"
+	"inventar/internal/reminder"
 	"inventar/internal/server"
 	"inventar/internal/store"
 )
@@ -30,6 +33,8 @@ type testEnv struct {
 	dataDir string
 	mailer  *mail.Recorder
 	srv     *httptest.Server
+	// reminders is the reminder service on the same store, mailer and clock; tests run it directly.
+	reminders *reminder.Service
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -57,7 +62,20 @@ func newTestEnvWith(t *testing.T, adjust func(*server.Deps)) *testEnv {
 	adjust(&d)
 	srv := httptest.NewServer(server.New(d))
 	t.Cleanup(srv.Close)
-	return &testEnv{t: t, dataDir: dataDir, mailer: rec, srv: srv}
+	now := d.Now
+	if now == nil {
+		now = time.Now
+	}
+	svc := &reminder.Service{Store: st, Mailer: d.Mailer, Now: now, PublicURL: d.Config.PublicURL, Logger: slog.New(slog.DiscardHandler)}
+	return &testEnv{t: t, dataDir: dataDir, mailer: rec, srv: srv, reminders: svc}
+}
+
+// runReminders runs the reminder service once, as the server does every 15 minutes.
+func (e *testEnv) runReminders() {
+	e.t.Helper()
+	if err := e.reminders.Run(context.Background()); err != nil {
+		e.t.Fatalf("reminder run: %v", err)
+	}
 }
 
 // runCLI runs a subcommand against the same data directory.

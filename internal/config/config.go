@@ -18,9 +18,12 @@ type Config struct {
 	// BehindProxy means a reverse proxy in front terminates TLS (ADR-0005): requests count as
 	// HTTPS and X-Forwarded-Proto is trusted. Never set it when the server is reachable directly.
 	BehindProxy bool
-	DuckDNS     DuckDNS
-	SMTP        SMTP
-	Anthropic   Anthropic
+	// PublicURL is the address of the app as users open it, e.g. https://inventar.example.org, for links in mails.
+	// Without it, mails contain no links. With DuckDNS it defaults to https://<domain>.
+	PublicURL string
+	DuckDNS   DuckDNS
+	SMTP      SMTP
+	Anthropic Anthropic
 }
 
 // Anthropic enables name and description suggestions from photos with Claude (ADR-0006) when
@@ -96,6 +99,13 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if (c.DuckDNS.Domain == "") != (c.DuckDNS.Token == "") {
 		return Config{}, errors.New("INVENTAR_DUCKDNS_DOMAIN and INVENTAR_DUCKDNS_TOKEN must be set together")
+	}
+	c.PublicURL = strings.TrimRight(strings.TrimSpace(getenv("INVENTAR_PUBLIC_URL")), "/")
+	if c.PublicURL != "" && !strings.HasPrefix(c.PublicURL, "https://") && !strings.HasPrefix(c.PublicURL, "http://") {
+		return Config{}, fmt.Errorf("INVENTAR_PUBLIC_URL must start with https:// or http://: %q", c.PublicURL)
+	}
+	if c.PublicURL == "" && c.WithTLS() {
+		c.PublicURL = "https://" + c.DuckDNS.Domain
 	}
 	if c.Addr == "" {
 		if c.WithTLS() {

@@ -28,6 +28,16 @@ type Store interface {
 	MoveStore
 	InvitationStore
 	SaleStore
+	ReminderStore
+}
+
+// ReminderStore covers spec 07: the reminders in the app and the reminder mail setting of a user.
+type ReminderStore interface {
+	ListReminders(ctx context.Context, f store.ReminderFilter) ([]store.Reminder, bool, error)
+	CountOpenReminders(ctx context.Context) (int, error)
+	GetReminder(ctx context.Context, id int64) (store.Reminder, error)
+	React(ctx context.Context, id int64, r store.Reaction, personID int64, now time.Time) (store.Reminder, error)
+	SetReminderMail(ctx context.Context, personID int64, on bool) (store.User, error)
 }
 
 // SaleStore covers spec 06: handing items over into the archive, household settings and the proceeds summary.
@@ -159,6 +169,11 @@ func New(d Deps) http.Handler {
 	protected.HandleFunc("POST /api/logout", s.logout)
 	protected.HandleFunc("GET /api/me", s.me)
 	protected.HandleFunc("PUT /api/me/theme", s.setTheme)
+	protected.HandleFunc("PUT /api/me/reminder-mail", s.setReminderMail)
+	protected.HandleFunc("GET /api/reminders", s.listReminders)
+	protected.HandleFunc("GET /api/reminders/count", s.countReminders)
+	protected.HandleFunc("GET /api/reminders/{id}", s.getReminder)
+	protected.HandleFunc("POST /api/reminders/{id}/reaction", s.react)
 	protected.HandleFunc("GET /api/features", s.features)
 	protected.HandleFunc("POST /api/suggestions", s.suggest)
 	protected.HandleFunc("GET /api/persons", s.listPersons)
@@ -339,6 +354,10 @@ func (s *server) storeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusConflict, "item_archived", "Das Item ist im Archiv und lässt sich nicht ändern")
 	case errors.Is(err, store.ErrNotArchived):
 		writeError(w, http.StatusConflict, "not_archived", "Das Item ist nicht im Archiv")
+	case errors.Is(err, store.ErrReminderDone):
+		writeError(w, http.StatusConflict, "reminder_done", "Die Erinnerung ist schon erledigt")
+	case errors.Is(err, store.ErrReactionMismatch):
+		writeError(w, http.StatusBadRequest, "reaction_mismatch", msgReactionMismatch)
 	case errors.Is(err, store.ErrNoSale):
 		writeError(w, http.StatusBadRequest, "no_sale", msgNoSale)
 	default:

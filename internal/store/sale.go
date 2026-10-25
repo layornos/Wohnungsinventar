@@ -85,8 +85,9 @@ func touchItem(ctx context.Context, q querier, id int64, now time.Time, notFound
 	return err
 }
 
-// setDisposition changes the disposition; every change to Sell or GiveAway starts "offered since" anew. The asking
-// price stays whatever the disposition becomes.
+// setDisposition changes the disposition; every change to Sell or GiveAway starts "offered since" anew, and every
+// change starts the period of the reminders anew (spec 07). The asking price stays whatever the disposition becomes.
+// Saving the same disposition changes nothing.
 func setDisposition(ctx context.Context, q querier, id int64, d Disposition, now time.Time) error {
 	var old sql.NullString
 	if err := q.QueryRowContext(ctx, `SELECT disposition FROM item WHERE id = ?`, id).Scan(&old); err != nil {
@@ -95,12 +96,15 @@ func setDisposition(ctx context.Context, q querier, id int64, d Disposition, now
 	if dispositionFrom(old) == d {
 		return nil
 	}
-	if d.offered() {
-		_, err := q.ExecContext(ctx, `UPDATE item SET disposition = ?, offered_since = ? WHERE id = ?`, dispositionValue(d), timeText(now), id)
+	if _, err := q.ExecContext(ctx, `UPDATE item SET disposition = ? WHERE id = ?`, dispositionValue(d), id); err != nil {
 		return err
 	}
-	_, err := q.ExecContext(ctx, `UPDATE item SET disposition = ? WHERE id = ?`, dispositionValue(d), id)
-	return err
+	if d.offered() {
+		if _, err := q.ExecContext(ctx, `UPDATE item SET offered_since = ? WHERE id = ?`, timeText(now), id); err != nil {
+			return err
+		}
+	}
+	return dispositionChanged(ctx, q, id, d, now)
 }
 
 // Handover is selling (Disposition Sell) or giving away (GiveAway) an item on a date (YYYY-MM-DD).
@@ -139,6 +143,13 @@ func (s *Store) HandOver(ctx context.Context, id int64, h Handover, now time.Tim
 			}
 		}
 		if err := setDisposition(ctx, tx, id, h.Disposition, now); err != nil {
+			return err
+		}
+		// An item in the archive gets no reminders (spec 07).
+		if err := settleOpen(ctx, tx, id, reactHandedOver, now); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM reminder_schedule WHERE item_id = ?`, id); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE item SET handed_over_on = ?, sale_proceeds_cents = ?, updated_at = ? WHERE id = ?`,
@@ -184,6 +195,14 @@ func (s *Store) TakeBack(ctx context.Context, id int64, now time.Time) (Item, er
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE item SET handed_over_on = NULL, sale_proceeds_cents = NULL, updated_at = ? WHERE id = ?`,
 			timeText(now), id); err != nil {
+			return err
+		}
+		// Back in stock, the reminders of its disposition start from today.
+		var d sql.NullString
+		if err := tx.QueryRowContext(ctx, `SELECT disposition FROM item WHERE id = ?`, id).Scan(&d); err != nil {
+			return err
+		}
+		if err := planFor(ctx, tx, id, dispositionFrom(d), now); err != nil {
 			return err
 		}
 		item, err = readItem(ctx, tx, id)

@@ -19,6 +19,8 @@ type User struct {
 	Email        string
 	PasswordHash string
 	Theme        Theme
+	// ReminderMail says whether the user gets the monthly reminder mail (spec 07).
+	ReminderMail bool
 }
 
 // Theme is the look of the UI a user has chosen; NoTheme means none yet.
@@ -67,12 +69,12 @@ func (s *Store) CreateUser(ctx context.Context, name, email, passwordHash string
 	return u, nil
 }
 
-const userSelect = `SELECT u.person_id, p.name, u.email, u.password_hash, u.theme FROM app_user u JOIN person p ON p.id = u.person_id`
+const userSelect = `SELECT u.person_id, p.name, u.email, u.password_hash, u.theme, u.reminder_mail = 1 FROM app_user u JOIN person p ON p.id = u.person_id`
 
 func readUser(r row) (User, error) {
 	var u User
 	var theme sql.NullString
-	err := r.Scan(&u.PersonID, &u.Name, &u.Email, &u.PasswordHash, &theme)
+	err := r.Scan(&u.PersonID, &u.Name, &u.Email, &u.PasswordHash, &theme, &u.ReminderMail)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrNotFound
 	}

@@ -40,6 +40,9 @@ type itemJSON struct {
 	// Move holds the details in the active move, otherwise null.
 	Move *moveDetailsJSON `json:"move"`
 	saleJSON
+	// Schedules are the planned reminders, Reminders those that became due, the newest first (spec 07).
+	Schedules []scheduleJSON `json:"schedules"`
+	Reminders []reminderJSON `json:"reminders"`
 }
 
 // saleJSON holds the fields of spec 06; amounts are cents. handedOverOn and saleProceeds are only set in the archive.
@@ -94,6 +97,8 @@ func toItemJSON(item store.Item) itemJSON {
 		FurnitureStorageLocations: toNamedListJSON(item.FurnitureStorageLocations),
 		Move:                      toMoveDetailsJSON(item.Move),
 		saleJSON:                  toSaleJSON(item.Sale),
+		Schedules:                 toSchedulesJSON(item.Schedules),
+		Reminders:                 toRemindersJSON(item.Reminders),
 	}
 	if item.Placement != nil {
 		p := toPathJSON(*item.Placement)

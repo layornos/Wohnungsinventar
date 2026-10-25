@@ -46,6 +46,9 @@ type Item struct {
 	// Move holds the details in the active move; nil if none is active or there are none.
 	Move *MoveDetails
 	Sale
+	// Schedules are the planned reminders, Reminders those that became due, the newest first (spec 07).
+	Schedules []Schedule
+	Reminders []Reminder
 }
 
 // Sale holds what an item has from spec 06 (sale): its asking price while on offer and, once sold or given away,
@@ -118,11 +121,14 @@ func (s *Store) CreateItem(ctx context.Context, n NewItem, now time.Time) (Item,
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		var id int64
 		err := tx.QueryRowContext(ctx, `
-			INSERT INTO item (name, name_lower, description, disposition, created_at, updated_at, offered_since)
-			VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+			INSERT INTO item (name, name_lower, description, disposition, created_at, updated_at, offered_since, disposition_since)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
 			n.Name, strings.ToLower(n.Name), n.Description, dispositionValue(n.Disposition), timeText(now), timeText(now),
-			offeredSinceValue(n.Disposition, now)).Scan(&id)
+			offeredSinceValue(n.Disposition, now), timeText(now)).Scan(&id)
 		if err != nil {
+			return err
+		}
+		if err := planFor(ctx, tx, id, n.Disposition, now); err != nil {
 			return err
 		}
 		for _, p := range n.OwnerIDs {
@@ -219,6 +225,12 @@ func readItem(ctx context.Context, q querier, id int64) (Item, error) {
 		return Item{}, err
 	}
 	if item.Move, err = readMoveDetails(ctx, q, id); err != nil {
+		return Item{}, err
+	}
+	if item.Schedules, err = readSchedules(ctx, q, id); err != nil {
+		return Item{}, err
+	}
+	if item.Reminders, err = readReminders(ctx, q, reminderSelect+` WHERE r.item_id = ? ORDER BY r.due_on DESC, r.id DESC`, id); err != nil {
 		return Item{}, err
 	}
 	item.Photos, err = readPhotos(ctx, q, id)

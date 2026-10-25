@@ -6,27 +6,14 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	_ "time/tzdata" // the household's time zone must not depend on the installation of the Pi
 
 	"inventar/internal/store"
 )
 
-// household is the time zone of the household: dates such as "sold on" and the periods of the proceeds summary
-// are days there (spec 06).
-var household = mustLoadLocation("Europe/Berlin")
-
-func mustLoadLocation(name string) *time.Location {
-	loc, err := time.LoadLocation(name)
-	if err != nil {
-		panic(err)
-	}
-	return loc
-}
-
 const dateLayout = "2006-01-02"
 
 // today is the current date in the household's time zone.
-func (s *server) today() string { return s.Now().In(household).Format(dateLayout) }
+func (s *server) today() string { return store.Day(s.Now()) }
 
 const (
 	msgNoSale         = "Einen Angebotspreis gibt es nur bei Verkaufen und Später verkaufen"

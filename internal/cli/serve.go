@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"inventar/internal/mail"
+	"inventar/internal/reminder"
 	"inventar/internal/server"
 	"inventar/internal/store"
 	"inventar/internal/suggest"
@@ -29,11 +30,27 @@ func serve(ctx context.Context, c command) error {
 	}
 	defer st.Close()
 
+	mailer := mail.New(cfg, log)
 	deps := server.Deps{
 		Config: cfg,
 		Store:  st,
-		Mailer: mail.New(cfg, log),
+		Mailer: mailer,
 		Logger: log,
+	}
+	// The reminder service runs in this process (ADR-0001) until the server stops; it finishes its run before the
+	// store closes.
+	reminders := &reminder.Service{Store: st, Mailer: mailer, Now: time.Now, PublicURL: cfg.PublicURL, Logger: log}
+	loopDone := make(chan struct{})
+	go func() {
+		defer close(loopDone)
+		reminders.Loop(ctx, reminder.Every)
+	}()
+	defer func() {
+		stop()
+		<-loopDone
+	}()
+	if cfg.PublicURL == "" {
+		log.Warn("INVENTAR_PUBLIC_URL not set, reminder mails contain no link")
 	}
 	if cfg.WithSuggestions() {
 		claude := suggest.NewClaude(cfg.Anthropic.APIKey, cfg.Anthropic.Model)

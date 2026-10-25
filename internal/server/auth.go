@@ -30,10 +30,12 @@ type meJSON struct {
 	userJSON
 	// Theme is null as long as the user has not chosen one.
 	Theme *store.Theme `json:"theme"`
+	// ReminderMail says whether the user gets the monthly reminder mail.
+	ReminderMail bool `json:"reminderMail"`
 }
 
 func toMeJSON(u store.User) meJSON {
-	out := meJSON{userJSON: toUserJSON(u)}
+	out := meJSON{userJSON: toUserJSON(u), ReminderMail: u.ReminderMail}
 	if u.Theme != store.NoTheme {
 		out.Theme = &u.Theme
 	}
