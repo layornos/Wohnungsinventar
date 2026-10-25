@@ -1,6 +1,6 @@
 # Prüfen, ob die Domain über WireGuard aufgelöst wird
 
-Status: ready-for-human
+Status: done
 Blocked by: 03
 
 Blockiert die Entwicklung nicht.
@@ -15,4 +15,6 @@ Nur dann funktioniert dieselbe Adresse auch von unterwegs (ADR-0004).
 
 ## Fertig, wenn
 
-- [ ] Im Mobilfunknetz mit aktivem VPN liefert die Subdomain die private IP des Pi, auf jedem Gerät, das die App nutzen soll
+- [x] Im Mobilfunknetz mit aktivem VPN liefert die Subdomain die private IP des Pi, auf jedem Gerät, das die App nutzen soll
+
+Vom Nutzer am 2026-10-25 bestätigt: Die App ist von unterwegs über WireGuard erreichbar.
