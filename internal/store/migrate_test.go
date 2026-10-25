@@ -118,6 +118,21 @@ func TestEnglishNamesMigrationKeepsData(t *testing.T) {
 		t.Errorf("new photo ID %d, want 8", id)
 	}
 
+	// Items that already had a disposition get the reminders of spec 07 and 08 planned from their last change
+	// (0011 set the date, 0012 plans them). The lamp is for sale without a price, so it gets none.
+	for id, want := range map[int64][]Schedule{
+		1: {},
+		2: {{KeepReview, "2029-01-01"}},
+		3: {},
+		4: {{SellLaterDue, "2027-01-01"}},
+		5: {{GiveAwayReminder, "2026-01-31"}},
+	} {
+		item, _ := s.GetItem(ctx, id)
+		if len(item.Schedules) != len(want) || (len(want) == 1 && item.Schedules[0] != want[0]) {
+			t.Errorf("item %d schedules %+v, want %+v", id, item.Schedules, want)
+		}
+	}
+
 	// The CHECK on the disposition knows the English values only.
 	if _, err := s.EditItem(ctx, 1, ItemEdit{Name: "Regal", Disposition: Disposition("verkaufen")}, now); err == nil {
 		t.Error("German disposition was accepted by the database")

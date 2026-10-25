@@ -36,7 +36,7 @@ type ReminderStore interface {
 	ListReminders(ctx context.Context, f store.ReminderFilter) ([]store.Reminder, bool, error)
 	CountOpenReminders(ctx context.Context) (int, error)
 	GetReminder(ctx context.Context, id int64) (store.Reminder, error)
-	React(ctx context.Context, id int64, r store.Reaction, personID int64, now time.Time) (store.Reminder, error)
+	React(ctx context.Context, id int64, r store.Reaction, price *int64, personID int64, now time.Time) (store.Reminder, error)
 	SetReminderMail(ctx context.Context, personID int64, on bool) (store.User, error)
 }
 
@@ -356,6 +356,8 @@ func (s *server) storeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusConflict, "not_archived", "Das Item ist nicht im Archiv")
 	case errors.Is(err, store.ErrReminderDone):
 		writeError(w, http.StatusConflict, "reminder_done", "Die Erinnerung ist schon erledigt")
+	case errors.Is(err, store.ErrPriceMissing):
+		writeError(w, http.StatusBadRequest, "invalid_asking_price", "Bitte den neuen Angebotspreis angeben")
 	case errors.Is(err, store.ErrReactionMismatch):
 		writeError(w, http.StatusBadRequest, "reaction_mismatch", msgReactionMismatch)
 	case errors.Is(err, store.ErrNoSale):

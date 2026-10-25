@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"inventar/internal/euro"
 	"inventar/internal/mail"
 	"inventar/internal/store"
 )
@@ -100,13 +101,17 @@ func (s *Service) Run(ctx context.Context) error {
 	return nil
 }
 
-// Line names a reminder in the mail, e.g. "Behalte-Prüfung: Schreibtisch (Sandro, Anna)".
+// Line names a reminder in the mail, e.g. "Behalte-Prüfung: Schreibtisch (Sandro, Anna)" or, with the asking
+// price, "Preis prüfen: Stehlampe (40 €, Sandro)".
 func Line(r store.Reminder) string {
-	var owners []string
-	for _, o := range r.Item.Owners {
-		owners = append(owners, o.Name)
+	var details []string
+	if r.Kind == store.PriceReminder && r.Item.AskingPrice != nil {
+		details = append(details, euro.Format(*r.Item.AskingPrice))
 	}
-	return fmt.Sprintf("%s: %s (%s)", KindName(r.Kind), r.Item.Name, strings.Join(owners, ", "))
+	for _, o := range r.Item.Owners {
+		details = append(details, o.Name)
+	}
+	return fmt.Sprintf("%s: %s (%s)", KindName(r.Kind), r.Item.Name, strings.Join(details, ", "))
 }
 
 // KindName is the German name of a kind of reminder.
@@ -116,6 +121,10 @@ func KindName(k store.ReminderKind) string {
 		return "Behalte-Prüfung"
 	case store.SellLaterDue:
 		return "Später verkaufen"
+	case store.PriceReminder:
+		return "Preis prüfen"
+	case store.GiveAwayReminder:
+		return "Noch zu verschenken"
 	}
 	return string(k)
 }

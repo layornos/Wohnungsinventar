@@ -578,8 +578,17 @@ func (s *Store) EditItem(ctx context.Context, id int64, e ItemEdit, now time.Tim
 		if e.AskingPrice != nil && !e.Disposition.ForSale() {
 			return ErrNoSale
 		}
-		_, err = tx.ExecContext(ctx, `UPDATE item SET asking_price_cents = ? WHERE id = ?`, nullCents(e.AskingPrice), id)
-		return err
+		var old sql.NullInt64
+		if err := tx.QueryRowContext(ctx, `SELECT asking_price_cents FROM item WHERE id = ?`, id).Scan(&old); err != nil {
+			return err
+		}
+		if old.Valid == (e.AskingPrice != nil) && (!old.Valid || old.Int64 == *e.AskingPrice) {
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE item SET asking_price_cents = ? WHERE id = ?`, nullCents(e.AskingPrice), id); err != nil {
+			return err
+		}
+		return askingPriceChanged(ctx, tx, id, now)
 	})
 }
 

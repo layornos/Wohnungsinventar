@@ -12,6 +12,7 @@ import (
 var (
 	ErrReminderDone     = errors.New("reminder is already done")
 	ErrReactionMismatch = errors.New("reaction does not fit the reminder")
+	ErrPriceMissing     = errors.New("new asking price missing")
 )
 
 // Household is the time zone of the household: due dates, "sold on" and the periods of the proceeds summary are
@@ -52,6 +53,10 @@ const (
 	KeepReview ReminderKind = "keep_review"
 	// SellLaterDue says, one year after "sell later", that the item is to be sold now.
 	SellLaterDue ReminderKind = "sell_later"
+	// PriceReminder asks to check the asking price of an item for sale after 30 days at that price (spec 08).
+	PriceReminder ReminderKind = "price_reminder"
+	// GiveAwayReminder says that an item has been up for giving away for 30 days (spec 08).
+	GiveAwayReminder ReminderKind = "give_away_reminder"
 )
 
 // Reaction is the answer to a reminder.
@@ -63,9 +68,13 @@ const (
 	ReactSellNow      Reaction = "sell_now"
 	ReactOneMoreYear  Reaction = "one_more_year"
 	ReactKeepAfterAll Reaction = "keep_after_all"
+	ReactChangePrice  Reaction = "change_price"
+	ReactKeepPrice    Reaction = "keep_price"
+	ReactKeepOffering Reaction = "keep_offering"
 	// Set by the server, not by a user.
 	reactDispositionChanged Reaction = "disposition_changed"
 	reactHandedOver         Reaction = "handed_over"
+	reactPriceChanged       Reaction = "price_changed"
 )
 
 // Fits says whether a user can give this reaction to a reminder of the kind.
@@ -75,6 +84,10 @@ func (r Reaction) Fits(k ReminderKind) bool {
 		return r == ReactKeep || r == ReactSell
 	case SellLaterDue:
 		return r == ReactSellNow || r == ReactOneMoreYear || r == ReactKeepAfterAll
+	case PriceReminder:
+		return r == ReactChangePrice || r == ReactKeepPrice
+	case GiveAwayReminder:
+		return r == ReactKeepOffering
 	}
 	return false
 }
@@ -100,38 +113,77 @@ type Reminder struct {
 }
 
 type ReminderItem struct {
-	ID        int64
-	Name      string
-	MainPhoto PhotoRef
-	Owners    []Person
+	ID          int64
+	Name        string
+	MainPhoto   PhotoRef
+	Owners      []Person
+	AskingPrice *int64
 }
 
-// periodYears are the fixed periods of the reminders (CONTEXT.md).
-var periodYears = map[ReminderKind]int{KeepReview: 3, SellLaterDue: 1}
+// after is the due day that follows day for a kind, by its fixed period (CONTEXT.md): three years for the keep
+// review, one year for sell later, 30 days for the price and the give-away reminder.
+func after(k ReminderKind, day string) string {
+	switch k {
+	case KeepReview:
+		return addYears(day, 3)
+	case SellLaterDue:
+		return addYears(day, 1)
+	}
+	d, err := time.Parse(dayLayout, day)
+	if err != nil {
+		return day
+	}
+	return d.AddDate(0, 0, 30).Format(dayLayout)
+}
 
-// kindFor is the reminder an item with this disposition gets, if any.
-func kindFor(d Disposition) (ReminderKind, bool) {
-	switch d {
-	case Keep:
+// kindFor is the reminder an item with this disposition gets, if any; for sale only with an asking price.
+func kindFor(d Disposition, hasPrice bool) (ReminderKind, bool) {
+	switch {
+	case d == Keep:
 		return KeepReview, true
-	case SellLater:
+	case d == SellLater:
 		return SellLaterDue, true
+	case d == Sell && hasPrice:
+		return PriceReminder, true
+	case d == GiveAway:
+		return GiveAwayReminder, true
 	}
 	return "", false
 }
 
-// planFor plans the reminder of a disposition from today on; other schedules of the item go away.
+// planFor plans the reminder of the item's disposition from today on; other schedules of the item go away.
 func planFor(ctx context.Context, q querier, itemID int64, d Disposition, now time.Time) error {
 	if _, err := q.ExecContext(ctx, `DELETE FROM reminder_schedule WHERE item_id = ?`, itemID); err != nil {
 		return err
 	}
-	kind, ok := kindFor(d)
+	var price sql.NullInt64
+	if err := q.QueryRowContext(ctx, `SELECT asking_price_cents FROM item WHERE id = ?`, itemID).Scan(&price); err != nil {
+		return err
+	}
+	kind, ok := kindFor(d, price.Valid)
 	if !ok {
 		return nil
 	}
 	_, err := q.ExecContext(ctx, `INSERT INTO reminder_schedule (item_id, kind, due_on) VALUES (?, ?, ?)`,
-		itemID, string(kind), addYears(Day(now), periodYears[kind]))
+		itemID, string(kind), after(kind, Day(now)))
 	return err
+}
+
+// askingPriceChanged starts the period of the price reminder anew: open price reminders are settled, and an item
+// for sale with a price gets its next one in 30 days, one without a price none (spec 08).
+func askingPriceChanged(ctx context.Context, q querier, itemID int64, now time.Time) error {
+	if _, err := q.ExecContext(ctx, `UPDATE item SET price_changed_at = ? WHERE id = ?`, timeText(now), itemID); err != nil {
+		return err
+	}
+	if _, err := q.ExecContext(ctx, `UPDATE reminder SET done_at = ?, reaction = ? WHERE item_id = ? AND kind = ? AND done_at IS NULL`,
+		timeText(now), string(reactPriceChanged), itemID, string(PriceReminder)); err != nil {
+		return err
+	}
+	var d sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT disposition FROM item WHERE id = ?`, itemID).Scan(&d); err != nil {
+		return err
+	}
+	return planFor(ctx, q, itemID, dispositionFrom(d), now)
 }
 
 // settleOpen settles the open reminders of an item without a user, e.g. because its disposition changed.
@@ -153,8 +205,9 @@ func dispositionChanged(ctx context.Context, q querier, itemID int64, d Disposit
 }
 
 // TriggerDue turns the schedules that are due into reminders: from 8:00 in the household's time zone on their day,
-// or later after an outage, each exactly once. A keep review is planned again three years after its due day, so
-// the rhythm stays the same whatever happens; sell later reminds only once.
+// or later after an outage, each exactly once. Keep review, price and give-away reminders are planned again one
+// period after their due day, so the rhythm stays the same whatever happens; an item never has two open reminders
+// of a kind. Sell later reminds only once.
 func (s *Store) TriggerDue(ctx context.Context, now time.Time) (int, error) {
 	cutoff := Day(now)
 	if now.In(Household).Hour() < 8 {
@@ -185,20 +238,27 @@ func (s *Store) TriggerDue(ctx context.Context, now time.Time) (int, error) {
 			return err
 		}
 		for _, d := range all {
-			if _, err := tx.ExecContext(ctx, `INSERT INTO reminder (item_id, kind, due_on, triggered_at) VALUES (?, ?, ?, ?)`,
-				d.itemID, string(d.kind), d.dueOn, timeText(now)); err != nil {
+			var open bool
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM reminder WHERE item_id = ? AND kind = ? AND done_at IS NULL)`,
+				d.itemID, string(d.kind)).Scan(&open); err != nil {
 				return err
 			}
-			count++
-			if d.kind != KeepReview {
+			if !open {
+				if _, err := tx.ExecContext(ctx, `INSERT INTO reminder (item_id, kind, due_on, triggered_at) VALUES (?, ?, ?, ?)`,
+					d.itemID, string(d.kind), d.dueOn, timeText(now)); err != nil {
+					return err
+				}
+				count++
+			}
+			if d.kind == SellLaterDue {
 				if _, err := tx.ExecContext(ctx, `DELETE FROM reminder_schedule WHERE item_id = ? AND kind = ?`, d.itemID, string(d.kind)); err != nil {
 					return err
 				}
 				continue
 			}
-			next := addYears(d.dueOn, periodYears[KeepReview])
+			next := after(d.kind, d.dueOn)
 			for next <= cutoff {
-				next = addYears(next, periodYears[KeepReview])
+				next = after(d.kind, next)
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE reminder_schedule SET due_on = ? WHERE item_id = ? AND kind = ?`,
 				next, d.itemID, string(d.kind)); err != nil {
@@ -228,7 +288,8 @@ const recipientCondition = `(
 	OR NOT EXISTS (SELECT 1 FROM ownership o JOIN app_user u ON u.person_id = o.person_id WHERE o.item_id = r.item_id))`
 
 const reminderSelect = `
-	SELECT r.id, r.kind, r.due_on, r.triggered_at, r.done_at, r.reaction, d.id, d.name, i.id, i.name, p.id, p.file
+	SELECT r.id, r.kind, r.due_on, r.triggered_at, r.done_at, r.reaction, d.id, d.name, i.id, i.name, p.id, p.file,
+		i.asking_price_cents
 	FROM reminder r JOIN item i ON i.id = r.item_id
 	JOIN photo p ON p.item_id = i.id AND p.main_photo = 1
 	LEFT JOIN person d ON d.id = r.done_by`
@@ -288,9 +349,10 @@ func readReminders(ctx context.Context, q querier, query string, args ...any) ([
 			doneAt, reaction sql.NullString
 			doneByID         sql.NullInt64
 			doneByName       sql.NullString
+			price            sql.NullInt64
 		)
 		if err := rows.Scan(&r.ID, &r.Kind, &r.DueOn, &triggered, &doneAt, &reaction, &doneByID, &doneByName,
-			&r.Item.ID, &r.Item.Name, &r.Item.MainPhoto.ID, &r.Item.MainPhoto.File); err != nil {
+			&r.Item.ID, &r.Item.Name, &r.Item.MainPhoto.ID, &r.Item.MainPhoto.File, &price); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -307,6 +369,9 @@ func readReminders(ctx context.Context, q querier, query string, args ...any) ([
 			r.DoneAt = &t
 		}
 		r.DoneBy = namedFrom(doneByID, doneByName)
+		if price.Valid {
+			r.Item.AskingPrice = &price.Int64
+		}
 		r.Reaction = Reaction(reaction.String)
 		list = append(list, r)
 	}
@@ -345,8 +410,10 @@ func getReminder(ctx context.Context, q querier, id int64) (Reminder, error) {
 }
 
 // React settles a reminder with the reaction of a user and does what it means: a new disposition (which plans the
-// next reminder), or for "one more year" a new sell later reminder in a year.
-func (s *Store) React(ctx context.Context, id int64, r Reaction, personID int64, now time.Time) (Reminder, error) {
+// next reminder), for "one more year" a new sell later reminder in a year, for "change price" the new asking price
+// (which starts the price reminder anew). Keeping the price or offering on changes nothing: the next reminder is
+// already planned. price is only used for "change price".
+func (s *Store) React(ctx context.Context, id int64, r Reaction, price *int64, personID int64, now time.Time) (Reminder, error) {
 	var out Reminder
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		var (
@@ -367,6 +434,9 @@ func (s *Store) React(ctx context.Context, id int64, r Reaction, personID int64,
 		if !r.Fits(kind) {
 			return ErrReactionMismatch
 		}
+		if r == ReactChangePrice && price == nil {
+			return ErrPriceMissing
+		}
 		if _, err := tx.ExecContext(ctx, `UPDATE reminder SET done_at = ?, done_by = ?, reaction = ? WHERE id = ?`,
 			timeText(now), personID, string(r), id); err != nil {
 			return err
@@ -379,6 +449,16 @@ func (s *Store) React(ctx context.Context, id int64, r Reaction, personID int64,
 		case ReactKeepAfterAll:
 			d := Keep
 			newDisposition = &d
+		case ReactChangePrice:
+			if err := touchItem(ctx, tx, itemID, now, ErrNotFound); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE item SET asking_price_cents = ? WHERE id = ?`, *price, itemID); err != nil {
+				return err
+			}
+			if err := askingPriceChanged(ctx, tx, itemID, now); err != nil {
+				return err
+			}
 		case ReactOneMoreYear:
 			if _, err := tx.ExecContext(ctx, `
 				INSERT INTO reminder_schedule (item_id, kind, due_on) VALUES (?, ?, ?)

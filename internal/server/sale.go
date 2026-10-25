@@ -2,11 +2,11 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
+	"inventar/internal/euro"
 	"inventar/internal/store"
 )
 
@@ -50,22 +50,6 @@ func readDate(w http.ResponseWriter, value string) bool {
 		return false
 	}
 	return true
-}
-
-// formatEuro formats cents the German way: "15 €", "45,50 €", "1.200 €".
-func formatEuro(cents int64) string {
-	euros := fmt.Sprint(cents / 100)
-	var b strings.Builder
-	for i, c := range euros {
-		if i > 0 && (len(euros)-i)%3 == 0 {
-			b.WriteByte('.')
-		}
-		b.WriteRune(c)
-	}
-	if rest := cents % 100; rest != 0 {
-		fmt.Fprintf(&b, ",%02d", rest)
-	}
-	return b.String() + " €"
 }
 
 type listingSettingsJSON struct {
@@ -122,7 +106,7 @@ func (s *server) saveListingSettings(w http.ResponseWriter, r *http.Request) {
 func listing(item store.Item, settings listingSettingsJSON) (title, text string) {
 	price := "zu verschenken"
 	if item.Disposition != store.GiveAway {
-		price = formatEuro(*item.AskingPrice)
+		price = euro.Format(*item.AskingPrice)
 	}
 	var paragraphs []string
 	title = item.Name

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -10,11 +11,15 @@ import (
 
 // The kinds and reactions in the API, camelCase like the other JSON values.
 var (
-	kindJSON     = map[store.ReminderKind]string{store.KeepReview: "keepReview", store.SellLaterDue: "sellLater"}
+	kindJSON = map[store.ReminderKind]string{
+		store.KeepReview: "keepReview", store.SellLaterDue: "sellLater",
+		store.PriceReminder: "priceReminder", store.GiveAwayReminder: "giveAwayReminder",
+	}
 	reactionJSON = map[store.Reaction]string{
 		store.ReactKeep: "keep", store.ReactSell: "sell", store.ReactSellNow: "sellNow",
 		store.ReactOneMoreYear: "oneMoreYear", store.ReactKeepAfterAll: "keepAfterAll",
-		"disposition_changed": "dispositionChanged", "handed_over": "handedOver",
+		store.ReactChangePrice: "changePrice", store.ReactKeepPrice: "keepPrice", store.ReactKeepOffering: "keepOffering",
+		"disposition_changed": "dispositionChanged", "handed_over": "handedOver", "price_changed": "priceChanged",
 	}
 )
 
@@ -37,6 +42,8 @@ type reminderItemJSON struct {
 	Name         string       `json:"name"`
 	ThumbnailURL string       `json:"thumbnailUrl"`
 	Owners       []personJSON `json:"owners"`
+	// AskingPrice in cents, for the price reminder; null without one.
+	AskingPrice *int64 `json:"askingPrice"`
 }
 
 type reminderJSON struct {
@@ -54,7 +61,7 @@ type reminderJSON struct {
 func toReminderJSON(r store.Reminder) reminderJSON {
 	out := reminderJSON{
 		ID: r.ID, Kind: kindJSON[r.Kind], DueOn: r.DueOn, TriggeredAt: r.TriggeredAt, DoneAt: r.DoneAt,
-		Item: reminderItemJSON{ID: r.Item.ID, Name: r.Item.Name, ThumbnailURL: thumbnailURL(r.Item.MainPhoto), Owners: toPersonsJSON(r.Item.Owners)},
+		Item: reminderItemJSON{ID: r.Item.ID, Name: r.Item.Name, ThumbnailURL: thumbnailURL(r.Item.MainPhoto), Owners: toPersonsJSON(r.Item.Owners), AskingPrice: r.Item.AskingPrice},
 	}
 	if r.DoneBy != nil {
 		n := toNamedJSON(*r.DoneBy)
@@ -148,17 +155,23 @@ func (s *server) getReminder(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toReminderJSON(rem))
 }
 
-// react answers a reminder: {"reaction": "keep"|"sell" (keep review) or "sellNow"|"oneMoreYear"|"keepAfterAll"
-// (sell later)}.
+// react answers a reminder: {"reaction": "keep"|"sell" (keep review), "sellNow"|"oneMoreYear"|"keepAfterAll"
+// (sell later), "changePrice" with "askingPrice" in cents or "keepPrice" (price reminder), "keepOffering"
+// (give-away reminder)}. Giving the item away goes through the handover of spec 06.
 func (s *server) react(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r, "id")
 	if !ok {
 		return
 	}
 	var req struct {
-		Reaction string `json:"reaction"`
+		Reaction    string          `json:"reaction"`
+		AskingPrice json.RawMessage `json:"askingPrice"`
 	}
 	if !readJSON(w, r, &req) {
+		return
+	}
+	var price *int64
+	if req.AskingPrice != nil && !readCents(w, req.AskingPrice, &price, "invalid_asking_price", "Ungültiger Angebotspreis") {
 		return
 	}
 	reaction, ok := reactionFromJSON(req.Reaction)
@@ -166,7 +179,7 @@ func (s *server) react(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "reaction_mismatch", msgReactionMismatch)
 		return
 	}
-	rem, err := s.Store.React(r.Context(), id, reaction, userFrom(r.Context()).PersonID, s.Now())
+	rem, err := s.Store.React(r.Context(), id, reaction, price, userFrom(r.Context()).PersonID, s.Now())
 	if err != nil {
 		s.storeError(w, r, err)
 		return
