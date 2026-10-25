@@ -20,8 +20,8 @@ export function toLogin() {
 	return goto(LOGIN, { replaceState: true });
 }
 
-/** theme is null as long as the user has never chosen one. */
-export type User = { personId: number; name: string; email: string; theme: Theme | null };
+/** theme is null as long as the user has never chosen one; reminderMail: gets the monthly reminder mail. */
+export type User = { personId: number; name: string; email: string; theme: Theme | null; reminderMail: boolean };
 
 export type Person = { id: number; name: string; isUser: boolean };
 
@@ -94,7 +94,31 @@ export type Item = {
 	placement: Path | null;
 	furnitureStorageLocations: Named[];
 	move: MoveDetails | null;
+	/** Planned reminders and those that became due, the newest first (spec 07). */
+	schedules: Schedule[];
+	reminders: Reminder[];
 } & Sale;
+
+export type ReminderKind = 'keepReview' | 'sellLater';
+export type Reaction = 'keep' | 'sell' | 'sellNow' | 'oneMoreYear' | 'keepAfterAll' | 'dispositionChanged' | 'handedOver';
+
+/** The next planned due date (YYYY-MM-DD) of a reminder for an item. */
+export type Schedule = { kind: ReminderKind; dueOn: string };
+
+/**
+ * A reminder that became due; it applies to the whole household. doneAt, doneBy and reaction are null while open;
+ * doneBy also when it was settled automatically, e.g. by a change of the disposition.
+ */
+export type Reminder = {
+	id: number;
+	item: { id: number; name: string; thumbnailUrl: string; owners: Person[] };
+	kind: ReminderKind;
+	dueOn: string;
+	triggeredAt: string;
+	doneAt: string | null;
+	doneBy: Named | null;
+	reaction: Reaction | null;
+};
 
 /**
  * What an item has from spec 06; amounts are cents. handedOverOn (YYYY-MM-DD) and saleProceeds are only set while

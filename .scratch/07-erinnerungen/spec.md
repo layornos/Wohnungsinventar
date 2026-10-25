@@ -1,6 +1,6 @@
 # Spec 07: Erinnerungen, Behalte-Prüfung und Später verkaufen
 
-Status: ready-for-agent
+Status: done
 Blocked by: 06-verkauf
 
 ## Problem Statement
@@ -136,13 +136,13 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling); die früheren Annahmen sind da
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Migration für Termin (Item, Art, fällig am; eindeutig je Item und Art), Erinnerung (Item, Art, fällig, ausgelöst, erledigt, erledigt von, Reaktion) und Monatsmail (Nutzer, Monat, Zustand, Versuche, Fehler, enthaltene Erinnerungen). Item um „Verbleib seit“ (vorbelegt mit `updated_at`), Nutzer um „Erinnerungen per Mail“ erweitern.
-- [ ] R002: Termine beim Setzen des Verbleibs anlegen, ersetzen und löschen (Behalten +3 Jahre, Später verkaufen +1 Jahr, 29. Februar), offene Erinnerungen beim Wechsel erledigen. Verkauf, Verschenken, „Zurück in den Bestand“ (Spec 06) und Löschen berücksichtigen.
-- [ ] R003: Erinnerungslauf: fällige Termine ab 8:00 Uhr Ortszeit in einer Transaktion auslösen, Behalte-Prüfung auf ursprünglichen Fälligkeitstag +3 Jahre neu planen, Später verkaufen einmalig. Läufe serialisiert, nichts doppelt.
-- [ ] R004: Monatsmail am 1. ab 8:00 Uhr: je Nutzer höchstens eine, mit den seit der letzten Mail fällig gewordenen, noch offenen Erinnerungen nach der Empfängerregel (beim Versand bestimmt, abgeschaltete Mail beachtet), Link aus `INVENTAR_PUBLIC_URL`, Nachholen nach Ausfall, Wiederholung nach Fehlern bis 5 Versuche, Log bei endgültigem Fehlschlag.
-- [ ] R005: Erinnerungs-Dienst als Goroutine des Servers: Lauf beim Start und alle 15 Minuten, sauberes Beenden mit dem Server. Lauf in den Test-Helfern direkt auslösbar. Einstellung `INVENTAR_PUBLIC_URL` in der Konfiguration und in `deploy/`.
-- [ ] R006: Erinnerungs-API: auflisten (offen oder erledigt, „meine“ oder alle, seitenweise), Anzahl offener, abrufen, reagieren mit Prüfung der Reaktion je Art. Item-Abruf mit Terminen und Erinnerungen. Eigene Mail-Einstellung abrufen und ändern.
-- [ ] R007: Unterbefehl „Test-Mail“ mit verständlicher Fehlermeldung.
-- [ ] R008: Client: Erinnerungsliste mit „Meine“ / „Alle“ und Verlauf, Zähler auf Startseite und im Seitenmenü, Reaktionsknöpfe, Weiterleitung zum Angebotspreis nach „Verkaufen“, Schalter „Erinnerungen per Mail“ in den Einstellungen.
-- [ ] R009: Client: Item-Detailseite mit nächstem Termin und bisherigen Erinnerungen, Mail-Link öffnet die Erinnerungsliste.
-- [ ] R010: API-Tests mit steuerbarer Uhr und aufzeichnendem Mailer: Empfängerregel mit abgeschalteter Mail, fester Takt ohne und mit Reaktion und nach Ausfall, Einmaligkeit, Wechsel des Verbleibs, Verkauf und Löschen, Uhrzeit-, Zeitzonen- und Monatsgrenzen, Monatsmail mit nur offenen Erinnerungen, Wiederholung nach Fehlern, Reaktionen.
+- [x] R001: Migration für Termin (Item, Art, fällig am; eindeutig je Item und Art), Erinnerung (Item, Art, fällig, ausgelöst, erledigt, erledigt von, Reaktion) und Monatsmail (Nutzer, Monat, Zustand, Versuche, Fehler, enthaltene Erinnerungen). Item um „Verbleib seit“ (vorbelegt mit `updated_at`), Nutzer um „Erinnerungen per Mail“ erweitern.
+- [x] R002: Termine beim Setzen des Verbleibs anlegen, ersetzen und löschen (Behalten +3 Jahre, Später verkaufen +1 Jahr, 29. Februar), offene Erinnerungen beim Wechsel erledigen. Verkauf, Verschenken, „Zurück in den Bestand“ (Spec 06) und Löschen berücksichtigen.
+- [x] R003: Erinnerungslauf: fällige Termine ab 8:00 Uhr Ortszeit in einer Transaktion auslösen, Behalte-Prüfung auf ursprünglichen Fälligkeitstag +3 Jahre neu planen, Später verkaufen einmalig. Läufe serialisiert, nichts doppelt.
+- [x] R004: Monatsmail am 1. ab 8:00 Uhr: je Nutzer höchstens eine, mit den seit der letzten Mail fällig gewordenen, noch offenen Erinnerungen nach der Empfängerregel (beim Versand bestimmt, abgeschaltete Mail beachtet), Link aus `INVENTAR_PUBLIC_URL`, Nachholen nach Ausfall, Wiederholung nach Fehlern bis 5 Versuche, Log bei endgültigem Fehlschlag.
+- [x] R005: Erinnerungs-Dienst als Goroutine des Servers: Lauf beim Start und alle 15 Minuten, sauberes Beenden mit dem Server. Lauf in den Test-Helfern direkt auslösbar. Einstellung `INVENTAR_PUBLIC_URL` in der Konfiguration und in `deploy/`.
+- [x] R006: Erinnerungs-API: auflisten (offen oder erledigt, „meine“ oder alle, seitenweise), Anzahl offener, abrufen, reagieren mit Prüfung der Reaktion je Art. Item-Abruf mit Terminen und Erinnerungen. Eigene Mail-Einstellung abrufen und ändern.
+- [x] R007: Unterbefehl „Test-Mail“ mit verständlicher Fehlermeldung.
+- [x] R008: Client: Erinnerungsliste mit „Meine“ / „Alle“ und Verlauf, Zähler auf Startseite und im Seitenmenü, Reaktionsknöpfe, Weiterleitung zum Angebotspreis nach „Verkaufen“, Schalter „Erinnerungen per Mail“ in den Einstellungen.
+- [x] R009: Client: Item-Detailseite mit nächstem Termin und bisherigen Erinnerungen, Mail-Link öffnet die Erinnerungsliste.
+- [x] R010: API-Tests mit steuerbarer Uhr und aufzeichnendem Mailer: Empfängerregel mit abgeschalteter Mail, fester Takt ohne und mit Reaktion und nach Ausfall, Einmaligkeit, Wechsel des Verbleibs, Verkauf und Löschen, Uhrzeit-, Zeitzonen- und Monatsgrenzen, Monatsmail mit nur offenen Erinnerungen, Wiederholung nach Fehlern, Reaktionen.

@@ -1518,3 +1518,27 @@ label.theme-card:has(input:checked) {
 }
 
 /* ===== End of sale ===== */
+
+/* ===== Reminders (spec 07) ===== */
+/* Number of open reminders after the menu entry. */
+nav.menu-content .menu-link .menu-count {
+	margin-left: auto;
+	min-width: 22px;
+	padding: 1px 7px;
+	border-radius: 999px;
+	background: var(--accent);
+	color: var(--accent-text);
+	font-size: 0.75rem;
+	font-weight: 700;
+	text-align: center;
+}
+
+.reminders li {
+	align-items: flex-start;
+}
+
+.reminders .button-row {
+	flex-basis: 100%;
+}
+
+/* ===== End of reminders ===== */

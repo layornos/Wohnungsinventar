@@ -20,6 +20,7 @@
 	import { loadMove } from '#lib/move.ts';
 	import { loadPersons } from '#lib/persons.ts';
 	import { untrack } from 'svelte';
+	import { reminderCount } from '#lib/reminders.svelte.ts';
 	import type { Snapshot } from './$types';
 
 	let search = $state('');
@@ -205,6 +206,12 @@
 			<button class="secondary select-start" onclick={() => startSelecting()}>Auswählen</button>
 		{/if}
 	</header>
+
+	{#if reminderCount.open > 0 && !selecting}
+		<p class="notice">
+			<a href="/erinnerungen">{reminderCount.open === 1 ? '1 offene Erinnerung' : `${reminderCount.open} offene Erinnerungen`}</a>
+		</p>
+	{/if}
 
 	<div class="filter">
 		<!-- On narrow screens the search sits in the bottom bar instead (barContent). -->

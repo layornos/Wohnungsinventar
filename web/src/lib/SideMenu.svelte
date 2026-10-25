@@ -8,6 +8,7 @@
 	import { page } from '$app/state';
 	import { toLogin } from './api.ts';
 	import MenuIcon, { type MenuIconName } from './MenuIcon.svelte';
+	import { reminderCount } from './reminders.svelte.ts';
 	import { logout, session } from './session.svelte.ts';
 	import { registerSideMenu, sideMenu } from './sideMenu.svelte.ts';
 
@@ -80,10 +81,11 @@
 	}
 </script>
 
-{#snippet entry(href: string, name: string, iconName: MenuIconName)}
+{#snippet entry(href: string, name: string, iconName: MenuIconName, count = 0)}
 	<li>
 		<a class="menu-link" {href} aria-current={isActive(href) ? 'page' : undefined} onclick={close}>
 			<MenuIcon name={iconName} /><span>{name}</span>
+			{#if count > 0}<span class="menu-count" aria-label="{count} offen">{count}</span>{/if}
 		</a>
 	</li>
 {/snippet}
@@ -101,6 +103,7 @@
 	<ul class="menu-group">
 		{@render entry('/', 'Alle Items', 'inventory')}
 		{@render entry('/ohne-lagerort', 'Ohne Lagerort', 'unstored')}
+		{@render entry('/erinnerungen', 'Erinnerungen', 'reminders', reminderCount.open)}
 	</ul>
 
 	<h2 class="menu-title" id="menu-{kind}-places">Orte</h2>

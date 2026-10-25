@@ -8,6 +8,7 @@
 	import UpdateNotice from '#lib/UpdateNotice.svelte';
 	import { watchForUpdates } from '#lib/appUpdate.svelte.ts';
 	import { loadSession, session } from '#lib/session.svelte.ts';
+	import { refreshReminderCount } from '#lib/reminders.svelte.ts';
 	import '../app.css';
 	// After the components, so a theme overrides them, and before desktop.css.
 	import '../themes/index.ts';
@@ -35,6 +36,12 @@
 		if (session.loaded && !session.user && !isPublic(page.url.pathname)) {
 			toLogin();
 		}
+	});
+
+	// The number of open reminders in the side menu, fresh on every page change.
+	$effect(() => {
+		void page.url.pathname;
+		if (session.user) refreshReminderCount();
 	});
 </script>
 

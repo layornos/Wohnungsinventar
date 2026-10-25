@@ -2,9 +2,21 @@
 	import { api, errorText } from '#lib/api.ts';
 	import { appearance } from '#lib/theme.svelte.ts';
 	import { THEMES, type Theme } from '#lib/themes.ts';
-	import { saveTheme } from '#lib/session.svelte.ts';
+	import { saveTheme, session } from '#lib/session.svelte.ts';
+	import type { User } from '#lib/api.ts';
 
 	let error = $state('');
+
+	// The monthly reminder mail of this user (spec 07).
+	let mailError = $state('');
+	async function setReminderMail(enabled: boolean) {
+		mailError = '';
+		try {
+			session.user = await api<User>('PUT', '/api/me/reminder-mail', { enabled });
+		} catch (e) {
+			mailError = `Nicht gespeichert: ${errorText(e)}`;
+		}
+	}
 
 	// Listing template and warranty disclaimer of the household (spec 06).
 	type ListingSettings = { template: string; warrantyDisclaimer: string };
@@ -95,6 +107,16 @@
 		{#if error}
 			<p class="error" role="alert">{error}</p>
 		{/if}
+	</section>
+
+	<section>
+		<h2>Erinnerungen</h2>
+		<label class="chip">
+			<input type="checkbox" checked={session.user?.reminderMail ?? true} onchange={(e) => setReminderMail(e.currentTarget.checked)} />
+			Erinnerungen per Mail
+		</label>
+		<p class="muted small-text">Einmal im Monat, am 1., eine Mail mit deinen offenen Erinnerungen. Ohne Mail stehen sie nur hier in der App.</p>
+		{#if mailError}<p class="error" role="alert">{mailError}</p>{/if}
 	</section>
 
 	<section>

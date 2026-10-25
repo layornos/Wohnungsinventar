@@ -76,6 +76,7 @@ Das Skript baut mit `make build-pi`, lädt das Binary unter einem temporären Na
 | `INVENTAR_DATA_DIR` | Verzeichnis für Datenbank (`inventar.db`), Fotos (Ordner `fotos`) und ggf. Zertifikate. Sollte auf der SSD liegen. | `./data` |
 | `INVENTAR_ADDR` | Adresse und Port. Hinter dem Proxy `127.0.0.1:8080`. | `:443` mit DuckDNS, sonst `localhost:8080` |
 | `INVENTAR_BEHIND_PROXY` | `true`, wenn ein Reverse-Proxy davor TLS terminiert (ADR-0005). Der Server behandelt Anfragen dann als HTTPS (`Secure`-Cookie, `https`-Einladungslinks) und vertraut `X-Forwarded-Proto`. Nur setzen, wenn der Server ausschließlich über den Proxy erreichbar ist. Nicht mit DuckDNS kombinierbar. | `false` |
+| `INVENTAR_PUBLIC_URL` | Adresse der App, wie Nutzer sie öffnen, z. B. `https://mosiminventar.duckdns.org`. Für den Link in der monatlichen Erinnerungsmail; ohne sie steht dort nur „In der App unter Erinnerungen“. | `https://<DuckDNS-Domain>` mit DuckDNS, sonst – |
 | `INVENTAR_MAX_PHOTO_MB` | Größte erlaubte Fotodatei in MB | `20` |
 | `INVENTAR_DUCKDNS_DOMAIN` | z. B. `inventar-xyz.duckdns.org`. Der Server holt das Zertifikat selbst (ADR-0004), nur ohne Proxy. | – |
 | `INVENTAR_DUCKDNS_TOKEN` | DuckDNS-Token, Pflicht zusammen mit der Domain | – |
@@ -98,6 +99,7 @@ inventar serve
 inventar create-user --name NAME --email EMAIL
 inventar reset-password --email EMAIL           # beendet alle Sitzungen des Nutzers
 inventar backup --to DIR                        # Sicherung von Datenbank und Fotos nach DIR
+inventar test-mail --to EMAIL                   # Test-Mail über die SMTP-Einstellungen schicken
 ```
 
 ### Backup

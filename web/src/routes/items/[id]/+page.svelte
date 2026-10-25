@@ -8,6 +8,7 @@
 	import HandoverDialog, { type Outcome } from '#lib/HandoverDialog.svelte';
 	import ListingSection from '#lib/ListingSection.svelte';
 	import { euroInput, formatDay, formatEuro, parseEuro } from '#lib/money.ts';
+	import { KIND_NAMES, outcome } from '#lib/reminders.svelte.ts';
 	import { photoEdit } from '#lib/photoEdit.svelte.ts';
 	import { loadPlaces, placementBody, confirmRemoval } from '#lib/places.ts';
 	import { loadMove, loadApartments, type MoveDetailsChange } from '#lib/move.ts';
@@ -37,9 +38,16 @@
 		item = null;
 		error = '';
 		api<Item>('GET', p)
-			.then((i) => (item = i))
+			.then((i) => {
+				item = i;
+				// Coming from "Verkaufen" in a reminder: the asking price is next.
+				if (page.url.searchParams.has('preis') && forSale(i.disposition)) startEditing();
+			})
 			.catch((e) => (error = errorText(e)));
 	});
+
+	// What the next planned reminder says, e.g. "Nächste Behalte-Prüfung am 01.03.2029".
+	const SCHEDULE_TEXT = { keepReview: 'Nächste Behalte-Prüfung am', sellLater: 'Verkaufen ab' };
 
 	loadPersons()
 		.then((p) => (persons = p))
@@ -300,6 +308,9 @@
 						{#if forSale(item.disposition)}
 							<p>Angebotspreis: {item.askingPrice !== null ? formatEuro(item.askingPrice) : 'noch keiner'}</p>
 						{/if}
+						{#each item.schedules as s (s.kind)}
+							<p class="muted">{SCHEDULE_TEXT[s.kind]} {formatDay(s.dueOn)}</p>
+						{/each}
 					{/if}
 				{/if}
 
@@ -396,6 +407,24 @@
 						</div>
 					{/if}
 				</section>
+
+				{#if item.reminders.length > 0}
+					<section>
+						<h2>Erinnerungen</h2>
+						<ul class="rows">
+							{#each item.reminders as r (r.id)}
+								<li>
+									<span>{KIND_NAMES[r.kind]}, fällig am {formatDay(r.dueOn)}</span>
+									{#if r.doneAt}
+										<span class="muted">{outcome(r)}</span>
+									{:else}
+										<a href="/erinnerungen">Offen</a>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
 
 				<section class="button-row">
 					{#if !archived}
