@@ -35,7 +35,7 @@ Stand: 2026-10-24 abends. `main` = `ee338b8` plus dieser Commit, gepusht nach `g
    - doppelte Rahmen und Trennlinien in den Listen beim Packen und Auspacken
    - `tmp/` in `.gitignore`
 4. **Erfassen im Funkloch** (Offline-Warteschlange für neue Items): bewusst zurückgestellt, noch kein Ticket.
-5. **Specs 06 Verkauf und 07 Erinnerungen:** am 2026-10-25 umgesetzt und deployt (Migrationen 0010 und 0011, jeweils Backup vorher; `INVENTAR_PUBLIC_URL` auf dem Pi gesetzt). Die erste Monatsmail geht frühestens am 1. November raus, Mails gehen über dasselbe Gmail-Konto wie die NAS-Backup-Info (Pi-Ticket 06). **Spec 08 Preiserinnerung:** geklärt, `ready-for-agent`, als Nächstes dran.
+5. **Specs 06 Verkauf, 07 Erinnerungen und 08 Preiserinnerung:** am 2026-10-25 umgesetzt und deployt (Migrationen 0010 bis 0012, jeweils Backup vorher; `INVENTAR_PUBLIC_URL` auf dem Pi gesetzt). 0012 hat auch die Termine für Items nachgeholt, die vor Spec 07 schon Behalten, Später verkaufen, Verkaufen (mit Preis) oder Verschenken hatten. Monatsmail am 1., über dasselbe Gmail-Konto wie die NAS-Backup-Info (Pi-Ticket 06).
 6. **Pi-Tickets:** 04 (WireGuard) und 06 (Mailversand) erledigt.
 7. **Feedback 05** (Verbleib nicht übernommen): beobachten, bis es noch einmal auftritt.
 
