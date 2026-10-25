@@ -42,7 +42,7 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling); die früheren Annahmen sind da
 - **Beträge** werden als ganze Cent gespeichert, nie als Gleitkommazahl. Es gibt nur Euro. Die Anzeige erfolgt deutsch formatiert, z. B. „45,50 €“, ganze Beträge ohne Nachkommastellen („45 €“).
 - **Datenmodell** (Begriffe wie in `CONTEXT.md`), Erweiterung des Items:
   - **Angebotspreis:** optional, in Cent, ≥ 0.
-  - **Angeboten seit:** Zeitpunkt, an dem das Item zuletzt den Verbleib Verkaufen oder Verschenken bekommen hat. Spec 08 rechnet Preiserinnerung und Preisplan davon aus.
+  - **Angeboten seit:** Zeitpunkt, an dem das Item zuletzt den Verbleib Verkaufen oder Verschenken bekommen hat. Spec 08 rechnet Preiserinnerung und Verschenk-Erinnerung davon aus.
   - **Abgegeben am:** Datum des Verkaufs bzw. des Verschenkens. Ist es gesetzt, ist das Item im Archiv.
   - **Verkaufserlös:** in Cent, ≥ 0, gesetzt genau dann, wenn das Item im Archiv ist.
   - Der Verbleib eines archivierten Items ist Verkaufen oder Verschenken und unterscheidet so „verkauft“ von „verschenkt“.
@@ -116,7 +116,7 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling); die früheren Annahmen sind da
 ## Out of Scope
 
 - Direktes Veröffentlichen auf Verkaufsplattformen über deren Schnittstellen und Links zu Inseraten
-- Preiserinnerung und Preisplan (Spec 08) sowie alle Erinnerungen (Spec 07)
+- Preiserinnerung und Verschenk-Erinnerung (Spec 08) sowie alle Erinnerungen (Spec 07)
 - Käufer, Versand, Bezahlung und Verhandlungsverlauf
 - Steuerliche Auswertungen und Export der Erlösübersicht
 - Mehrere Währungen

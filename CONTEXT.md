@@ -98,7 +98,7 @@ _Avoid_: in einem Jahr verkaufen, zurückgestellt
 Verbleib eines Items, das zu einem Angebotspreis angeboten wird.
 
 **Verschenken**:
-Verbleib eines Items, das kostenlos abgegeben wird. Es durchläuft denselben Ablauf wie ein Verkauf, mit Angebotspreis 0 €.
+Verbleib eines Items, das kostenlos abgegeben wird. Es durchläuft denselben Ablauf wie ein Verkauf; im Inserattext steht „zu verschenken“ statt eines Preises.
 _Avoid_: spenden, abgeben
 
 ### Verkauf
@@ -128,12 +128,11 @@ Der Hinweis in einem Inserattext, dass es sich um einen Privatverkauf ohne Garan
 _Avoid_: Haftungsausschluss
 
 **Preiserinnerung**:
-Eine einstellbare Erinnerung, den Angebotspreis eines Items zu überprüfen.
-_Avoid_: Preisalarm
+Die Erinnerung, den Angebotspreis eines Items zu überprüfen, das seit 30 Tagen zu diesem Preis angeboten wird. Sie gilt automatisch für jedes Item mit Verbleib Verkaufen und Angebotspreis; der Angebotspreis wird nie automatisch geändert.
+_Avoid_: Preisalarm, Preisplan
 
-**Preisplan**:
-Eine vorab festgelegte Folge von Preissenkungen, z. B. „nach 14 Tagen um 10 % senken“. Jede Stufe löst nur eine Erinnerung aus; der Angebotspreis wird nicht automatisch gesenkt.
-_Avoid_: Preisstaffel, Rabattplan
+**Verschenk-Erinnerung**:
+Die Erinnerung, dass ein Item seit 30 Tagen zu verschenken ist und noch niemand es genommen hat.
 
 ### Benachrichtigung
 
@@ -181,6 +180,6 @@ Code, comments, API paths, JSON fields, database tables and CLI commands are Eng
 | Erlösübersicht | `ProceedsSummary` |
 | Gewährleistungsausschluss | `WarrantyDisclaimer` |
 | Preiserinnerung | `PriceReminder` |
-| Preisplan | `PricePlan` |
+| Verschenk-Erinnerung | `GiveAwayReminder` |
 | Erinnerung | `Reminder` |
 | Design (Darstellung) | `Theme` |

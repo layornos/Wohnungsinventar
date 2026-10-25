@@ -9,7 +9,7 @@ Wenn ich ein Item behalte oder erst später verkaufen will, vergesse ich es. Beh
 
 ## Solution
 
-Der Server enthält einen Erinnerungs-Dienst, der regelmäßig prüft, welche Termine fällig sind. Für ein Item mit Verbleib Behalten ist alle drei Jahre eine Behalte-Prüfung fällig, für ein Item mit Verbleib Später verkaufen nach einem Jahr eine Erinnerung. Jede fällige Erinnerung erscheint sofort in der App in einer Erinnerungsliste. Einmal im Monat, am 1., bekommt jeder Besitzer, der Nutzer ist, eine Sammelmail mit seinen offenen Erinnerungen; ist keiner der Besitzer Nutzer, geht sie an alle Nutzer. In der App reagiert man mit einem Tippen, z. B. „Weiter behalten“ oder „Jetzt verkaufen“. Spec 08 nutzt denselben Dienst für Preiserinnerung und Preisplan.
+Der Server enthält einen Erinnerungs-Dienst, der regelmäßig prüft, welche Termine fällig sind. Für ein Item mit Verbleib Behalten ist alle drei Jahre eine Behalte-Prüfung fällig, für ein Item mit Verbleib Später verkaufen nach einem Jahr eine Erinnerung. Jede fällige Erinnerung erscheint sofort in der App in einer Erinnerungsliste. Einmal im Monat, am 1., bekommt jeder Besitzer, der Nutzer ist, eine Sammelmail mit seinen offenen Erinnerungen; ist keiner der Besitzer Nutzer, geht sie an alle Nutzer. In der App reagiert man mit einem Tippen, z. B. „Weiter behalten“ oder „Jetzt verkaufen“. Spec 08 nutzt denselben Dienst für Preiserinnerung und Verschenk-Erinnerung.
 
 ## User Stories
 
@@ -40,7 +40,7 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling); die früheren Annahmen sind da
 
 - **Begriffe wie in `CONTEXT.md`.** Neu ist nur der technische Begriff **Termin**: die nächste geplante Fälligkeit einer Erinnerung für ein Item. Eine Erinnerung entsteht erst, wenn ihr Termin fällig wird.
 - **Datenmodell:**
-  - **Termin:** Item, Art (Behalte-Prüfung, Später verkaufen; Spec 08 ergänzt Preiserinnerung und Preisplan-Stufe), fällig am (Datum in der Zeitzone des Haushalts). Höchstens ein Termin je Item und Art.
+  - **Termin:** Item, Art (Behalte-Prüfung, Später verkaufen; Spec 08 ergänzt Preiserinnerung und Verschenk-Erinnerung), fällig am (Datum in der Zeitzone des Haushalts). Höchstens ein Termin je Item und Art.
   - **Erinnerung:** Item, Art, fällig am, ausgelöst am, erledigt am, erledigt von (Nutzer, leer bei automatischem Erledigen), Reaktion. Sie gilt für den ganzen Haushalt: Wer sie erledigt, erledigt sie für alle.
   - **Monatsmail:** je Nutzer und Monat höchstens eine, mit Zustand (ausstehend, gesendet, fehlgeschlagen), Versuchen, letztem Fehler und gesendet am, und den Erinnerungen, die sie enthielt.
   - Nutzer um **Erinnerungen per Mail** (ja/nein, Standard ja) erweitern.
@@ -119,7 +119,7 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling); die früheren Annahmen sind da
 
 ## Out of Scope
 
-- Preiserinnerung und Preisplan (Spec 08), die aber denselben Dienst nutzen
+- Preiserinnerung und Verschenk-Erinnerung (Spec 08), die aber denselben Dienst nutzen
 - Web-Push und andere Kanäle außer Mail und App
 - Einstellbare Fristen (drei Jahre und ein Jahr sind fest, siehe `CONTEXT.md`)
 - Wiederholte Mails zu einer offenen Erinnerung, tägliche oder wöchentliche Mails
