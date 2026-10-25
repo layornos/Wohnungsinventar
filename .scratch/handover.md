@@ -35,7 +35,7 @@ Stand: 2026-10-24 abends. `main` = `ee338b8` plus dieser Commit, gepusht nach `g
    - doppelte Rahmen und Trennlinien in den Listen beim Packen und Auspacken
    - `tmp/` in `.gitignore`
 4. **Erfassen im Funkloch** (Offline-Warteschlange für neue Items): bewusst zurückgestellt, noch kein Ticket.
-5. **Spec 06 Verkauf:** am 2026-10-25 umgesetzt und deployt (Migration 0010, Backup vorher). **Specs 07 Erinnerungen und 08 Preiserinnerung:** geklärt, `ready-for-agent`; als Nächstes 07, dann 08.
+5. **Specs 06 Verkauf und 07 Erinnerungen:** am 2026-10-25 umgesetzt und deployt (Migrationen 0010 und 0011, jeweils Backup vorher; `INVENTAR_PUBLIC_URL` auf dem Pi gesetzt). Die erste Monatsmail geht frühestens am 1. November raus, echte Mails erst mit dem Gmail-App-Passwort (Pi-Ticket 06), bis dahin ins Log. **Spec 08 Preiserinnerung:** geklärt, `ready-for-agent`, als Nächstes dran.
 6. **Pi-Tickets beim Nutzer:** 04 (WireGuard von unterwegs prüfen) und 06 (Gmail-App-Passwort für Erinnerungsmails).
 7. **Feedback 05** (Verbleib nicht übernommen): beobachten, bis es noch einmal auftritt.
 
