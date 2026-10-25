@@ -1542,3 +1542,10 @@ nav.menu-content .menu-link .menu-count {
 }
 
 /* ===== End of reminders ===== */
+
+/* Price reminder: the new price next to its button. */
+.reminders .price-input {
+	flex: 1 1 8em;
+	min-width: 0;
+	min-height: 40px;
+}

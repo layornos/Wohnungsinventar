@@ -1,6 +1,6 @@
 # Spec 08: Preiserinnerung und Verschenk-Erinnerung
 
-Status: ready-for-agent
+Status: done
 Blocked by: 06-verkauf, 07-erinnerungen
 
 ## Problem Statement
@@ -86,10 +86,10 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling). Ursprünglich enthielt die Spe
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Migration: Item um „Preis geändert am“ erweitern. Termin- und Erinnerungsarten um Preiserinnerung und Verschenk-Erinnerung erweitern.
-- [ ] R002: Termine der Preiserinnerung: späterer Zeitpunkt von Preisänderung und „angeboten seit“ + 30 Tage, nur mit Angebotspreis, Neusetzen bei jeder Preisänderung, fester Takt nach „Preis lassen“, höchstens eine offene je Item.
-- [ ] R003: Termine der Verschenk-Erinnerung: „angeboten seit“ + 30 Tage, fester Takt nach „Weiter anbieten“, höchstens eine offene je Item.
-- [ ] R004: Ende und Neuanlage bei Verbleibwechsel, Verkauf, Verschenken, „Zurück in den Bestand“ und Löschen wie in Spec 07.
-- [ ] R005: Reaktionen „Preis ändern“, „Preis lassen“, „Weiter anbieten“; Preisänderungen über die Regeln aus Spec 06. Mailzeilen mit aktuellem Preis. Der Lauf ändert nie den Angebotspreis.
-- [ ] R006: Client: Preis- und Verschenk-Erinnerungen mit Reaktionen und Preiseingabe, danach Angebot des aktualisierten Inserattexts; nächste Fälligkeit auf der Detailseite.
-- [ ] R007: API-Tests mit steuerbarer Uhr: Fälligkeiten, Neusetzen nach Preisänderung, fester Takt, keine Erinnerung ohne Preis, höchstens eine offene, Ende bei Verkauf und Verbleibwechsel, Angebotspreis bleibt ohne Eingabe unverändert.
+- [x] R001: Migration: Item um „Preis geändert am“ erweitern. Termin- und Erinnerungsarten um Preiserinnerung und Verschenk-Erinnerung erweitern.
+- [x] R002: Termine der Preiserinnerung: späterer Zeitpunkt von Preisänderung und „angeboten seit“ + 30 Tage, nur mit Angebotspreis, Neusetzen bei jeder Preisänderung, fester Takt nach „Preis lassen“, höchstens eine offene je Item.
+- [x] R003: Termine der Verschenk-Erinnerung: „angeboten seit“ + 30 Tage, fester Takt nach „Weiter anbieten“, höchstens eine offene je Item.
+- [x] R004: Ende und Neuanlage bei Verbleibwechsel, Verkauf, Verschenken, „Zurück in den Bestand“ und Löschen wie in Spec 07.
+- [x] R005: Reaktionen „Preis ändern“, „Preis lassen“, „Weiter anbieten“; Preisänderungen über die Regeln aus Spec 06. Mailzeilen mit aktuellem Preis. Der Lauf ändert nie den Angebotspreis.
+- [x] R006: Client: Preis- und Verschenk-Erinnerungen mit Reaktionen und Preiseingabe, danach Angebot des aktualisierten Inserattexts; nächste Fälligkeit auf der Detailseite.
+- [x] R007: API-Tests mit steuerbarer Uhr: Fälligkeiten, Neusetzen nach Preisänderung, fester Takt, keine Erinnerung ohne Preis, höchstens eine offene, Ende bei Verkauf und Verbleibwechsel, Angebotspreis bleibt ohne Eingabe unverändert.

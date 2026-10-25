@@ -3,7 +3,7 @@
 	// the logged-in user (or of nobody with access). The monthly mail links here.
 	import { goto } from '$app/navigation';
 	import { api, errorText, type Reaction, type Reminder } from '#lib/api.ts';
-	import { formatDay } from '#lib/money.ts';
+	import { euroInput, formatDay, formatEuro, parseEuro } from '#lib/money.ts';
 	import { KIND_NAMES, leadsToSale, outcome, REACTIONS, refreshReminderCount } from '#lib/reminders.svelte.ts';
 
 	let view = $state<'open' | 'done'>('open');
@@ -14,6 +14,8 @@
 	let busy = $state<number | null>(null);
 	let error = $state('');
 	let pageNumber = 1;
+	// New asking prices typed into price reminders, by reminder ID.
+	let prices = $state<Record<number, string>>({});
 
 	let request = 0;
 	async function load(fresh: boolean) {
@@ -43,13 +45,23 @@
 
 	async function react(r: Reminder, reaction: Reaction) {
 		error = '';
+		const body: { reaction: Reaction; askingPrice?: number } = { reaction };
+		if (reaction === 'changePrice') {
+			const cents = parseEuro(prices[r.id] ?? '');
+			if (cents === null || cents === undefined) {
+				error = 'Bitte den neuen Preis in Euro angeben, z. B. 35 oder 34,50.';
+				return;
+			}
+			body.askingPrice = cents;
+		}
 		busy = r.id;
 		try {
-			await api('POST', `/api/reminders/${r.id}/reaction`, { reaction });
+			await api('POST', `/api/reminders/${r.id}/reaction`, body);
 			reminders = reminders.filter((x) => x.id !== r.id);
 			refreshReminderCount();
-			// To sell, the item needs an asking price next.
+			// To sell, the item needs an asking price next; after a new price its listing text is to be updated.
 			if (leadsToSale(reaction)) await goto(`/items/${r.item.id}?preis=1`);
+			else if (reaction === 'changePrice') await goto(`/items/${r.item.id}`);
 		} catch (e) {
 			error = errorText(e);
 		} finally {
@@ -87,16 +99,32 @@
 					<span>
 						{KIND_NAMES[r.kind]}: {r.item.name}
 						<span class="muted small-text">
+							{#if r.kind === 'priceReminder' && r.item.askingPrice !== null}{formatEuro(r.item.askingPrice)} · {/if}
 							{r.item.owners.map((o) => o.name).join(', ')} · fällig am {formatDay(r.dueOn)}
 							{#if r.doneAt} · {outcome(r)}{/if}
 						</span>
 					</span>
 				</a>
+				{#if !r.doneAt && r.kind === 'priceReminder'}
+					<div class="button-row">
+						<input
+							class="price-input"
+							aria-label="Neuer Preis für {r.item.name} in Euro"
+							inputmode="decimal"
+							placeholder={r.item.askingPrice !== null ? euroInput(r.item.askingPrice) : 'Preis'}
+							bind:value={prices[r.id]}
+						/>
+						<button class="small" disabled={busy === r.id} onclick={() => react(r, 'changePrice')}>Preis ändern</button>
+					</div>
+				{/if}
 				{#if !r.doneAt}
 					<div class="button-row">
 						{#each REACTIONS[r.kind] as a, i (a.reaction)}
-							<button class="small" class:secondary={i > 0} disabled={busy === r.id} onclick={() => react(r, a.reaction)}>{a.name}</button>
+							<button class="small" class:secondary={i > 0 || r.kind === 'priceReminder'} disabled={busy === r.id} onclick={() => react(r, a.reaction)}>{a.name}</button>
 						{/each}
+						{#if r.kind === 'giveAwayReminder'}
+							<a class="button small secondary" href="/items/{r.item.id}?verschenkt=1">Verschenkt</a>
+						{/if}
 					</div>
 				{/if}
 			</li>

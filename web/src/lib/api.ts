@@ -99,8 +99,19 @@ export type Item = {
 	reminders: Reminder[];
 } & Sale;
 
-export type ReminderKind = 'keepReview' | 'sellLater';
-export type Reaction = 'keep' | 'sell' | 'sellNow' | 'oneMoreYear' | 'keepAfterAll' | 'dispositionChanged' | 'handedOver';
+export type ReminderKind = 'keepReview' | 'sellLater' | 'priceReminder' | 'giveAwayReminder';
+export type Reaction =
+	| 'keep'
+	| 'sell'
+	| 'sellNow'
+	| 'oneMoreYear'
+	| 'keepAfterAll'
+	| 'changePrice'
+	| 'keepPrice'
+	| 'keepOffering'
+	| 'dispositionChanged'
+	| 'handedOver'
+	| 'priceChanged';
 
 /** The next planned due date (YYYY-MM-DD) of a reminder for an item. */
 export type Schedule = { kind: ReminderKind; dueOn: string };
@@ -111,7 +122,7 @@ export type Schedule = { kind: ReminderKind; dueOn: string };
  */
 export type Reminder = {
 	id: number;
-	item: { id: number; name: string; thumbnailUrl: string; owners: Person[] };
+	item: { id: number; name: string; thumbnailUrl: string; owners: Person[]; askingPrice: number | null };
 	kind: ReminderKind;
 	dueOn: string;
 	triggeredAt: string;

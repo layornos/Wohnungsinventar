@@ -5,7 +5,9 @@ import { api, type Reaction, type Reminder, type ReminderKind } from './api.ts';
 
 export const KIND_NAMES: Record<ReminderKind, string> = {
 	keepReview: 'Behalte-Prüfung',
-	sellLater: 'Später verkaufen'
+	sellLater: 'Später verkaufen',
+	priceReminder: 'Preis prüfen',
+	giveAwayReminder: 'Noch zu verschenken'
 };
 
 /** The answers a reminder of a kind offers, the first one is the main one. */
@@ -18,7 +20,11 @@ export const REACTIONS: Record<ReminderKind, { reaction: Reaction; name: string 
 		{ reaction: 'sellNow', name: 'Jetzt verkaufen' },
 		{ reaction: 'oneMoreYear', name: 'Noch ein Jahr' },
 		{ reaction: 'keepAfterAll', name: 'Doch behalten' }
-	]
+	],
+	// "Preis ändern" goes with the new price from its own field (erinnerungen page).
+	priceReminder: [{ reaction: 'keepPrice', name: 'Preis lassen' }],
+	// "Verschenkt" opens the handover dialog on the item page.
+	giveAwayReminder: [{ reaction: 'keepOffering', name: 'Weiter anbieten' }]
 };
 
 const REACTION_NAMES: Record<Reaction, string> = {
@@ -27,8 +33,12 @@ const REACTION_NAMES: Record<Reaction, string> = {
 	sellNow: 'Jetzt verkaufen',
 	oneMoreYear: 'Noch ein Jahr',
 	keepAfterAll: 'Doch behalten',
+	changePrice: 'Preis geändert',
+	keepPrice: 'Preis gelassen',
+	keepOffering: 'Weiter angeboten',
 	dispositionChanged: 'Verbleib geändert',
-	handedOver: 'Abgegeben'
+	handedOver: 'Abgegeben',
+	priceChanged: 'Preis geändert'
 };
 
 /** How a done reminder was settled, e.g. "Weiter behalten (Sandro)". */

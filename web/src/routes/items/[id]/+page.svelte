@@ -42,12 +42,19 @@
 				item = i;
 				// Coming from "Verkaufen" in a reminder: the asking price is next.
 				if (page.url.searchParams.has('preis') && forSale(i.disposition)) startEditing();
+				// Coming from "Verschenkt" in a give-away reminder.
+				if (page.url.searchParams.has('verschenkt') && !i.handedOverOn) handing = 'givenAway';
 			})
 			.catch((e) => (error = errorText(e)));
 	});
 
 	// What the next planned reminder says, e.g. "Nächste Behalte-Prüfung am 01.03.2029".
-	const SCHEDULE_TEXT = { keepReview: 'Nächste Behalte-Prüfung am', sellLater: 'Verkaufen ab' };
+	const SCHEDULE_TEXT = {
+		keepReview: 'Nächste Behalte-Prüfung am',
+		sellLater: 'Verkaufen ab',
+		priceReminder: 'Preis prüfen ab',
+		giveAwayReminder: 'Erinnerung zum Verschenken ab'
+	};
 
 	loadPersons()
 		.then((p) => (persons = p))
