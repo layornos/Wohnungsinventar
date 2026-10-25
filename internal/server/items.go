@@ -39,6 +39,23 @@ type itemJSON struct {
 	FurnitureStorageLocations []namedJSON `json:"furnitureStorageLocations"`
 	// Move holds the details in the active move, otherwise null.
 	Move *moveDetailsJSON `json:"move"`
+	saleJSON
+}
+
+// saleJSON holds the fields of spec 06; amounts are cents. handedOverOn and saleProceeds are only set in the archive.
+type saleJSON struct {
+	AskingPrice  *int64     `json:"askingPrice"`
+	OfferedSince *time.Time `json:"offeredSince"`
+	HandedOverOn *string    `json:"handedOverOn"`
+	SaleProceeds *int64     `json:"saleProceeds"`
+}
+
+func toSaleJSON(s store.Sale) saleJSON {
+	out := saleJSON{AskingPrice: s.AskingPrice, OfferedSince: s.OfferedSince, SaleProceeds: s.SaleProceeds}
+	if s.Archived() {
+		out.HandedOverOn = &s.HandedOverOn
+	}
+	return out
 }
 
 type photoJSON struct {
@@ -76,6 +93,7 @@ func toItemJSON(item store.Item) itemJSON {
 		Photos:                    []photoJSON{},
 		FurnitureStorageLocations: toNamedListJSON(item.FurnitureStorageLocations),
 		Move:                      toMoveDetailsJSON(item.Move),
+		saleJSON:                  toSaleJSON(item.Sale),
 	}
 	if item.Placement != nil {
 		p := toPathJSON(*item.Placement)
@@ -273,6 +291,7 @@ type itemListJSON struct {
 	// StorageLocationID is the storage location the item is placed in directly, otherwise null.
 	StorageLocationID *int64           `json:"storageLocationId"`
 	Move              *moveDetailsJSON `json:"move"`
+	saleJSON
 }
 
 // idOrNull represents the ID 0 as null.
@@ -289,15 +308,26 @@ func toItemListJSON(entries []store.ItemListEntry) []itemListJSON {
 		items = append(items, itemListJSON{
 			ID: e.ID, Name: e.Name, Disposition: dispositionJSON(e.Disposition), ThumbnailURL: thumbnailURL(e.MainPhoto),
 			Place: e.Place, StorageLocationID: idOrNull(e.StorageLocationID), Move: toMoveDetailsJSON(e.Move),
+			saleJSON: toSaleJSON(e.Sale),
 		})
 	}
 	return items
 }
 
-// listItems filters by q (text in the name), owner (person ID), disposition (including "undecided"),
-// room, storageLocation (both including nested storage locations), unstored as well as box, originRoom
-// and withoutTargetRoom in the active move, and returns pages with page (from 1) and perPage.
+// listItems lists the items in stock and filters by q (text in the name), owner (person ID), disposition
+// (including "undecided"), room, storageLocation (both including nested storage locations), unstored,
+// withoutAskingPrice as well as box, originRoom and withoutTargetRoom in the active move, and returns pages with
+// page (from 1) and perPage.
 func (s *server) listItems(w http.ResponseWriter, r *http.Request) {
+	filter, ok := readItemFilter(w, r)
+	if !ok {
+		return
+	}
+	s.writeItemList(w, r, filter)
+}
+
+// readItemFilter reads the query parameters of the item list and the archive and answers errors itself.
+func readItemFilter(w http.ResponseWriter, r *http.Request) (store.ItemFilter, bool) {
 	q := r.URL.Query()
 	filter := store.ItemFilter{Text: strings.TrimSpace(q.Get("q")), Limit: defaultPerPage}
 	invalid := func(message string) {
@@ -314,19 +344,20 @@ func (s *server) listItems(w http.ResponseWriter, r *http.Request) {
 			id, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
 				invalid("Ungültige ID für " + param.name)
-				return
+				return filter, false
 			}
 			*param.target = id
 		}
 	}
 	filter.Unstored = q.Get("unstored") != ""
 	filter.WithoutTargetRoom = q.Get("withoutTargetRoom") != ""
+	filter.WithoutAskingPrice = q.Get("withoutAskingPrice") != ""
 	if v := q.Get("disposition"); v != "" {
 		disposition := store.Undecided
 		if v != "undecided" {
 			var ok bool
 			if disposition, ok = readDisposition(w, v); !ok {
-				return
+				return filter, false
 			}
 		}
 		filter.Disposition = &disposition
@@ -336,7 +367,7 @@ func (s *server) listItems(w http.ResponseWriter, r *http.Request) {
 		n, err := strconv.Atoi(p)
 		if err != nil || n < 1 {
 			invalid("Ungültige Seite")
-			return
+			return filter, false
 		}
 		page = n
 	}
@@ -344,13 +375,12 @@ func (s *server) listItems(w http.ResponseWriter, r *http.Request) {
 		n, err := strconv.Atoi(p)
 		if err != nil || n < 1 || n > maxPerPage {
 			invalid(fmt.Sprintf("perPage muss zwischen 1 und %d liegen", maxPerPage))
-			return
+			return filter, false
 		}
 		filter.Limit = n
 	}
 	filter.Offset = (page - 1) * filter.Limit
-
-	s.writeItemList(w, r, filter)
+	return filter, true
 }
 
 func (s *server) writeItemList(w http.ResponseWriter, r *http.Request, filter store.ItemFilter) {
@@ -389,6 +419,8 @@ func (s *server) editItem(w http.ResponseWriter, r *http.Request) {
 		Name        string  `json:"name"`
 		Description string  `json:"description"`
 		Disposition *string `json:"disposition"`
+		// AskingPrice in cents only changes when the field is present; null removes it.
+		AskingPrice json.RawMessage `json:"askingPrice"`
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -405,7 +437,14 @@ func (s *server) editItem(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	item, err := s.Store.EditItem(r.Context(), id, name, strings.TrimSpace(req.Description), disposition, s.Now())
+	edit := store.ItemEdit{Name: name, Description: strings.TrimSpace(req.Description), Disposition: disposition}
+	if req.AskingPrice != nil {
+		edit.SetAskingPrice = true
+		if !readCents(w, req.AskingPrice, &edit.AskingPrice, "invalid_asking_price", "Ungültiger Angebotspreis") {
+			return
+		}
+	}
+	item, err := s.Store.EditItem(r.Context(), id, edit, s.Now())
 	s.writeItem(w, r, item, err)
 }
 

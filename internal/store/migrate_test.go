@@ -119,7 +119,7 @@ func TestEnglishNamesMigrationKeepsData(t *testing.T) {
 	}
 
 	// The CHECK on the disposition knows the English values only.
-	if _, err := s.EditItem(ctx, 1, "Regal", "", Disposition("verkaufen"), now); err == nil {
+	if _, err := s.EditItem(ctx, 1, ItemEdit{Name: "Regal", Disposition: Disposition("verkaufen")}, now); err == nil {
 		t.Error("German disposition was accepted by the database")
 	}
 

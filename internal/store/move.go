@@ -330,12 +330,8 @@ func (s *Store) SetMoveDetails(ctx context.Context, itemID int64, c MoveDetailsC
 func (s *Store) SetMoveDetailsBulk(ctx context.Context, itemIDs []int64, c MoveDetailsChange, now time.Time) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		for _, id := range itemIDs {
-			res, err := tx.ExecContext(ctx, `UPDATE item SET updated_at = ? WHERE id = ?`, timeText(now), id)
-			if err != nil {
+			if err := touchItem(ctx, tx, id, now, ErrUnknownItem); err != nil {
 				return err
-			}
-			if n, err := res.RowsAffected(); err != nil || n == 0 {
-				return errors.Join(err, ErrUnknownItem)
 			}
 			if err := setMoveDetails(ctx, tx, id, c); err != nil {
 				return err

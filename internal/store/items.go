@@ -45,7 +45,24 @@ type Item struct {
 	FurnitureStorageLocations []Named
 	// Move holds the details in the active move; nil if none is active or there are none.
 	Move *MoveDetails
+	Sale
 }
+
+// Sale holds what an item has from spec 06 (sale): its asking price while on offer and, once sold or given away,
+// the date and the proceeds. Amounts are cents.
+type Sale struct {
+	// AskingPrice is nil as long as none is set.
+	AskingPrice *int64
+	// OfferedSince is when the item last got the disposition Sell or GiveAway; nil if never.
+	OfferedSince *time.Time
+	// HandedOverOn is the date (YYYY-MM-DD) it was sold or given away; empty unless the item is in the archive.
+	HandedOverOn string
+	// SaleProceeds is set exactly when the item is in the archive.
+	SaleProceeds *int64
+}
+
+// Archived says whether the item is in the archive, i.e. sold or given away.
+func (s Sale) Archived() bool { return s.HandedOverOn != "" }
 
 // PhotoRef identifies a stored photo: its ID and the random name of its file, which together make up its address.
 type PhotoRef struct {
@@ -101,9 +118,10 @@ func (s *Store) CreateItem(ctx context.Context, n NewItem, now time.Time) (Item,
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		var id int64
 		err := tx.QueryRowContext(ctx, `
-			INSERT INTO item (name, name_lower, description, disposition, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-			n.Name, strings.ToLower(n.Name), n.Description, dispositionValue(n.Disposition), timeText(now), timeText(now)).Scan(&id)
+			INSERT INTO item (name, name_lower, description, disposition, created_at, updated_at, offered_since)
+			VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+			n.Name, strings.ToLower(n.Name), n.Description, dispositionValue(n.Disposition), timeText(now), timeText(now),
+			offeredSinceValue(n.Disposition, now)).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -167,10 +185,13 @@ func readItem(ctx context.Context, q querier, id int64) (Item, error) {
 		disposition               sql.NullString
 		createdAt, updatedAt      string
 		storageLocationID, roomID sql.NullInt64
+		sale                      saleColumns
 	)
 	err := q.QueryRowContext(ctx, `
-		SELECT id, name, description, disposition, created_at, updated_at, storage_location_id, room_id FROM item WHERE id = ?`, id).
-		Scan(&item.ID, &item.Name, &item.Description, &disposition, &createdAt, &updatedAt, &storageLocationID, &roomID)
+		SELECT id, name, description, disposition, created_at, updated_at, storage_location_id, room_id, `+saleSelect+`
+		FROM item WHERE id = ?`, id).
+		Scan(append([]any{&item.ID, &item.Name, &item.Description, &disposition, &createdAt, &updatedAt, &storageLocationID, &roomID},
+			sale.targets()...)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Item{}, ErrNotFound
 	}
@@ -182,6 +203,9 @@ func readItem(ctx context.Context, q querier, id int64) (Item, error) {
 		return Item{}, err
 	}
 	if item.UpdatedAt, err = parseTime(updatedAt); err != nil {
+		return Item{}, err
+	}
+	if item.Sale, err = sale.sale(); err != nil {
 		return Item{}, err
 	}
 	if item.Owners, err = readOwners(ctx, q, id); err != nil {
@@ -265,6 +289,7 @@ type ItemListEntry struct {
 	PlacePath string
 	// Move holds the move details in the active move (or the one named in the filter).
 	Move *MoveDetails
+	Sale
 }
 
 type ItemFilter struct {
@@ -286,8 +311,15 @@ type ItemFilter struct {
 	OriginRoomID int64
 	// WithoutTargetRoom returns the items that are in the old apartment and have no target room yet.
 	WithoutTargetRoom bool
-	Limit             int
-	Offset            int
+	// WithoutAskingPrice returns the items that have no asking price.
+	WithoutAskingPrice bool
+	// Archived lists the archive (sold and given away items, most recently handed over first) instead of the
+	// items in stock. HandedOverFrom and HandedOverTo (YYYY-MM-DD, both included) limit it to a period.
+	Archived       bool
+	HandedOverFrom string
+	HandedOverTo   string
+	Limit          int
+	Offset         int
 }
 
 // subtree is a recursive common table expression that collects, starting from the storage
@@ -354,6 +386,23 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 	if f.Unstored {
 		conditions = append(conditions, `i.storage_location_id IS NULL`)
 	}
+	if f.WithoutAskingPrice {
+		conditions = append(conditions, `i.asking_price_cents IS NULL`)
+	}
+	// Archived items are in no other list (spec 06).
+	if f.Archived {
+		conditions = append(conditions, `i.handed_over_on IS NOT NULL`)
+	} else {
+		conditions = append(conditions, `i.handed_over_on IS NULL`)
+	}
+	if f.HandedOverFrom != "" {
+		conditions = append(conditions, `i.handed_over_on >= ?`)
+		args = append(args, f.HandedOverFrom)
+	}
+	if f.HandedOverTo != "" {
+		conditions = append(conditions, `i.handed_over_on <= ?`)
+		args = append(args, f.HandedOverTo)
+	}
 	if f.BoxID != 0 {
 		conditions = append(conditions, `im.box_id = ?`)
 		args = append(args, f.BoxID)
@@ -392,7 +441,7 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 	query := "WITH RECURSIVE " + strings.Join(ctes, ", ") + " "
 	query += `
 		SELECT i.id, i.name, i.disposition, p.id, p.file, COALESCE(l.name, r.name, ''), COALESCE(i.storage_location_id, 0), COALESCE(pp.path, r.name, ''),
-			im.item_id IS NOT NULL, o.id, o.name, t.id, t.name, b.id, b.number, b.label, bt.id, bt.name
+			im.item_id IS NOT NULL, o.id, o.name, t.id, t.name, b.id, b.number, b.label, bt.id, bt.name, ` + saleSelectOf("i") + `
 		FROM item i JOIN photo p ON p.item_id = i.id AND p.main_photo = 1
 		LEFT JOIN storage_location l ON l.id = i.storage_location_id
 		LEFT JOIN place_path pp ON pp.id = i.storage_location_id
@@ -403,11 +452,13 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 		LEFT JOIN room t ON t.id = im.target_room_id
 		LEFT JOIN box b ON b.id = im.box_id
 		LEFT JOIN room bt ON bt.id = b.target_room_id`
-	if len(conditions) > 0 {
-		query += " WHERE " + strings.Join(conditions, " AND ")
+	query += " WHERE " + strings.Join(conditions, " AND ")
+	order := `i.updated_at DESC`
+	if f.Archived {
+		order = `i.handed_over_on DESC, i.updated_at DESC`
 	}
 	// One more than asked for, to tell whether there are more.
-	query += ` ORDER BY i.updated_at DESC, i.id DESC LIMIT ? OFFSET ?`
+	query += ` ORDER BY ` + order + `, i.id DESC LIMIT ? OFFSET ?`
 	args = append(append(append(cteArgs, nullID(f.MoveID)), args...), f.Limit+1, f.Offset)
 
 	rows, err := q.QueryContext(ctx, query, args...)
@@ -424,12 +475,16 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 			originID, targetID, boxID, boxTargetID          sql.NullInt64
 			originName, targetName, boxLabel, boxTargetName sql.NullString
 			boxNumber                                       sql.NullInt64
+			sale                                            saleColumns
 		)
-		if err := rows.Scan(&e.ID, &e.Name, &disposition, &e.MainPhoto.ID, &e.MainPhoto.File, &e.Place, &e.StorageLocationID, &e.PlacePath, &hasDetails,
-			&originID, &originName, &targetID, &targetName, &boxID, &boxNumber, &boxLabel, &boxTargetID, &boxTargetName); err != nil {
+		if err := rows.Scan(append([]any{&e.ID, &e.Name, &disposition, &e.MainPhoto.ID, &e.MainPhoto.File, &e.Place, &e.StorageLocationID, &e.PlacePath, &hasDetails,
+			&originID, &originName, &targetID, &targetName, &boxID, &boxNumber, &boxLabel, &boxTargetID, &boxTargetName}, sale.targets()...)...); err != nil {
 			return nil, false, err
 		}
 		e.Disposition = dispositionFrom(disposition)
+		if e.Sale, err = sale.sale(); err != nil {
+			return nil, false, err
+		}
 		if hasDetails {
 			e.Move = &MoveDetails{OriginRoom: namedFrom(originID, originName), TargetRoom: namedFrom(targetID, targetName)}
 			if boxID.Valid {
@@ -472,14 +527,11 @@ func (s *Store) updateItem(ctx context.Context, id int64, now time.Time, change 
 	return item, err
 }
 
-// updateItemIn runs the change, sets updated_at and returns the item afterwards.
+// updateItemIn runs the change, sets updated_at and returns the item afterwards. Archived items can't be changed
+// this way (ErrArchived).
 func updateItemIn(ctx context.Context, tx *sql.Tx, id int64, now time.Time, change func(*sql.Tx) error) (Item, error) {
-	res, err := tx.ExecContext(ctx, `UPDATE item SET updated_at = ? WHERE id = ?`, timeText(now), id)
-	if err != nil {
+	if err := touchItem(ctx, tx, id, now, ErrNotFound); err != nil {
 		return Item{}, err
-	}
-	if n, err := res.RowsAffected(); err != nil || n == 0 {
-		return Item{}, errors.Join(err, ErrNotFound)
 	}
 	if err := change(tx); err != nil {
 		return Item{}, err
@@ -487,10 +539,34 @@ func updateItemIn(ctx context.Context, tx *sql.Tx, id int64, now time.Time, chan
 	return readItem(ctx, tx, id)
 }
 
-func (s *Store) EditItem(ctx context.Context, id int64, name, description string, disposition Disposition, now time.Time) (Item, error) {
+// ItemEdit is the change of an item's text and disposition; the asking price only changes if SetAskingPrice is true.
+type ItemEdit struct {
+	Name        string
+	Description string
+	Disposition Disposition
+	// SetAskingPrice replaces the asking price with AskingPrice (nil removes it). A price can only be set for
+	// Sell and SellLater (ErrNoSale).
+	SetAskingPrice bool
+	AskingPrice    *int64
+}
+
+func (s *Store) EditItem(ctx context.Context, id int64, e ItemEdit, now time.Time) (Item, error) {
 	return s.updateItem(ctx, id, now, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE item SET name = ?, name_lower = ?, description = ?, disposition = ? WHERE id = ?`,
-			name, strings.ToLower(name), description, dispositionValue(disposition), id)
+		_, err := tx.ExecContext(ctx, `UPDATE item SET name = ?, name_lower = ?, description = ? WHERE id = ?`,
+			e.Name, strings.ToLower(e.Name), e.Description, id)
+		if err != nil {
+			return err
+		}
+		if err := setDisposition(ctx, tx, id, e.Disposition, now); err != nil {
+			return err
+		}
+		if !e.SetAskingPrice {
+			return nil
+		}
+		if e.AskingPrice != nil && !e.Disposition.ForSale() {
+			return ErrNoSale
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE item SET asking_price_cents = ? WHERE id = ?`, nullCents(e.AskingPrice), id)
 		return err
 	})
 }
@@ -504,15 +580,8 @@ func (s *Store) DeleteItem(ctx context.Context, id int64, now time.Time) ([]stri
 		if err != nil {
 			return err
 		}
-		own, err := readNamed(tx.QueryContext(ctx, `SELECT id, name FROM storage_location WHERE furniture_item_id = ?`, id))
-		if err != nil {
+		if err := removeOwnStorageLocations(ctx, tx, id, now); err != nil {
 			return err
-		}
-		for _, l := range own {
-			// An own storage location may already be gone together with another one it was inside.
-			if err := removeStorageLocation(ctx, tx, l.ID, now); err != nil && !errors.Is(err, ErrNotFound) {
-				return err
-			}
 		}
 		res, err := tx.ExecContext(ctx, `DELETE FROM item WHERE id = ?`, id)
 		if err != nil {
@@ -672,15 +741,11 @@ func (s *Store) ChangeItems(ctx context.Context, itemIDs []int64, c ItemsChange,
 				continue
 			}
 			seen[id] = true
-			res, err := tx.ExecContext(ctx, `UPDATE item SET updated_at = ? WHERE id = ?`, timeText(now), id)
-			if err != nil {
+			if err := touchItem(ctx, tx, id, now, ErrUnknownItem); err != nil {
 				return err
 			}
-			if n, err := res.RowsAffected(); err != nil || n == 0 {
-				return errors.Join(err, ErrUnknownItem)
-			}
 			if c.Disposition != nil {
-				if _, err := tx.ExecContext(ctx, `UPDATE item SET disposition = ? WHERE id = ?`, dispositionValue(*c.Disposition), id); err != nil {
+				if err := setDisposition(ctx, tx, id, *c.Disposition, now); err != nil {
 					return err
 				}
 			}

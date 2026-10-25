@@ -432,12 +432,17 @@ func (s *Store) SetFurniture(ctx context.Context, storageLocationID, itemID int6
 	var l StorageLocationDetail
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		if itemID != 0 {
-			var exists bool
-			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM item WHERE id = ?)`, itemID).Scan(&exists); err != nil {
+			// An archived item is no furniture any more.
+			var handedOverOn sql.NullString
+			err := tx.QueryRowContext(ctx, `SELECT handed_over_on FROM item WHERE id = ?`, itemID).Scan(&handedOverOn)
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNotFound
+			}
+			if err != nil {
 				return err
 			}
-			if !exists {
-				return ErrNotFound
+			if handedOverOn.Valid {
+				return ErrArchived
 			}
 		}
 		res, err := tx.ExecContext(ctx, `UPDATE storage_location SET furniture_item_id = ? WHERE id = ?`, nullID(itemID), storageLocationID)

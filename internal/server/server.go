@@ -27,6 +27,16 @@ type Store interface {
 	PlaceStore
 	MoveStore
 	InvitationStore
+	SaleStore
+}
+
+// SaleStore covers spec 06: handing items over into the archive, household settings and the proceeds summary.
+type SaleStore interface {
+	HandOver(ctx context.Context, id int64, h store.Handover, now time.Time) (store.Item, error)
+	TakeBack(ctx context.Context, id int64, now time.Time) (store.Item, error)
+	Settings(ctx context.Context, keys ...string) (map[string]string, error)
+	SaveSettings(ctx context.Context, values map[string]string) error
+	ProceedsSummary(ctx context.Context, from, to string, ownerID int64) (store.Proceeds, error)
 }
 
 type MoveStore interface {
@@ -66,7 +76,7 @@ type ItemStore interface {
 	CreateItem(ctx context.Context, n store.NewItem, now time.Time) (store.Item, error)
 	GetItem(ctx context.Context, id int64) (store.Item, error)
 	ListItems(ctx context.Context, f store.ItemFilter) ([]store.ItemListEntry, bool, error)
-	EditItem(ctx context.Context, id int64, name, description string, disposition store.Disposition, now time.Time) (store.Item, error)
+	EditItem(ctx context.Context, id int64, e store.ItemEdit, now time.Time) (store.Item, error)
 	DeleteItem(ctx context.Context, id int64, now time.Time) ([]string, error)
 	AddOwner(ctx context.Context, itemID, personID int64, now time.Time) (store.Item, error)
 	RemoveOwner(ctx context.Context, itemID, personID int64, now time.Time) (store.Item, error)
@@ -208,6 +218,13 @@ func New(d Deps) http.Handler {
 	protected.HandleFunc("POST /api/move/bulk", s.setMoveDetailsBulk)
 	protected.HandleFunc("GET /api/moves", s.listMoves)
 	protected.HandleFunc("GET /api/moves/{id}", s.getMove)
+	protected.HandleFunc("GET /api/items/{id}/listing", s.listingText)
+	protected.HandleFunc("PUT /api/items/{id}/handover", s.handOver)
+	protected.HandleFunc("DELETE /api/items/{id}/handover", s.takeBack)
+	protected.HandleFunc("GET /api/archive", s.listArchive)
+	protected.HandleFunc("GET /api/proceeds", s.proceeds)
+	protected.HandleFunc("GET /api/settings/listing", s.listingSettings)
+	protected.HandleFunc("PUT /api/settings/listing", s.saveListingSettings)
 	protected.HandleFunc("GET /api/users", s.listUsers)
 	protected.HandleFunc("GET /api/invitations", s.listInvitations)
 	protected.HandleFunc("POST /api/invitations", s.createInvitation)
@@ -318,6 +335,12 @@ func (s *server) storeError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, http.StatusBadRequest, "unknown_item", "Dieses Item gibt es nicht")
 	case errors.Is(err, store.ErrUnknownPerson):
 		writeError(w, http.StatusBadRequest, "unknown_person", msgUnknownPerson)
+	case errors.Is(err, store.ErrArchived):
+		writeError(w, http.StatusConflict, "item_archived", "Das Item ist im Archiv und lässt sich nicht ändern")
+	case errors.Is(err, store.ErrNotArchived):
+		writeError(w, http.StatusConflict, "not_archived", "Das Item ist nicht im Archiv")
+	case errors.Is(err, store.ErrNoSale):
+		writeError(w, http.StatusBadRequest, "no_sale", msgNoSale)
 	default:
 		s.internalError(w, r, err)
 	}
