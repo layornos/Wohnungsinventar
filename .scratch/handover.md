@@ -1,6 +1,6 @@
 # Handover
 
-Stand: 2026-10-24 abends. `main` = `ee338b8` plus dieser Commit, gepusht nach `github.com/layornos/Wohnungsinventar`, deployt auf dem Pi.
+Stand: 2026-10-24 abends, Abschnitt „Läuft noch / offen“ am 2026-10-25 aktualisiert. `main` = `ee338b8` plus dieser Commit, gepusht nach `github.com/layornos/Wohnungsinventar`, deployt auf dem Pi.
 
 ## Was heute passiert ist
 
@@ -19,25 +19,18 @@ Stand: 2026-10-24 abends. `main` = `ee338b8` plus dieser Commit, gepusht nach `g
 
 ## Läuft noch / offen
 
-1. **Browser-Tests und CI** (`.scratch/feedback-2/issues/05-browser-tests-und-ci.md`): Ein Subagent arbeitet daran (Playwright-Tests unter `e2e/` und `.github/workflows/ci.yml`). Noch nicht gemergt. Nach dem Mergen die Tests an die zuletzt gemergten Änderungen anpassen und prüfen, ob die Action auf GitHub grün ist.
-2. **Vom Nutzer auf dem iPhone zu testen** (alles ist deployt):
-   - Serienmodus: Nach „Speichern“ ein Tipp bis zum nächsten Foto. Kommt ein echtes Handyfoto mit weniger als 1 MB an?
-   - KI-Vorschlag beim ersten Foto. Mit einem echten Gegenstand noch nie probiert, die Pipeline funktioniert aber (3,4 s, Haiku 5.5). Taugt die Qualität nicht, auf dem Pi in `~/inventar/inventar.env` `INVENTAR_ANTHROPIC_MODEL=claude-sonnet-5-5` setzen und `sudo systemctl restart inventar`.
-   - Mehrfachauswahl per langem Drücken.
-   - Erscheint „Neue Version verfügbar“ nach dem nächsten Deploy?
-   - Packen, Etikett drucken, QR scannen, Auspacken. QR-Code und NFC öffnen unter iOS Safari, nicht die installierte App; dort einmal separat anmelden.
-   - Lagerort-Etikett und „Hier einräumen“.
-3. **Ticket 07 Styles aufräumen** (`.scratch/feedback-1/issues/07-styles-und-designliste-aufraeumen.md`): `app.css` hat inzwischen etwa 2000 Zeilen. Erst angehen, wenn keine anderen Subagenten mehr an CSS arbeiten. Dazu gehören:
-   - Klasse `box-label-sheet` in `label-sheet` umbenennen
-   - die Etikettseite der Box auf `LabelActions.svelte` umstellen
-   - doppelter Knopf „Foto aufnehmen“ auf dem Handy
-   - Leerzeichen vor „›“ in `PathView`
-   - doppelte Rahmen und Trennlinien in den Listen beim Packen und Auspacken
-   - `tmp/` in `.gitignore`
-4. **Erfassen im Funkloch** (Offline-Warteschlange für neue Items): bewusst zurückgestellt, noch kein Ticket.
-5. **Specs 06 Verkauf, 07 Erinnerungen und 08 Preiserinnerung:** am 2026-10-25 umgesetzt und deployt (Migrationen 0010 bis 0012, jeweils Backup vorher; `INVENTAR_PUBLIC_URL` auf dem Pi gesetzt). 0012 hat auch die Termine für Items nachgeholt, die vor Spec 07 schon Behalten, Später verkaufen, Verkaufen (mit Preis) oder Verschenken hatten. Monatsmail am 1., über dasselbe Gmail-Konto wie die NAS-Backup-Info (Pi-Ticket 06).
-6. **Pi-Tickets:** 04 (WireGuard) und 06 (Mailversand) erledigt.
-7. **Feedback 05** (Verbleib nicht übernommen): beobachten, bis es noch einmal auftritt.
+Stand 2026-10-25 mittags: Alle Specs und Tickets sind umgesetzt und deployt.
+
+1. **Erledigt am 2026-10-25:**
+   - Browser-Tests und CI (feedback-2/05): Playwright unter `e2e/`, GitHub Action grün.
+   - Ticket 07 Styles aufräumen: je Design eine Datei unter `web/src/themes/`, Designliste nur in `web/src/lib/themes.ts`.
+   - Specs 06 Verkauf, 07 Erinnerungen und 08 Preiserinnerung (Migrationen 0010 bis 0012, jeweils Backup vorher; `INVENTAR_PUBLIC_URL` auf dem Pi gesetzt). 0012 hat auch die Termine für Items nachgeholt, die vor Spec 07 schon Behalten, Später verkaufen, Verkaufen (mit Preis) oder Verschenken hatten.
+   - Pi-Tickets 04 (WireGuard von unterwegs) und 06 (Mailversand über dasselbe Gmail-Konto wie die NAS-Backup-Info, Test-Mail kam an).
+   - Die Tests auf dem iPhone aus der vorigen Übergabe hat der Nutzer bestätigt.
+2. **Zu beobachten:**
+   - Erste Monatsmail am 1. eines Monats, sobald Erinnerungen offen sind (frühestens 30 Tage nach dem ersten Verkaufs- oder Verschenk-Item).
+   - Feedback 05 (Verbleib nicht übernommen): beobachten, bis es noch einmal auftritt.
+3. **Ideen ohne Ticket:** Erfassen im Funkloch (Offline-Warteschlange für neue Items), bewusst zurückgestellt.
 
 ## Betrieb
 
