@@ -94,7 +94,28 @@ export type Item = {
 	placement: Path | null;
 	furnitureStorageLocations: Named[];
 	move: MoveDetails | null;
+} & Sale;
+
+/**
+ * What an item has from spec 06; amounts are cents. handedOverOn (YYYY-MM-DD) and saleProceeds are only set while
+ * the item is in the archive. offeredSince is when it last got the disposition sell or give_away.
+ */
+export type Sale = {
+	askingPrice: number | null;
+	offeredSince: string | null;
+	handedOverOn: string | null;
+	saleProceeds: number | null;
 };
+
+/** Whether an item with this disposition can have an asking price. */
+export function forSale(d: Disposition | null): boolean {
+	return d === 'sell' || d === 'sell_later';
+}
+
+/** Whether an item with this disposition gets a listing text. */
+export function hasListing(d: Disposition | null): boolean {
+	return forSale(d) || d === 'give_away';
+}
 
 /** targetRoom: the room of the new apartment everything in the box goes to, unless an item has its own. */
 export type BoxSummary = { id: number; number: number; label: string; targetRoom: Named | null };
@@ -145,7 +166,7 @@ export type ItemListEntry = {
 	/** The storage location the item is placed in directly; null if it is directly in a room or unplaced. */
 	storageLocationId: number | null;
 	move: MoveDetails | null;
-};
+} & Sale;
 
 /** Item in the packing list of a box; previousPlace is the path of its placement before unpacking. */
 export type PackedItem = ItemListEntry & { previousPlace: string };

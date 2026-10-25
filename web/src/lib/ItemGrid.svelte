@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { boxName, dispositionName, type ItemListEntry } from './api.ts';
+	import { boxName, dispositionName, forSale, type ItemListEntry } from './api.ts';
+	import { formatEuro } from './money.ts';
 
 	// By default the cards are plain links. With `onlongpress` (start page) a long press calls it instead of
 	// opening the item, and while `selected` is not null a tap toggles the item via `ontoggle`.
@@ -14,6 +15,13 @@
 		ontoggle?: (id: number) => void;
 		onlongpress?: (id: number) => void;
 	} = $props();
+
+	// Disposition with the asking price; in the archive what became of the item and for how much.
+	function status(item: ItemListEntry) {
+		if (item.handedOverOn) return item.disposition === 'give_away' ? 'Verschenkt' : `Verkauft · ${formatEuro(item.saleProceeds ?? 0)}`;
+		const name = dispositionName(item.disposition);
+		return forSale(item.disposition) && item.askingPrice !== null ? `${name} · ${formatEuro(item.askingPrice)}` : name;
+	}
 
 	// Place and box in a muted line below the name.
 	const where = (item: ItemListEntry) =>
@@ -94,7 +102,7 @@
 					<span class="card-name">{item.name}</span>
 					{#if where(item)}<span class="card-place">{where(item)}</span>{/if}
 				</span>
-				<span class="disposition" data-disposition={item.disposition ?? 'undecided'}>{dispositionName(item.disposition)}</span>
+				<span class="disposition" data-disposition={item.disposition ?? 'undecided'}>{status(item)}</span>
 			</a>
 		</li>
 	{/each}

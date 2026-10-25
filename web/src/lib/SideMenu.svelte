@@ -109,6 +109,12 @@
 		{@render entry('/umzug', 'Umzug', 'move')}
 	</ul>
 
+	<h2 class="menu-title" id="menu-{kind}-sale">Verkauf</h2>
+	<ul class="menu-group" aria-labelledby="menu-{kind}-sale">
+		{@render entry('/archiv', 'Archiv', 'archive')}
+		{@render entry('/erloese', 'Erlöse', 'proceeds')}
+	</ul>
+
 	<h2 class="menu-title" id="menu-{kind}-household">Haushalt</h2>
 	<ul class="menu-group" aria-labelledby="menu-{kind}-household">
 		{@render entry('/personen', 'Personen', 'persons')}

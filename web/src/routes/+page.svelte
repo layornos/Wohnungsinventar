@@ -68,7 +68,11 @@
 		const p = new URLSearchParams({ page: String(n) });
 		if (search.trim()) p.set('q', search.trim());
 		if (owner) p.set('owner', owner);
-		if (disposition) p.set('disposition', disposition);
+		// "sell_without_price": items for sale that still need an asking price (spec 06).
+		if (disposition === 'sell_without_price') {
+			p.set('disposition', 'sell');
+			p.set('withoutAskingPrice', '1');
+		} else if (disposition) p.set('disposition', disposition);
 		const [kind, id] = place.split(':');
 		if (id) p.set(kind, id);
 		if (box) p.set('box', box);
@@ -217,6 +221,7 @@
 			{#each DISPOSITIONS as d (d.value)}
 				<option value={d.value}>{d.name}</option>
 			{/each}
+			<option value="sell_without_price">Verkaufen ohne Preis</option>
 		</select>
 		<select class="span-all" aria-label="Platz" bind:value={place}>
 			<option value="">Überall</option>
@@ -260,7 +265,10 @@
 	<ItemGrid {items} selected={selecting ? selected : null} ontoggle={toggle} onlongpress={(id) => (selecting ? toggle(id) : startSelecting(id))} />
 
 	{#if !loading && items.length === 0 && !error}
-		<p class="muted">Keine Items gefunden.</p>
+		<p class="muted">
+			Keine Items gefunden.
+			{#if search.trim()}<a href="/archiv?q={encodeURIComponent(search.trim())}">Im Archiv suchen</a>{/if}
+		</p>
 	{/if}
 	{#if more}
 		<button class="secondary full-width" onclick={() => load(false)} disabled={loading}>Mehr laden</button>

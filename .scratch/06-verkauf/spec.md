@@ -1,6 +1,6 @@
 # Spec 06: Verkauf
 
-Status: ready-for-agent
+Status: done
 Blocked by: 02-items-erfassen, 03-wohnungen-raeume-lagerorte
 
 ## Problem Statement
@@ -133,15 +133,15 @@ Geklärt mit dem Nutzer am 2026-10-25 (Grilling); die früheren Annahmen sind da
 
 Acceptance criteria — completing all of these delivers the spec end to end:
 
-- [ ] R001: Migration: Item um Angebotspreis (Cent), „angeboten seit“, Abgabedatum und Verkaufserlös (Cent) erweitern. Tabelle für Haushaltseinstellungen mit Standardwerten für Inserat-Vorlage und Gewährleistungsausschluss.
-- [ ] R002: Zeitzone des Haushalts fest `Europe/Berlin`, Zeitzonendaten eingebettet.
-- [ ] R003: Angebotspreis über Item bearbeiten: setzbar bei Verkaufen und Später verkaufen, nie automatisch gelöscht, „angeboten seit“ beim Wechsel auf Verkaufen oder Verschenken neu gesetzt. Angebotspreis in Item-Abruf und Liste, Filter „ohne Angebotspreis“.
-- [ ] R004: Haushaltseinstellungen abrufen und speichern. Ein leerer Gewährleistungsausschluss wird abgelehnt.
-- [ ] R005: Inserattext abrufen: Titel (höchstens 65 Zeichen, voller Name dann im Text) und Text aus der Vorlage mit Platzhaltern, deutsch formatierter Preis bzw. „zu verschenken“, leere Beschreibung entfällt, Gewährleistungsausschluss immer am Ende; ohne Angebotspreis „kein Angebotspreis“.
-- [ ] R006: Als verkauft oder verschenkt markieren in einer Transaktion, von jedem Verbleib aus: Verbleib passend setzen, Verkaufserlös und Datum (nicht in der Zukunft) speichern, Platzierung entfernen, Lagerorte eines Möbelstücks wie in Spec 03 entfallen lassen, Umzugsangaben eines laufenden Umzugs entfernen.
-- [ ] R007: Archiv: archivierte Items aus allen normalen Listen und Übersichten ausschließen, Schreibschutz mit „Item archiviert“, Korrektur von Verkaufserlös und Datum, zurück in den Bestand. Archiv-Liste mit Suche, Filtern und seitenweisem Abruf.
-- [ ] R008: Erlösübersicht: Summe, Anzahl verkauft und verschenkt und Items in einem Zeitraum (Datumsgrenzen in der Zeitzone des Haushalts), optional je Besitzer mit gleichmäßiger Aufteilung.
-- [ ] R009: Client: Angebotspreis anzeigen und bearbeiten, Bereich „Inserat“ mit Kopieren, Teilen und Foto-Download.
-- [ ] R010: Client: Dialog „Verkauft“ bzw. „Verschenkt“ mit Wegfall-Warnung, Archiv-Seite im Seitenmenü, Hinweis „Im Archiv suchen“ auf der Startseite, schreibgeschützte Detailseite mit Korrektur und „Zurück in den Bestand“.
-- [ ] R011: Client: Erlösübersicht mit Zeitraum-Schnellwahl und Besitzer-Filter, Einstellungsseite für Vorlage und Gewährleistungsausschluss mit Vorschau.
-- [ ] R012: API-Tests für die Regeln zum Angebotspreis, Inserattext mit Gewährleistungsausschluss, Markieren mit Wegfall, Archiv-Ausschluss und Schreibschutz, zurück in den Bestand, Erlösübersicht mit Zeitzonengrenzen und Besitzer-Aufteilung.
+- [x] R001: Migration: Item um Angebotspreis (Cent), „angeboten seit“, Abgabedatum und Verkaufserlös (Cent) erweitern. Tabelle für Haushaltseinstellungen mit Standardwerten für Inserat-Vorlage und Gewährleistungsausschluss.
+- [x] R002: Zeitzone des Haushalts fest `Europe/Berlin`, Zeitzonendaten eingebettet.
+- [x] R003: Angebotspreis über Item bearbeiten: setzbar bei Verkaufen und Später verkaufen, nie automatisch gelöscht, „angeboten seit“ beim Wechsel auf Verkaufen oder Verschenken neu gesetzt. Angebotspreis in Item-Abruf und Liste, Filter „ohne Angebotspreis“.
+- [x] R004: Haushaltseinstellungen abrufen und speichern. Ein leerer Gewährleistungsausschluss wird abgelehnt.
+- [x] R005: Inserattext abrufen: Titel (höchstens 65 Zeichen, voller Name dann im Text) und Text aus der Vorlage mit Platzhaltern, deutsch formatierter Preis bzw. „zu verschenken“, leere Beschreibung entfällt, Gewährleistungsausschluss immer am Ende; ohne Angebotspreis „kein Angebotspreis“.
+- [x] R006: Als verkauft oder verschenkt markieren in einer Transaktion, von jedem Verbleib aus: Verbleib passend setzen, Verkaufserlös und Datum (nicht in der Zukunft) speichern, Platzierung entfernen, Lagerorte eines Möbelstücks wie in Spec 03 entfallen lassen, Umzugsangaben eines laufenden Umzugs entfernen.
+- [x] R007: Archiv: archivierte Items aus allen normalen Listen und Übersichten ausschließen, Schreibschutz mit „Item archiviert“, Korrektur von Verkaufserlös und Datum, zurück in den Bestand. Archiv-Liste mit Suche, Filtern und seitenweisem Abruf.
+- [x] R008: Erlösübersicht: Summe, Anzahl verkauft und verschenkt und Items in einem Zeitraum (Datumsgrenzen in der Zeitzone des Haushalts), optional je Besitzer mit gleichmäßiger Aufteilung.
+- [x] R009: Client: Angebotspreis anzeigen und bearbeiten, Bereich „Inserat“ mit Kopieren, Teilen und Foto-Download.
+- [x] R010: Client: Dialog „Verkauft“ bzw. „Verschenkt“ mit Wegfall-Warnung, Archiv-Seite im Seitenmenü, Hinweis „Im Archiv suchen“ auf der Startseite, schreibgeschützte Detailseite mit Korrektur und „Zurück in den Bestand“.
+- [x] R011: Client: Erlösübersicht mit Zeitraum-Schnellwahl und Besitzer-Filter, Einstellungsseite für Vorlage und Gewährleistungsausschluss mit Vorschau.
+- [x] R012: API-Tests für die Regeln zum Angebotspreis, Inserattext mit Gewährleistungsausschluss, Markieren mit Wegfall, Archiv-Ausschluss und Schreibschutz, zurück in den Bestand, Erlösübersicht mit Zeitzonengrenzen und Besitzer-Aufteilung.

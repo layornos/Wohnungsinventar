@@ -1489,3 +1489,32 @@ label.theme-card:has(input:checked) {
 }
 
 /* ===== End of storage location labels ===== */
+
+/* ===== Sale (spec 06): listing on the item page and the proceeds summary ===== */
+.listing textarea {
+	font-size: 0.95rem;
+}
+
+.listing label + label {
+	margin-top: 12px;
+}
+
+.listing .button-row {
+	margin-top: 12px;
+}
+
+.proceeds-total {
+	margin: 16px 0;
+}
+
+.proceeds-total p {
+	margin: 0;
+}
+
+.proceeds-sum {
+	font-size: 2rem;
+	font-weight: 700;
+	letter-spacing: -0.02em;
+}
+
+/* ===== End of sale ===== */

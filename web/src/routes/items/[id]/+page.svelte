@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { api, boxName, errorText, dispositionName, type Photo, type Item, type Move, type Apartment, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
+	import { api, boxName, errorText, dispositionName, forSale, hasListing, type Photo, type Item, type Move, type Apartment, type Person, type Place, type PlaceEntry, type Disposition } from '#lib/api.ts';
 	import DispositionPicker from '#lib/DispositionPicker.svelte';
 	import PhotoEditor from '#lib/PhotoEditor.svelte';
 	import PhotoInput from '#lib/PhotoInput.svelte';
+	import HandoverDialog, { type Outcome } from '#lib/HandoverDialog.svelte';
+	import ListingSection from '#lib/ListingSection.svelte';
+	import { euroInput, formatDay, formatEuro, parseEuro } from '#lib/money.ts';
 	import { photoEdit } from '#lib/photoEdit.svelte.ts';
 	import { loadPlaces, placementBody, confirmRemoval } from '#lib/places.ts';
 	import { loadMove, loadApartments, type MoveDetailsChange } from '#lib/move.ts';
@@ -20,7 +23,11 @@
 	let error = $state('');
 	let busy = $state(false);
 	let editing = $state(false);
-	let draft = $state({ name: '', description: '', disposition: null as Disposition | null });
+	let draft = $state({ name: '', description: '', disposition: null as Disposition | null, price: '' });
+	// The item is in the archive (sold or given away): read-only except for correcting the handover.
+	const archived = $derived(!!item?.handedOverOn);
+	// Open handover dialog: sold or given away, also for correcting it in the archive.
+	let handing = $state<Outcome | null>(null);
 
 	const photo = $derived(item?.photos.find((p) => p.id === shown) ?? item?.photos.find((p) => p.mainPhoto));
 	const otherPersons = $derived(persons.filter((p) => !item?.owners.some((o) => o.id === p.id)));
@@ -55,13 +62,32 @@
 
 	function startEditing() {
 		if (!item) return;
-		draft = { name: item.name, description: item.description, disposition: item.disposition };
+		draft = { name: item.name, description: item.description, disposition: item.disposition, price: euroInput(item.askingPrice) };
 		editing = true;
 	}
 
+	// The asking price is only sent for sell and sell later; otherwise it stays stored as it is.
 	async function save(event: SubmitEvent) {
 		event.preventDefault();
-		if (await change('PUT', path, draft)) editing = false;
+		const body: Record<string, unknown> = { name: draft.name, description: draft.description, disposition: draft.disposition };
+		if (forSale(draft.disposition)) {
+			const cents = parseEuro(draft.price);
+			if (cents === undefined) {
+				error = 'Bitte den Angebotspreis in Euro angeben, z. B. 45 oder 45,50.';
+				return;
+			}
+			body.askingPrice = cents;
+		}
+		if (await change('PUT', path, body)) editing = false;
+	}
+
+	function handedOver(saved: Item | null) {
+		handing = null;
+		if (saved) item = saved;
+	}
+
+	function takeBack() {
+		if (confirm('Zurück in den Bestand? Das Item bekommt danach wieder einen Platz.')) change('DELETE', `${path}/handover`);
 	}
 
 	function uploadPhotos(files: File[]) {
@@ -163,7 +189,10 @@
 		if (!item) return;
 		error = '';
 		try {
-			const question = `„${item.name}“ mit allen Fotos löschen?`;
+			const question =
+				item.handedOverOn && item.saleProceeds
+					? `„${item.name}“ mit allen Fotos löschen? Der Verkaufserlös von ${formatEuro(item.saleProceeds)} fehlt danach in der Erlösübersicht.`
+					: `„${item.name}“ mit allen Fotos löschen?`;
 			const confirmed =
 				item.furnitureStorageLocations.length > 0
 					? await confirmRemoval(`${path}/removal`, `${question} Seine Lagerorte (${item.furnitureStorageLocations.map((s) => s.name).join(', ')}) fallen weg.`)
@@ -180,7 +209,7 @@
 <main class="page wide">
 	<header class="header">
 		<a class="button secondary" href="/">← Liste</a>
-		{#if item && !editing}
+		{#if item && !editing && !archived}
 			<button class="secondary" onclick={startEditing}>Bearbeiten</button>
 		{/if}
 	</header>
@@ -195,7 +224,7 @@
 				{#if photo}
 					<figure class="large-photo">
 						<a href={photo.url} target="_blank" rel="noopener"><img src={photo.thumbnailUrl} alt={item.name} /></a>
-						{#if item.photos.length > 1}
+						{#if item.photos.length > 1 && !archived}
 							<button type="button" class="photo-delete" aria-label="Foto löschen" disabled={busy} onclick={() => deletePhoto(photo.id)}>
 								×
 							</button>
@@ -211,7 +240,7 @@
 						</li>
 					{/each}
 				</ul>
-				{#if photo}
+				{#if photo && !archived}
 					<div class="button-row">
 						{#if !photo.mainPhoto}
 							<button class="secondary" disabled={busy} onclick={() => change('PUT', `${path}/main-photo`, { photoId: photo.id })}>
@@ -223,7 +252,7 @@
 						<button class="secondary" disabled={busy} onclick={() => startPhotoEdit(photo)}>Drehen / Zuschneiden</button>
 					</div>
 				{/if}
-				<PhotoInput chosen={uploadPhotos} disabled={busy} />
+				{#if !archived}<PhotoInput chosen={uploadPhotos} disabled={busy} />{/if}
 				{#if edit.current}
 					<PhotoEditor source={edit.current.source} done={edit.done} />
 				{/if}
@@ -241,6 +270,12 @@
 							<textarea bind:value={draft.description} rows="3"></textarea>
 						</label>
 						<DispositionPicker bind:value={draft.disposition} />
+						{#if forSale(draft.disposition)}
+							<label>
+								Angebotspreis in Euro (optional)
+								<input bind:value={draft.price} inputmode="decimal" autocomplete="off" placeholder="z. B. 45 oder 45,50" />
+							</label>
+						{/if}
 						<div class="button-row">
 							<button type="submit" disabled={busy}>Speichern</button>
 							<button type="button" class="secondary" onclick={() => (editing = false)}>Abbrechen</button>
@@ -251,9 +286,28 @@
 					{#if item.description}
 						<p class="description">{item.description}</p>
 					{/if}
-					<p>Verbleib: <span class="disposition" data-disposition={item.disposition ?? 'undecided'}>{dispositionName(item.disposition)}</span></p>
+					{#if archived && item.handedOverOn}
+						<p class="notice">
+							{item.disposition === 'give_away' ? 'Verschenkt' : `Verkauft für ${formatEuro(item.saleProceeds ?? 0)}`}
+							am {formatDay(item.handedOverOn)}. Das Item ist im <a href="/archiv">Archiv</a>.
+						</p>
+						<div class="button-row">
+							<button class="secondary" disabled={busy} onclick={() => (handing = item?.disposition === 'give_away' ? 'givenAway' : 'sold')}>Korrigieren</button>
+							<button class="secondary" disabled={busy} onclick={takeBack}>Zurück in den Bestand</button>
+						</div>
+					{:else}
+						<p>Verbleib: <span class="disposition" data-disposition={item.disposition ?? 'undecided'}>{dispositionName(item.disposition)}</span></p>
+						{#if forSale(item.disposition)}
+							<p>Angebotspreis: {item.askingPrice !== null ? formatEuro(item.askingPrice) : 'noch keiner'}</p>
+						{/if}
+					{/if}
 				{/if}
 
+				{#if !archived && hasListing(item.disposition)}
+					<ListingSection {item} handOver={(o) => (handing = o)} />
+				{/if}
+
+				{#if !archived}
 				<section>
 					<h2>Platz</h2>
 					{#if choosingPlace}
@@ -316,19 +370,21 @@
 					</section>
 				{/if}
 
+				{/if}
+
 				<section>
 					<h2>Besitzer</h2>
 					<ul class="rows">
 						{#each item.owners as o (o.id)}
 							<li>
 								<span>{o.name}</span>
-								<button class="secondary small" disabled={busy} onclick={() => change('DELETE', `${path}/owners/${o.id}`)} aria-label="{o.name} als Besitzer entfernen">
+								{#if !archived}<button class="secondary small" disabled={busy} onclick={() => change('DELETE', `${path}/owners/${o.id}`)} aria-label="{o.name} als Besitzer entfernen">
 									Entfernen
-								</button>
+								</button>{/if}
 							</li>
 						{/each}
 					</ul>
-					{#if otherPersons.length > 0}
+					{#if otherPersons.length > 0 && !archived}
 						<div class="button-row">
 							<select aria-label="Besitzer hinzufügen" bind:value={newOwner}>
 								<option value="">Person wählen …</option>
@@ -341,9 +397,16 @@
 					{/if}
 				</section>
 
-				<section>
+				<section class="button-row">
+					{#if !archived}
+						<button class="secondary" onclick={() => (handing = 'sold')}>Verkauft</button>
+						<button class="secondary" onclick={() => (handing = 'givenAway')}>Verschenkt</button>
+					{/if}
 					<button class="danger" onclick={deleteItem}>Item löschen</button>
 				</section>
+				{#if handing && item}
+					<HandoverDialog {item} outcome={handing} done={handedOver} />
+				{/if}
 			</div>
 		</div>
 	{:else if !error}
