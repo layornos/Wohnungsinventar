@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { errorText } from '#lib/api.ts';
-	import { appearance, THEMES, type Theme } from '#lib/theme.svelte.ts';
+	import { appearance } from '#lib/theme.svelte.ts';
+	import { THEMES, type Theme } from '#lib/themes.ts';
 	import { saveTheme } from '#lib/session.svelte.ts';
 
 	let error = $state('');

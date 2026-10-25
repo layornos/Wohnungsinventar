@@ -7,9 +7,9 @@
 		<meta name="theme-color" content="#ffffff" />
 		<script>
 			// Set the theme before the first render so the wrong one doesn't flash briefly (see lib/theme.svelte.ts).
-			// The colours must match --theme-color in app.css.
-			(function () {
-				var theme = 'minimal';
+			// The themes with their colours come from lib/themes.ts (inserted by hooks.server.ts).
+			(function (boot) {
+				var theme = boot.default;
 				try {
 					var stored = localStorage.getItem('inventar.theme');
 					if (stored === null) {
@@ -21,13 +21,14 @@
 							localStorage.removeItem('inventar.design');
 						}
 					}
-					if (stored === 'neon' || stored === 'soft') theme = stored;
+					if (stored !== null && Object.prototype.hasOwnProperty.call(boot.themes, stored)) theme = stored;
 				} catch (e) {}
+				var info = boot.themes[theme];
 				document.documentElement.dataset.theme = theme;
+				document.documentElement.dataset.itemView = info.tiles ? 'tiles' : 'list';
 				var dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
-				var color = theme === 'neon' ? '#09090f' : theme === 'soft' ? '#f3f0fa' : dark ? '#09090b' : '#ffffff';
-				document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
-			})();
+				document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? info.color.dark : info.color.light);
+			})(%inventar.themes%);
 		</script>
 		<link rel="manifest" href="/manifest.webmanifest" />
 		<link rel="apple-touch-icon" href="/icon-192.png" />

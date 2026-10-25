@@ -7,6 +7,7 @@
 	import OwnerPicker from '#lib/OwnerPicker.svelte';
 	import PhotoEditor from '#lib/PhotoEditor.svelte';
 	import PhotoInput from '#lib/PhotoInput.svelte';
+	import { photoEdit } from '#lib/photoEdit.svelte.ts';
 	import NameSuggestion from '#lib/NameSuggestion.svelte';
 	import { loadPlaces, lastPlace, rememberLastPlace } from '#lib/places.ts';
 	import { loadPersons } from '#lib/persons.ts';
@@ -50,16 +51,11 @@
 		if (!name) nameInput.focus();
 	}
 
-	// Index of the photo currently being rotated or cropped.
-	let editing = $state<number | null>(null);
-
-	function editDone(file: File | null) {
-		const i = editing;
-		editing = null;
-		if (i === null || !file) return;
+	// The edited photo replaces the chosen one at the same position.
+	const edit = photoEdit<number>((i, file) => {
 		URL.revokeObjectURL(photos[i].preview);
 		photos[i] = { file, preview: URL.createObjectURL(file) };
-	}
+	});
 
 	function remove(i: number) {
 		URL.revokeObjectURL(photos[i].preview);
@@ -135,14 +131,14 @@
 						<li>
 							<img src={p.preview} alt="Foto {i + 1}" />
 							<button type="button" class="secondary small" onclick={() => remove(i)} aria-label="Foto {i + 1} entfernen">×</button>
-							<button type="button" class="secondary small photo-edit-button" onclick={() => (editing = i)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
+							<button type="button" class="secondary small photo-edit-button" onclick={() => edit.start(i, p.file)} aria-label="Foto {i + 1} drehen oder zuschneiden">✎</button>
 						</li>
 					{/each}
 				</ul>
 			{/if}
 			<PhotoInput bind:this={photoInput} chosen={add} />
-			{#if editing !== null}
-				<PhotoEditor source={photos[editing].file} done={editDone} />
+			{#if edit.current}
+				<PhotoEditor source={edit.current.source} done={edit.done} />
 			{/if}
 		</div>
 

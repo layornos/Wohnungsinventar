@@ -8,8 +8,9 @@
 	import UpdateNotice from '#lib/UpdateNotice.svelte';
 	import { watchForUpdates } from '#lib/appUpdate.svelte.ts';
 	import { loadSession, session } from '#lib/session.svelte.ts';
-	import '../fonts.css';
 	import '../app.css';
+	// After the components, so a theme overrides them, and before desktop.css.
+	import '../themes/index.ts';
 	import '../desktop.css';
 	import type { LayoutProps } from './$types';
 

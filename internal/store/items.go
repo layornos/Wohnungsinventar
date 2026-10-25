@@ -47,10 +47,15 @@ type Item struct {
 	Move *MoveDetails
 }
 
+// PhotoRef identifies a stored photo: its ID and the random name of its file, which together make up its address.
+type PhotoRef struct {
+	ID   int64
+	File string
+}
+
 type Photo struct {
-	ID        int64
+	PhotoRef
 	ItemID    int64
-	File      string
 	Type      string
 	MainPhoto bool
 }
@@ -247,11 +252,10 @@ func readPhotos(ctx context.Context, q querier, itemID int64) ([]Photo, error) {
 
 // ItemListEntry is an item in the list, with its main photo for the thumbnail.
 type ItemListEntry struct {
-	ID            int64
-	Name          string
-	Disposition   Disposition
-	MainPhotoID   int64
-	MainPhotoFile string
+	ID          int64
+	Name        string
+	Disposition Disposition
+	MainPhoto   PhotoRef
 	// Place is the name of the storage location or, without one, of the room the item is in; empty without placement.
 	Place string
 	// StorageLocationID is the storage location the item is placed in directly; 0 if none.
@@ -421,7 +425,7 @@ func listItems(ctx context.Context, q querier, f ItemFilter) ([]ItemListEntry, b
 			originName, targetName, boxLabel, boxTargetName sql.NullString
 			boxNumber                                       sql.NullInt64
 		)
-		if err := rows.Scan(&e.ID, &e.Name, &disposition, &e.MainPhotoID, &e.MainPhotoFile, &e.Place, &e.StorageLocationID, &e.PlacePath, &hasDetails,
+		if err := rows.Scan(&e.ID, &e.Name, &disposition, &e.MainPhoto.ID, &e.MainPhoto.File, &e.Place, &e.StorageLocationID, &e.PlacePath, &hasDetails,
 			&originID, &originName, &targetID, &targetName, &boxID, &boxNumber, &boxLabel, &boxTargetID, &boxTargetName); err != nil {
 			return nil, false, err
 		}

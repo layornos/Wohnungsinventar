@@ -1,5 +1,6 @@
 import { api, type User } from './api.ts';
-import { appearance, applyTheme, isTheme, resetTheme, type Theme } from './theme.svelte.ts';
+import { appearance, applyTheme, resetTheme } from './theme.svelte.ts';
+import { isTheme, type Theme } from './themes.ts';
 
 /** The logged-in user; null as long as nobody is logged in. */
 export const session = $state<{ user: User | null; loaded: boolean }>({

@@ -1,5 +1,5 @@
 import { goto } from '$app/navigation';
-import type { Theme } from './theme.svelte.ts';
+import type { Theme } from './themes.ts';
 
 /** Domain error of the API, e.g. code "login_failed". */
 export class ApiError extends Error {

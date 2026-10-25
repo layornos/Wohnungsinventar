@@ -1,0 +1,99 @@
+/*
+ * Theme Minimal: white, almost monochrome, thin lines; dark like the system in dark mode. Its tokens are also the
+ * base every other theme starts from, so a theme only sets what differs.
+ */
+
+/*
+ * The theme fonts, shipped with the app (no external requests, ADR-0004). Variable woff2 files from
+ * @fontsource-variable, only latin and latin-ext (umlauts are in latin). One file covers all weights, which is
+ * smaller than the five static weights (400–800) the themes use.
+ *
+ * A browser only downloads a face once text is rendered with it. Each family is named only in the --font token
+ * of its theme (themes/*.css), so only the active theme's font is fetched, and latin-ext only when such characters
+ * appear. The service worker caches the files on first use instead of precaching all of them.
+ *
+ * Licences (SIL OFL 1.1): static/fonts/*-OFL.txt.
+ */
+
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 900;
+	src: url('@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2') format('woff2');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root {
+	--background: #ffffff;
+	--surface: #fafafa;
+	/* Opaque surface for dialogs, bars and buttons over photos. */
+	--surface-solid: #ffffff;
+	--field: #ffffff;
+	--text: #18181b;
+	--text-muted: #71717a;
+	--accent: #18181b;
+	--accent-text: #ffffff;
+	--border: #e4e4e7;
+	--error: #dc2626;
+	--radius: 8px;
+	--radius-large: 10px;
+	/* Buttons; fields, list rows and controls on photos keep --radius. */
+	--button-radius: var(--radius);
+	--button-weight: 600;
+	--font: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+	--shadow-floating: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
+	--glow: none;
+	--glow-strong: none;
+	--glass: none;
+
+	/* Disposition: dot colour (Minimal) or badge background and text (Neon). */
+	--disposition-sell: #ea580c;
+	--disposition-keep: #16a34a;
+	--disposition-undecided: #a1a1aa;
+	--disposition-give-away: #db2777;
+	--disposition-sell-later: #ca8a04;
+
+	/* Shadow for cards (items, theme picker); Soft lifts them a bit more. */
+	--shadow-card: var(--shadow);
+
+	color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root[data-theme='minimal'] {
+		--background: #09090b;
+		--surface: #18181b;
+		--surface-solid: #18181b;
+		--field: #09090b;
+		--text: #fafafa;
+		--text-muted: #a1a1aa;
+		--accent: #fafafa;
+		--accent-text: #18181b;
+		--border: #27272a;
+		--error: #f87171;
+		--shadow: none;
+		--shadow-floating: 0 6px 20px rgb(0 0 0 / 0.6);
+		--disposition-undecided: #71717a;
+	}
+}
+
+/* Miniature in the theme picker (Einstellungen). */
+.theme-preview[data-preview='minimal'] {
+	--p-background: #ffffff;
+	--p-surface: #f4f4f5;
+	--p-accent: #18181b;
+	--p-radius: 4px;
+}

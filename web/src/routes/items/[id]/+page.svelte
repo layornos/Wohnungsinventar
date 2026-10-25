@@ -5,6 +5,7 @@
 	import DispositionPicker from '#lib/DispositionPicker.svelte';
 	import PhotoEditor from '#lib/PhotoEditor.svelte';
 	import PhotoInput from '#lib/PhotoInput.svelte';
+	import { photoEdit } from '#lib/photoEdit.svelte.ts';
 	import { loadPlaces, placementBody, confirmRemoval } from '#lib/places.ts';
 	import { loadMove, loadApartments, type MoveDetailsChange } from '#lib/move.ts';
 	import PathView from '#lib/PathView.svelte';
@@ -69,31 +70,26 @@
 		change('POST', `${path}/photos`, form);
 	}
 
-	// Saved photo currently being rotated or cropped, with its loaded original.
-	let photoEdit = $state<{ photoId: number; source: Blob } | null>(null);
+	// The edited photo replaces the original; the server gives it a new URL.
+	const edit = photoEdit<number>((id, file) => {
+		const form = new FormData();
+		form.append('photo', file);
+		change('PUT', `/api/photos/${id}`, form);
+	});
 
+	// The editor works on the original, which has to be loaded first.
 	async function startPhotoEdit(p: Photo) {
 		error = '';
 		busy = true;
 		try {
 			const res = await fetch(p.url);
 			if (!res.ok) throw new Error(res.statusText);
-			photoEdit = { photoId: p.id, source: await res.blob() };
+			edit.start(p.id, await res.blob());
 		} catch {
 			error = 'Das Foto ließ sich nicht laden.';
 		} finally {
 			busy = false;
 		}
-	}
-
-	// The edited photo replaces the original; the server gives it a new URL.
-	function photoEditDone(file: File | null) {
-		const id = photoEdit?.photoId;
-		photoEdit = null;
-		if (id === undefined || !file) return;
-		const form = new FormData();
-		form.append('photo', file);
-		change('PUT', `/api/photos/${id}`, form);
 	}
 
 	async function deletePhoto(id: number) {
@@ -228,8 +224,8 @@
 					</div>
 				{/if}
 				<PhotoInput chosen={uploadPhotos} disabled={busy} />
-				{#if photoEdit}
-					<PhotoEditor source={photoEdit.source} done={photoEditDone} />
+				{#if edit.current}
+					<PhotoEditor source={edit.current.source} done={edit.done} />
 				{/if}
 			</div>
 

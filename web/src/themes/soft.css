@@ -1,0 +1,259 @@
+/*
+ * Theme Soft ("Weich & farbig"): always light, large radii, gentle shadows instead of borders, violet as accent,
+ * buttons as pills. Plus Jakarta Sans. Muted text has 5.0:1 on the background and 5.6:1 on surfaces.
+ * Bold headings and tiles with pastel badges for the item overview.
+ */
+
+@font-face {
+	font-family: 'Plus Jakarta Sans';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 200 800;
+	src: url('@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2')
+		format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: 'Plus Jakarta Sans';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 200 800;
+	src: url('@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-ext-wght-normal.woff2')
+		format('woff2');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root[data-theme='soft'] {
+	--background: #f3f0fa;
+	--surface: #ffffff;
+	--surface-solid: #ffffff;
+	--field: #ffffff;
+	--text: #1b1530;
+	--text-muted: #6b6385;
+	--accent: #5b3bea;
+	--accent-text: #ffffff;
+	--border: #e6e1f3;
+	--error: #c81e1e;
+	--radius: 18px;
+	--radius-large: 22px;
+	/* Buttons as pills. */
+	--button-radius: 999px;
+	--button-weight: 700;
+	--font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--shadow: 0 4px 14px rgb(60 40 140 / 0.08);
+	--shadow-card: 0 6px 20px rgb(60 40 140 / 0.08);
+	--shadow-floating: 0 12px 28px rgb(91 59 234 / 0.4);
+	--glow: 0 4px 14px rgb(60 40 140 / 0.1);
+	--glow-strong: 0 6px 18px rgb(91 59 234 / 0.3);
+	--glass: none;
+	color-scheme: light;
+}
+
+/* Miniature in the theme picker (Einstellungen). */
+.theme-preview[data-preview='soft'] {
+	--p-background: #f3f0fa;
+	--p-surface: #ffffff;
+	--p-accent: #5b3bea;
+	--p-radius: 12px;
+	--p-shadow: 0 2px 6px rgb(60 40 140 / 0.12);
+}
+
+[data-theme='soft'] h1 {
+	font-size: 30px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+[data-theme='soft'] h1.box-number {
+	font-size: 2.6em;
+}
+
+[data-theme='soft'] h2 {
+	font-weight: 700;
+}
+
+[data-theme='soft'] .bottom-bar :is(button.menu-button, a.add-button) {
+	border-radius: 16px;
+}
+
+[data-theme='soft'] :is(button.secondary, a.button.secondary, label.chip, button.pack, button.select-button, .results button, .notice),
+[data-theme='soft'] :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
+	border-color: transparent;
+	box-shadow: var(--shadow);
+}
+
+[data-theme='soft'] :is(input, select, textarea):focus-visible {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+[data-theme='soft'] label.chip:has(input:checked) {
+	outline: none;
+	border-color: var(--accent);
+	background: #ece8f8;
+}
+
+[data-theme='soft'] button.pack.packed,
+[data-theme='soft'] .results button.active {
+	border-color: var(--accent);
+}
+
+[data-theme='soft'] a.button.floating {
+	box-shadow: var(--shadow-floating);
+}
+
+[data-theme='soft'] .bottom-bar {
+	border-top-color: transparent;
+	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
+}
+
+[data-theme='soft'] dialog.side-menu {
+	border-right: none;
+	box-shadow: var(--shadow-card);
+}
+
+[data-theme='soft'] :is(dialog.side-menu, dialog.photo-editor, dialog.box-dialog)::backdrop {
+	background: rgb(27 21 48 / 0.35);
+}
+
+[data-theme='soft'] :is(dialog.photo-editor, dialog.box-dialog) {
+	border-color: transparent;
+	box-shadow: var(--shadow-card);
+}
+
+/* Sidebar: white surface, set off from the content only by the shadow (the border from desktop.css is dropped). */
+[data-theme='soft'] nav.sidebar {
+	border-right-color: transparent;
+	box-shadow: var(--shadow);
+}
+
+[data-theme='soft'] .action-bar {
+	border-top-color: transparent;
+	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
+}
+
+[data-theme='soft'] label.theme-card {
+	border-color: transparent;
+}
+
+[data-theme='soft'] label.theme-card:has(input:checked) {
+	border-color: var(--accent);
+}
+
+[data-theme='soft'] .badge {
+	padding: 3px 10px;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+[data-theme='soft'] .badge.box {
+	background: #eef0f4;
+	color: #3a4150;
+	border-color: transparent;
+}
+
+[data-theme='soft'] .item-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+[data-theme='soft'] .item-grid li + li {
+	border-top: none;
+}
+
+[data-theme='soft'] .card {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+	height: 100%;
+	padding: 8px;
+	border-radius: 22px;
+	background: var(--surface);
+	box-shadow: var(--shadow-card);
+	transition: box-shadow 0.15s;
+}
+
+[data-theme='soft'] .card:hover {
+	box-shadow: 0 10px 26px rgb(60 40 140 / 0.14);
+}
+
+[data-theme='soft'] .card img {
+	width: 100%;
+	height: 132px;
+	border-radius: 16px;
+}
+
+[data-theme='soft'] .card-name {
+	font-weight: 700;
+}
+
+[data-theme='soft'] .card-text,
+[data-theme='soft'] .card .disposition {
+	margin: 0 4px;
+}
+
+[data-theme='soft'] .card .disposition {
+	align-self: flex-start;
+	margin-top: auto;
+	margin-bottom: 4px;
+}
+
+[data-theme='soft'] .disposition {
+	padding: 3px 10px;
+	border-radius: 999px;
+	background: var(--badge-background, #ece8f8);
+	color: var(--badge-text, #4c3f75);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+[data-theme='soft'] .disposition::before {
+	display: none;
+}
+
+[data-theme='soft'] .disposition[data-disposition='sell'] {
+	--badge-background: #ffe4d6;
+	--badge-text: #9a3412;
+}
+
+[data-theme='soft'] .disposition[data-disposition='keep'] {
+	--badge-background: #dcf5e7;
+	--badge-text: #166534;
+}
+
+[data-theme='soft'] .disposition[data-disposition='give_away'] {
+	--badge-background: #fce4f1;
+	--badge-text: #9d174d;
+}
+
+[data-theme='soft'] .disposition[data-disposition='sell_later'] {
+	--badge-background: #fff1c2;
+	--badge-text: #854d0e;
+}
+
+/* Side menu: rounder rows. */
+[data-theme='soft'] .menu-brand {
+	font-size: 1.35rem;
+	font-weight: 800;
+}
+
+[data-theme='soft'] nav.menu-content :is(.menu-link, button.menu-close) {
+	border-radius: 14px;
+}
+
+[data-theme='soft'] nav.menu-content .menu-link[aria-current='page'] {
+	background: #ece8f8;
+	font-weight: 700;
+}
+
+[data-theme='soft'] .selection-bar {
+	border-color: transparent;
+}
+
+[data-theme='soft'] .update-notice {
+	border-color: transparent;
+}

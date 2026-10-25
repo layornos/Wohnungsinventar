@@ -1,117 +1,10 @@
 /*
- * Three themes, controlled by <html data-theme="minimal|neon|soft"> (set in app.html, switched in
- * lib/theme.svelte.ts). Everything coloured goes through the tokens here; the rules further down apply to all,
- * only differences in structure (list vs. tiles, frosted glass, shadows instead of borders) are in the sections
- * "Theme Neon" and "Theme Soft" at the end.
+ * Components, the same for every theme. The theme is set as <html data-theme="…"> (app.html, lib/theme.svelte.ts);
+ * everything coloured goes through the tokens of the active theme in themes/<theme>.css, which also holds what a
+ * theme changes in structure (frosted glass, shadows instead of borders). Themes with tiles instead of a list for
+ * the item overview additionally get <html data-item-view="tiles">.
  * Breakpoints for wide screens don't belong here but in desktop.css.
  */
-
-/* Minimal (default): white, almost monochrome, thin lines. Inter (fonts.css). */
-:root {
-	--background: #ffffff;
-	--surface: #fafafa;
-	/* Opaque surface for dialogs, bars and buttons over photos. */
-	--surface-solid: #ffffff;
-	--field: #ffffff;
-	--text: #18181b;
-	--text-muted: #71717a;
-	--accent: #18181b;
-	--accent-text: #ffffff;
-	--border: #e4e4e7;
-	--error: #dc2626;
-	--radius: 8px;
-	--radius-large: 10px;
-	--font: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--shadow: 0 1px 2px rgb(0 0 0 / 0.05);
-	--shadow-floating: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px rgb(0 0 0 / 0.14);
-	--glow: none;
-	--glow-strong: none;
-	--glass: none;
-	--theme-color: #ffffff;
-
-	/* Disposition: dot colour (Minimal) or badge background and text (Neon). */
-	--disposition-sell: #ea580c;
-	--disposition-keep: #16a34a;
-	--disposition-undecided: #a1a1aa;
-	--disposition-give-away: #db2777;
-	--disposition-sell-later: #ca8a04;
-
-	/* Shadow for cards (items, theme picker); Soft lifts them a bit more. */
-	--shadow-card: var(--shadow);
-
-	color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-	:root:not([data-theme='neon'], [data-theme='soft']) {
-		--background: #09090b;
-		--surface: #18181b;
-		--surface-solid: #18181b;
-		--field: #09090b;
-		--text: #fafafa;
-		--text-muted: #a1a1aa;
-		--accent: #fafafa;
-		--accent-text: #18181b;
-		--border: #27272a;
-		--error: #f87171;
-		--shadow: none;
-		--shadow-floating: 0 6px 20px rgb(0 0 0 / 0.6);
-		--theme-color: #09090b;
-		--disposition-undecided: #71717a;
-	}
-}
-
-/* Neon: always dark, frosted-glass surfaces, mint with glow. Space Grotesk (fonts.css). */
-:root[data-theme='neon'] {
-	--background: #09090f;
-	--surface: rgb(255 255 255 / 0.055);
-	--surface-solid: rgb(20 20 31 / 0.94);
-	--field: rgb(255 255 255 / 0.05);
-	--text: #f4f4fa;
-	--text-muted: #a8a8bf;
-	--accent: #7df9c8;
-	--accent-text: #062019;
-	--border: rgb(255 255 255 / 0.13);
-	--error: #fca5a5;
-	--radius: 14px;
-	--radius-large: 20px;
-	--font: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--shadow: none;
-	--shadow-floating: 0 0 28px rgb(125 249 200 / 0.5);
-	--glow: 0 0 20px rgb(125 249 200 / 0.4);
-	--glow-strong: 0 0 32px rgb(125 249 200 / 0.55);
-	--glass: blur(16px);
-	--theme-color: #09090f;
-	color-scheme: dark;
-}
-
-/*
- * Soft ("Weich & farbig"): always light, large radii, gentle shadows instead of borders, violet as accent.
- * Plus Jakarta Sans (fonts.css). Muted text has 5.0:1 on the background and 5.6:1 on surfaces.
- */
-:root[data-theme='soft'] {
-	--background: #f3f0fa;
-	--surface: #ffffff;
-	--surface-solid: #ffffff;
-	--field: #ffffff;
-	--text: #1b1530;
-	--text-muted: #6b6385;
-	--accent: #5b3bea;
-	--accent-text: #ffffff;
-	--border: #e6e1f3;
-	--error: #c81e1e;
-	--radius: 18px;
-	--radius-large: 22px;
-	--font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-	--shadow: 0 4px 14px rgb(60 40 140 / 0.08);
-	--shadow-card: 0 6px 20px rgb(60 40 140 / 0.08);
-	--shadow-floating: 0 12px 28px rgb(91 59 234 / 0.4);
-	--glow: 0 4px 14px rgb(60 40 140 / 0.1);
-	--glow-strong: 0 6px 18px rgb(91 59 234 / 0.3);
-	--glass: none;
-	--theme-color: #f3f0fa;
-	color-scheme: light;
-}
 
 * {
 	box-sizing: border-box;
@@ -189,6 +82,8 @@ body {
 .bottom-bar button.menu-button,
 .bottom-bar a.add-button {
 	flex-shrink: 0;
+	border-radius: var(--radius);
+	font-weight: 600;
 	justify-content: center;
 	width: 48px;
 	min-height: 48px;
@@ -197,7 +92,7 @@ body {
 	line-height: 1;
 }
 
-/* Controls that the bottom bar replaces on narrow screens; shown again from 1024px (desktop.css). */
+/* Controls that the bottom bar replaces on narrow screens; shown again on wide screens (desktop.css). */
 .on-wide,
 a.button.on-wide {
 	display: none;
@@ -411,11 +306,11 @@ button,
 a.button {
 	font: inherit;
 	font-size: 0.95rem;
-	font-weight: 600;
+	font-weight: var(--button-weight);
 	min-height: 48px;
 	padding: 10px 18px;
 	border: none;
-	border-radius: var(--radius);
+	border-radius: var(--button-radius);
 	background: var(--accent);
 	color: var(--accent-text);
 	box-shadow: var(--glow);
@@ -704,6 +599,7 @@ label.chip input {
 	background: rgb(0 0 0 / 0.55);
 	color: #ffffff;
 	font-size: 26px;
+	font-weight: 600;
 	line-height: 1;
 	box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
@@ -846,6 +742,7 @@ dialog.photo-editor::backdrop {
 
 button.photo-choice {
 	min-height: 0;
+	border-radius: var(--radius);
 	padding: 0;
 	border: 3px solid transparent;
 	background: none;
@@ -897,6 +794,7 @@ button.select-button {
 	color: var(--text);
 	border: 1px solid var(--border);
 	box-shadow: none;
+	border-radius: var(--radius);
 	font-weight: 500;
 }
 
@@ -917,6 +815,7 @@ button.select-button {
 	color: var(--text);
 	border: 1px solid var(--border);
 	box-shadow: none;
+	border-radius: var(--radius);
 	font-weight: 500;
 }
 
@@ -1038,6 +937,7 @@ button.pack {
 	color: var(--text);
 	border: 1px solid var(--border);
 	box-shadow: none;
+	border-radius: var(--radius);
 	font-weight: 500;
 }
 
@@ -1363,381 +1263,9 @@ label.theme-card:has(input:checked) {
 	background: var(--p-accent);
 }
 
-.theme-preview[data-preview='minimal'] {
-	--p-background: #ffffff;
-	--p-surface: #f4f4f5;
-	--p-accent: #18181b;
-	--p-radius: 4px;
-}
-
-.theme-preview[data-preview='neon'] {
-	--p-background: #09090f;
-	--p-surface: rgb(255 255 255 / 0.12);
-	--p-accent: #7df9c8;
-	--p-radius: 8px;
-}
-
-.theme-preview[data-preview='soft'] {
-	--p-background: #f3f0fa;
-	--p-surface: #ffffff;
-	--p-accent: #5b3bea;
-	--p-radius: 12px;
-	--p-shadow: 0 2px 6px rgb(60 40 140 / 0.12);
-}
-
-/*
- * Theme Neon: light blobs in the background, frosted-glass surfaces, upper-case heading
- * and tiles instead of a list for the item overview.
- */
-[data-theme='neon'] body::before,
-[data-theme='neon'] body::after {
-	content: '';
-	position: fixed;
-	z-index: -1;
-	width: 420px;
-	height: 420px;
-	border-radius: 50%;
-	filter: blur(90px);
-	pointer-events: none;
-}
-
-[data-theme='neon'] body::before {
-	top: -140px;
-	left: -160px;
-	background: #6d28d9;
-	opacity: 0.45;
-}
-
-[data-theme='neon'] body::after {
-	top: 35vh;
-	right: -200px;
-	background: #0ea5a4;
-	opacity: 0.3;
-}
-
-[data-theme='neon'] h1 {
-	font-size: 1.5rem;
-	font-weight: 700;
-	letter-spacing: 0.12em;
-	text-transform: uppercase;
-}
-
-[data-theme='neon'] h1.box-number {
-	font-size: 2.4em;
-	letter-spacing: 0.06em;
-}
-
-[data-theme='neon'] button.secondary,
-[data-theme='neon'] a.button.secondary,
-[data-theme='neon'] .card {
-	-webkit-backdrop-filter: var(--glass);
-	backdrop-filter: var(--glass);
-}
-
-[data-theme='neon'] input:focus-visible,
-[data-theme='neon'] select:focus-visible,
-[data-theme='neon'] textarea:focus-visible {
-	box-shadow: 0 0 18px rgb(125 249 200 / 0.35);
-}
-
-[data-theme='neon'] .badge.box {
-	color: var(--accent);
-	border-color: rgb(125 249 200 / 0.45);
-}
-
-[data-theme='neon'] .item-grid {
-	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-	gap: 12px;
-}
-
-[data-theme='neon'] .item-grid li + li {
-	border-top: none;
-}
-
-[data-theme='neon'] .card {
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	gap: 8px;
-	height: 100%;
-	padding: 0 0 12px;
-	border: 1px solid var(--border);
-	border-radius: 14px;
-	background: var(--surface);
-	overflow: hidden;
-	transition:
-		border-color 0.15s,
-		box-shadow 0.15s;
-}
-
-[data-theme='neon'] .card:hover {
-	box-shadow: 0 0 22px rgb(125 249 200 / 0.18);
-}
-
-[data-theme='neon'] .card img {
-	width: 100%;
-	height: 130px;
-	border-radius: 0;
-}
-
-[data-theme='neon'] .card-text,
-[data-theme='neon'] .card .disposition {
-	margin: 0 12px;
-}
-
-[data-theme='neon'] .card .disposition {
-	align-self: flex-start;
-	margin-top: auto;
-}
-
-[data-theme='neon'] .disposition {
-	padding: 3px 9px;
-	border-radius: 999px;
-	background: var(--badge-background, rgb(255 255 255 / 0.1));
-	color: var(--badge-text, #d4d4e0);
-	font-size: 0.7rem;
-	font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-}
-
-[data-theme='neon'] .disposition::before {
-	display: none;
-}
-
-[data-theme='neon'] .disposition[data-disposition='sell'] {
-	--badge-background: rgb(251 146 60 / 0.18);
-	--badge-text: #fdba74;
-}
-
-[data-theme='neon'] .disposition[data-disposition='keep'] {
-	--badge-background: rgb(125 249 200 / 0.16);
-	--badge-text: #7df9c8;
-}
-
-[data-theme='neon'] .disposition[data-disposition='give_away'] {
-	--badge-background: rgb(244 114 182 / 0.18);
-	--badge-text: #f9a8d4;
-}
-
-[data-theme='neon'] .disposition[data-disposition='sell_later'] {
-	--badge-background: rgb(250 204 21 / 0.16);
-	--badge-text: #fde68a;
-}
-
-/*
- * Theme Soft: gentle shadows instead of borders, buttons and filters as pills, bold heading
- * and tiles with pastel badges for the item overview.
- */
-[data-theme='soft'] h1 {
-	font-size: 30px;
-	font-weight: 800;
-	letter-spacing: -0.02em;
-}
-
-[data-theme='soft'] h1.box-number {
-	font-size: 2.6em;
-}
-
-[data-theme='soft'] h2 {
-	font-weight: 700;
-}
-
-/* Pills for buttons; whatever is more of a field, list row or part of a photo keeps its shape. */
-[data-theme='soft'] :is(button, a.button):not(.menu-button, .add-button, .menu-link, .menu-close, .select-button, .pack, .photo-choice, .photo-delete, .crop, .handle, .results button) {
-	border-radius: 999px;
-	font-weight: 700;
-}
-
-[data-theme='soft'] .bottom-bar :is(button.menu-button, a.add-button) {
-	border-radius: 16px;
-}
-
-[data-theme='soft'] :is(button.secondary, a.button.secondary, label.chip, button.pack, button.select-button, .results button, .notice),
-[data-theme='soft'] :is(input:not([type='checkbox'], [type='radio']), select, textarea) {
-	border-color: transparent;
-	box-shadow: var(--shadow);
-}
-
-[data-theme='soft'] :is(input, select, textarea):focus-visible {
-	border-color: var(--accent);
-	box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-[data-theme='soft'] label.chip:has(input:checked) {
-	outline: none;
-	border-color: var(--accent);
-	background: #ece8f8;
-}
-
-[data-theme='soft'] button.pack.packed,
-[data-theme='soft'] .results button.active {
-	border-color: var(--accent);
-}
-
-[data-theme='soft'] a.button.floating {
-	box-shadow: var(--shadow-floating);
-}
-
-[data-theme='soft'] .bottom-bar {
-	border-top-color: transparent;
-	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
-}
-
-[data-theme='soft'] dialog.side-menu {
-	border-right: none;
-	box-shadow: var(--shadow-card);
-}
-
-[data-theme='soft'] :is(dialog.side-menu, dialog.photo-editor, dialog.box-dialog)::backdrop {
-	background: rgb(27 21 48 / 0.35);
-}
-
-[data-theme='soft'] :is(dialog.photo-editor, dialog.box-dialog) {
-	border-color: transparent;
-	box-shadow: var(--shadow-card);
-}
-
-/* Sidebar: white surface, set off from the content only by the shadow (the border from desktop.css is dropped). */
-[data-theme='soft'] nav.sidebar {
-	border-right-color: transparent;
-	box-shadow: var(--shadow);
-}
-
-[data-theme='soft'] .action-bar {
-	border-top-color: transparent;
-	box-shadow: 0 -4px 14px rgb(60 40 140 / 0.08);
-}
-
-[data-theme='soft'] label.theme-card {
-	border-color: transparent;
-}
-
-[data-theme='soft'] label.theme-card:has(input:checked) {
-	border-color: var(--accent);
-}
-
-[data-theme='soft'] .badge {
-	padding: 3px 10px;
-	font-size: 12px;
-	font-weight: 700;
-}
-
-[data-theme='soft'] .badge.box {
-	background: #eef0f4;
-	color: #3a4150;
-	border-color: transparent;
-}
-
-[data-theme='soft'] .item-grid {
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 12px;
-}
-
-[data-theme='soft'] .item-grid li + li {
-	border-top: none;
-}
-
-[data-theme='soft'] .card {
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	gap: 8px;
-	height: 100%;
-	padding: 8px;
-	border-radius: 22px;
-	background: var(--surface);
-	box-shadow: var(--shadow-card);
-	transition: box-shadow 0.15s;
-}
-
-[data-theme='soft'] .card:hover {
-	box-shadow: 0 10px 26px rgb(60 40 140 / 0.14);
-}
-
-[data-theme='soft'] .card img {
-	width: 100%;
-	height: 132px;
-	border-radius: 16px;
-}
-
-[data-theme='soft'] .card-name {
-	font-weight: 700;
-}
-
-[data-theme='soft'] .card-text,
-[data-theme='soft'] .card .disposition {
-	margin: 0 4px;
-}
-
-[data-theme='soft'] .card .disposition {
-	align-self: flex-start;
-	margin-top: auto;
-	margin-bottom: 4px;
-}
-
-[data-theme='soft'] .disposition {
-	padding: 3px 10px;
-	border-radius: 999px;
-	background: var(--badge-background, #ece8f8);
-	color: var(--badge-text, #4c3f75);
-	font-size: 12px;
-	font-weight: 700;
-}
-
-[data-theme='soft'] .disposition::before {
-	display: none;
-}
-
-[data-theme='soft'] .disposition[data-disposition='sell'] {
-	--badge-background: #ffe4d6;
-	--badge-text: #9a3412;
-}
-
-[data-theme='soft'] .disposition[data-disposition='keep'] {
-	--badge-background: #dcf5e7;
-	--badge-text: #166534;
-}
-
-[data-theme='soft'] .disposition[data-disposition='give_away'] {
-	--badge-background: #fce4f1;
-	--badge-text: #9d174d;
-}
-
-[data-theme='soft'] .disposition[data-disposition='sell_later'] {
-	--badge-background: #fff1c2;
-	--badge-text: #854d0e;
-}
-
-/* Side menu per theme: Neon with a glowing active row and upper-case brand, Soft with rounder rows. */
-[data-theme='neon'] .menu-brand {
-	letter-spacing: 0.12em;
-	text-transform: uppercase;
-}
-
-[data-theme='neon'] nav.menu-content .menu-link[aria-current='page'] {
-	color: var(--accent);
-	background: rgb(125 249 200 / 0.1);
-	box-shadow: inset 0 0 0 1px rgb(125 249 200 / 0.35);
-}
-
-[data-theme='soft'] .menu-brand {
-	font-size: 1.35rem;
-	font-weight: 800;
-}
-
-[data-theme='soft'] nav.menu-content :is(.menu-link, button.menu-close) {
-	border-radius: 14px;
-}
-
-[data-theme='soft'] nav.menu-content .menu-link[aria-current='page'] {
-	background: #ece8f8;
-	font-weight: 700;
-}
-
 /* ===== Multi-select on the start page (selection mode) =====
    Entered by a long press on an item or the "Auswählen" button. The selection bar sticks above the list; the
-   actions sit in the bottom bar on narrow screens and in the selection bar from 1024px (desktop.css). */
+   actions sit in the bottom bar on narrow screens and in the selection bar on wide screens (desktop.css). */
 .header .select-start {
 	margin-left: auto;
 }
@@ -1778,7 +1306,7 @@ label.theme-card:has(input:checked) {
 	font-weight: 600;
 }
 
-/* Only from 1024px, where the bottom bar is gone (desktop.css). */
+/* Only on wide screens, where the bottom bar is gone (desktop.css). */
 .selection-wide {
 	display: none;
 }
@@ -1853,11 +1381,11 @@ label.theme-card:has(input:checked) {
 	background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
-:is([data-theme='neon'], [data-theme='soft']) .item-grid.selecting .card {
+[data-item-view='tiles'] .item-grid.selecting .card {
 	position: relative;
 }
 
-:is([data-theme='neon'], [data-theme='soft']) .card-check {
+[data-item-view='tiles'] .card-check {
 	position: absolute;
 	top: 10px;
 	left: 10px;
@@ -1869,24 +1397,20 @@ label.theme-card:has(input:checked) {
 	box-shadow: 0 1px 4px rgb(0 0 0 / 0.4);
 }
 
-:is([data-theme='neon'], [data-theme='soft']) .card.selected .card-check {
+[data-item-view='tiles'] .card.selected .card-check {
 	border-color: var(--accent);
 	background: var(--accent);
 }
 
-:is([data-theme='neon'], [data-theme='soft']) .card.selected .card-check::after {
+[data-item-view='tiles'] .card.selected .card-check::after {
 	left: 7px;
 	top: 3px;
 }
 
-:is([data-theme='neon'], [data-theme='soft']) .card.selected {
+[data-item-view='tiles'] .card.selected {
 	outline: 3px solid var(--accent);
 	outline-offset: -1px;
 	box-shadow: var(--glow-strong);
-}
-
-[data-theme='soft'] .selection-bar {
-	border-color: transparent;
 }
 
 /* ===== End of multi-select ===== */
@@ -1924,14 +1448,6 @@ label.theme-card:has(input:checked) {
 
 .update-notice button {
 	flex-shrink: 0;
-}
-
-[data-theme='neon'] .update-notice {
-	box-shadow: var(--glow);
-}
-
-[data-theme='soft'] .update-notice {
-	border-color: transparent;
 }
 
 /* ===== Storage location labels and "Hier einräumen" (feedback-2, ticket 06) ===== */

@@ -1,0 +1,208 @@
+/*
+ * Theme Neon: always dark, frosted-glass surfaces, mint with glow. Space Grotesk.
+ * Light blobs in the background, upper-case headings and tiles instead of a list for the item overview.
+ */
+
+@font-face {
+	font-family: 'Space Grotesk';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 700;
+	src: url('@fontsource-variable/space-grotesk/files/space-grotesk-latin-wght-normal.woff2')
+		format('woff2');
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+	font-family: 'Space Grotesk';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 300 700;
+	src: url('@fontsource-variable/space-grotesk/files/space-grotesk-latin-ext-wght-normal.woff2')
+		format('woff2');
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root[data-theme='neon'] {
+	--background: #09090f;
+	--surface: rgb(255 255 255 / 0.055);
+	--surface-solid: rgb(20 20 31 / 0.94);
+	--field: rgb(255 255 255 / 0.05);
+	--text: #f4f4fa;
+	--text-muted: #a8a8bf;
+	--accent: #7df9c8;
+	--accent-text: #062019;
+	--border: rgb(255 255 255 / 0.13);
+	--error: #fca5a5;
+	--radius: 14px;
+	--radius-large: 20px;
+	--font: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+	--shadow: none;
+	--shadow-floating: 0 0 28px rgb(125 249 200 / 0.5);
+	--glow: 0 0 20px rgb(125 249 200 / 0.4);
+	--glow-strong: 0 0 32px rgb(125 249 200 / 0.55);
+	--glass: blur(16px);
+	color-scheme: dark;
+}
+
+/* Miniature in the theme picker (Einstellungen). */
+.theme-preview[data-preview='neon'] {
+	--p-background: #09090f;
+	--p-surface: rgb(255 255 255 / 0.12);
+	--p-accent: #7df9c8;
+	--p-radius: 8px;
+}
+
+[data-theme='neon'] body::before,
+[data-theme='neon'] body::after {
+	content: '';
+	position: fixed;
+	z-index: -1;
+	width: 420px;
+	height: 420px;
+	border-radius: 50%;
+	filter: blur(90px);
+	pointer-events: none;
+}
+
+[data-theme='neon'] body::before {
+	top: -140px;
+	left: -160px;
+	background: #6d28d9;
+	opacity: 0.45;
+}
+
+[data-theme='neon'] body::after {
+	top: 35vh;
+	right: -200px;
+	background: #0ea5a4;
+	opacity: 0.3;
+}
+
+[data-theme='neon'] h1 {
+	font-size: 1.5rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+[data-theme='neon'] h1.box-number {
+	font-size: 2.4em;
+	letter-spacing: 0.06em;
+}
+
+[data-theme='neon'] button.secondary,
+[data-theme='neon'] a.button.secondary,
+[data-theme='neon'] .card {
+	-webkit-backdrop-filter: var(--glass);
+	backdrop-filter: var(--glass);
+}
+
+[data-theme='neon'] input:focus-visible,
+[data-theme='neon'] select:focus-visible,
+[data-theme='neon'] textarea:focus-visible {
+	box-shadow: 0 0 18px rgb(125 249 200 / 0.35);
+}
+
+[data-theme='neon'] .badge.box {
+	color: var(--accent);
+	border-color: rgb(125 249 200 / 0.45);
+}
+
+[data-theme='neon'] .item-grid {
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 12px;
+}
+
+[data-theme='neon'] .item-grid li + li {
+	border-top: none;
+}
+
+[data-theme='neon'] .card {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 8px;
+	height: 100%;
+	padding: 0 0 12px;
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	background: var(--surface);
+	overflow: hidden;
+	transition:
+		border-color 0.15s,
+		box-shadow 0.15s;
+}
+
+[data-theme='neon'] .card:hover {
+	box-shadow: 0 0 22px rgb(125 249 200 / 0.18);
+}
+
+[data-theme='neon'] .card img {
+	width: 100%;
+	height: 130px;
+	border-radius: 0;
+}
+
+[data-theme='neon'] .card-text,
+[data-theme='neon'] .card .disposition {
+	margin: 0 12px;
+}
+
+[data-theme='neon'] .card .disposition {
+	align-self: flex-start;
+	margin-top: auto;
+}
+
+[data-theme='neon'] .disposition {
+	padding: 3px 9px;
+	border-radius: 999px;
+	background: var(--badge-background, rgb(255 255 255 / 0.1));
+	color: var(--badge-text, #d4d4e0);
+	font-size: 0.7rem;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+[data-theme='neon'] .disposition::before {
+	display: none;
+}
+
+[data-theme='neon'] .disposition[data-disposition='sell'] {
+	--badge-background: rgb(251 146 60 / 0.18);
+	--badge-text: #fdba74;
+}
+
+[data-theme='neon'] .disposition[data-disposition='keep'] {
+	--badge-background: rgb(125 249 200 / 0.16);
+	--badge-text: #7df9c8;
+}
+
+[data-theme='neon'] .disposition[data-disposition='give_away'] {
+	--badge-background: rgb(244 114 182 / 0.18);
+	--badge-text: #f9a8d4;
+}
+
+[data-theme='neon'] .disposition[data-disposition='sell_later'] {
+	--badge-background: rgb(250 204 21 / 0.16);
+	--badge-text: #fde68a;
+}
+
+/* Side menu: glowing active row and upper-case brand. */
+[data-theme='neon'] .menu-brand {
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+[data-theme='neon'] nav.menu-content .menu-link[aria-current='page'] {
+	color: var(--accent);
+	background: rgb(125 249 200 / 0.1);
+	box-shadow: inset 0 0 0 1px rgb(125 249 200 / 0.35);
+}
+
+[data-theme='neon'] .update-notice {
+	box-shadow: var(--glow);
+}

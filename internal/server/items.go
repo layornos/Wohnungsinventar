@@ -58,11 +58,11 @@ func dispositionJSON(d store.Disposition) *store.Disposition {
 
 // photoURL contains the random file name besides the ID: photos stay in the browser cache
 // for good, so the address has to change as soon as the file changes.
-func photoURL(id int64, file string) string {
-	return fmt.Sprintf("/api/photos/%d/%s", id, file)
+func photoURL(p store.PhotoRef) string {
+	return fmt.Sprintf("/api/photos/%d/%s", p.ID, p.File)
 }
 
-func thumbnailURL(photoID int64, file string) string { return photoURL(photoID, file) + "/thumbnail" }
+func thumbnailURL(p store.PhotoRef) string { return photoURL(p) + "/thumbnail" }
 
 func toItemJSON(item store.Item) itemJSON {
 	out := itemJSON{
@@ -82,7 +82,7 @@ func toItemJSON(item store.Item) itemJSON {
 		out.Placement = &p
 	}
 	for _, p := range item.Photos {
-		out.Photos = append(out.Photos, photoJSON{ID: p.ID, MainPhoto: p.MainPhoto, URL: photoURL(p.ID, p.File), ThumbnailURL: thumbnailURL(p.ID, p.File)})
+		out.Photos = append(out.Photos, photoJSON{ID: p.ID, MainPhoto: p.MainPhoto, URL: photoURL(p.PhotoRef), ThumbnailURL: thumbnailURL(p.PhotoRef)})
 	}
 	return out
 }
@@ -287,7 +287,7 @@ func toItemListJSON(entries []store.ItemListEntry) []itemListJSON {
 	items := make([]itemListJSON, 0, len(entries))
 	for _, e := range entries {
 		items = append(items, itemListJSON{
-			ID: e.ID, Name: e.Name, Disposition: dispositionJSON(e.Disposition), ThumbnailURL: thumbnailURL(e.MainPhotoID, e.MainPhotoFile),
+			ID: e.ID, Name: e.Name, Disposition: dispositionJSON(e.Disposition), ThumbnailURL: thumbnailURL(e.MainPhoto),
 			Place: e.Place, StorageLocationID: idOrNull(e.StorageLocationID), Move: toMoveDetailsJSON(e.Move),
 		})
 	}

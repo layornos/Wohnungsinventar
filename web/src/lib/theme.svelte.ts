@@ -1,20 +1,8 @@
-// The theme is set as data-theme on <html>. app.html already sets it from localStorage before the first render so
-// nothing flashes; here it is only switched and the theme colour is updated.
+// The theme is set as data-theme on <html>, together with data-item-view for list or tiles. app.html already sets
+// both from localStorage before the first render so nothing flashes; here they are only switched and the theme
+// colour is updated.
 // The choice is stored with the user on the server (session.svelte.ts); localStorage only mirrors it for the next load.
-
-export type Theme = 'minimal' | 'neon' | 'soft';
-
-export const DEFAULT_THEME: Theme = 'minimal';
-
-export const THEMES: { value: Theme; name: string; description: string }[] = [
-	{ value: 'minimal', name: 'Minimal', description: 'Schlicht, hell oder dunkel wie das System' },
-	{ value: 'neon', name: 'Neon', description: 'Immer dunkel, mit leuchtendem Mint' },
-	{ value: 'soft', name: 'Weich & farbig', description: 'Immer hell, rund und bunt' }
-];
-
-export function isTheme(value: unknown): value is Theme {
-	return THEMES.some((t) => t.value === value);
-}
+import { DEFAULT_THEME, isTheme, themeInfo, type Theme } from './themes.ts';
 
 // Must match the key in the inline script in app.html.
 const STORAGE_KEY = 'inventar.theme';
@@ -30,6 +18,7 @@ export const appearance = $state<{ theme: Theme }>({
 export function applyTheme(t: Theme) {
 	appearance.theme = t;
 	document.documentElement.dataset.theme = t;
+	document.documentElement.dataset.itemView = themeInfo(t).tiles ? 'tiles' : 'list';
 	try {
 		localStorage.setItem(STORAGE_KEY, t);
 	} catch {
@@ -48,8 +37,9 @@ export function resetTheme() {
 	}
 }
 
-/** Sets the browser bar colour to --theme-color of the active theme (Minimal light or dark). */
+/** Sets the browser bar colour of the active theme (Minimal light or dark like the system). */
 export function updateThemeColor() {
-	const color = getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim();
-	if (color) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color);
+	const { color } = themeInfo(appearance.theme);
+	const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+	document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? color.dark : color.light);
 }

@@ -6,15 +6,12 @@
 	// - "sidebar" (wide screens): permanently visible sidebar on the left.
 	// desktop.css decides which form is visible.
 	import { page } from '$app/state';
-	import { MediaQuery } from 'svelte/reactivity';
 	import { toLogin } from './api.ts';
+	import MenuIcon, { type MenuIconName } from './MenuIcon.svelte';
 	import { logout, session } from './session.svelte.ts';
 	import { registerSideMenu, sideMenu } from './sideMenu.svelte.ts';
 
 	let { kind = 'dialog' }: { kind?: 'dialog' | 'sidebar' } = $props();
-
-	// Must match the breakpoint in desktop.css.
-	const wide = new MediaQuery('min-width: 1024px');
 
 	const MIN_DISTANCE = 60;
 
@@ -36,9 +33,16 @@
 		if (kind === 'dialog') return registerSideMenu(open);
 	});
 
-	// When the window becomes wide, the sidebar takes over; an open dialog on top would show the menu twice.
+	// When the window becomes wide, the sidebar takes over (desktop.css decides when); an open dialog on top would
+	// show the menu twice.
 	$effect(() => {
-		if (wide.current && sideMenu.open) close();
+		if (kind !== 'dialog') return;
+		const closeForSidebar = () => {
+			const sidebar = document.querySelector('nav.sidebar');
+			if (sideMenu.open && sidebar && getComputedStyle(sidebar).display !== 'none') close();
+		};
+		addEventListener('resize', closeForSidebar);
+		return () => removeEventListener('resize', closeForSidebar);
 	});
 
 	function swipeStart(e: TouchEvent) {
@@ -76,24 +80,10 @@
 	}
 </script>
 
-{#snippet icon(name: string)}
-	<svg class="menu-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-		{#if name === 'inventory'}<rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
-		{:else if name === 'unstored'}<path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" /><path d="M9.5 9.5l5 5M14.5 9.5l-5 5" />
-		{:else if name === 'apartments'}<path d="M3 10.5 12 3l9 7.5" /><path d="M5 9v12h14V9" /><path d="M10 21v-6h4v6" />
-		{:else if name === 'move'}<path d="M3 7h11v10H3z" /><path d="M14 10h4l3 3v4h-7" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" />
-		{:else if name === 'persons'}<circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2a6.5 6.5 0 0 1 3.5 5.8" />
-		{:else if name === 'users'}<rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
-		{:else if name === 'settings'}<circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-		{:else if name === 'logout'}<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 17l-5-5 5-5M5 12h11" />
-		{/if}
-	</svg>
-{/snippet}
-
-{#snippet entry(href: string, name: string, iconName: string)}
+{#snippet entry(href: string, name: string, iconName: MenuIconName)}
 	<li>
 		<a class="menu-link" {href} aria-current={isActive(href) ? 'page' : undefined} onclick={close}>
-			{@render icon(iconName)}<span>{name}</span>
+			<MenuIcon name={iconName} /><span>{name}</span>
 		</a>
 	</li>
 {/snippet}
@@ -136,7 +126,7 @@
 			{@render entry('/einstellungen', 'Einstellungen', 'settings')}
 			<li>
 				<button type="button" class="menu-link" onclick={logoutAndLeave}>
-					{@render icon('logout')}<span>Abmelden</span>
+					<MenuIcon name="logout" /><span>Abmelden</span>
 				</button>
 			</li>
 		</ul>
