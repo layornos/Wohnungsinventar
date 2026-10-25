@@ -1,4 +1,4 @@
-.PHONY: web build build-pi run check clean
+.PHONY: web build build-pi run check e2e clean
 
 DIST := internal/webui/dist
 
@@ -26,5 +26,10 @@ check:
 	go test ./...
 	cd web && npm ci && npm run check && npm run build
 
+# Browser tests (Playwright, Chromium) against the built server; the global setup runs `make build` itself.
+# In CI the browser comes with its system dependencies: npx playwright install --with-deps chromium.
+e2e:
+	cd e2e && npm ci && npx playwright install chromium && npx playwright test
+
 clean:
-	rm -rf bin web/build $(DIST)/*
+	rm -rf bin web/build $(DIST)/* e2e/test-results e2e/playwright-report

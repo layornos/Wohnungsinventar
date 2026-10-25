@@ -21,6 +21,16 @@ Für die Arbeit am Client mit Hot Reload laufen Go-Server (`go run ./cmd/inventa
 
 Ohne DuckDNS-Angaben läuft der Server per HTTP. Browser behandeln `localhost` als sichere Umgebung, PWA und Kamera funktionieren dort also auch ohne Zertifikat. Ohne SMTP-Angaben schreibt der Server Mails nur ins Log.
 
+### Browser-Tests
+
+```sh
+make e2e     # baut bin/inventar, installiert Chromium für Playwright bei Bedarf und führt die Tests aus
+```
+
+Die Playwright-Tests liegen in [`e2e/`](e2e/), mit eigener `package.json`, damit der Client in `web/` ohne Testabhängigkeiten gebaut wird. Jeder Test-Worker startet `bin/inventar serve` auf einem freien Port mit leerem Datenverzeichnis und einem Testnutzer. Jeder Test läuft in Handy- (390×844) und Desktop-Größe (1280×800); Konsolenfehler und unerwartete Fehlerantworten des Servers lassen ihn scheitern. Mit `E2E_SKIP_BUILD=1` nutzen die Tests ein vorhandenes Binary; einzelne Tests: `cd e2e && npx playwright test tests/move.spec.ts --project desktop`, Bericht: `npx playwright show-report`.
+
+Bei jedem Push und Pull Request laufen `make check` und `make e2e` als GitHub Action ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)); schlägt etwas fehl, hängt der Playwright-Bericht am Lauf.
+
 ## Betrieb auf dem Pi
 
 Auf dem Pi (`kodi`, Debian 12 arm64) läuft der Server als systemd-Dienst per HTTP auf `127.0.0.1:8080`. Davor terminiert ein gemeinsamer Caddy für alle Dienste TLS mit DuckDNS-Zertifikaten (ADR-0005). Alle Dateien dafür liegen in [`deploy/`](deploy/).

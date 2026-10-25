@@ -1,6 +1,6 @@
 # Automatische Browser-Tests und CI
 
-Status: ready-for-agent
+Status: done
 Typ: Qualität
 
 ## Was
