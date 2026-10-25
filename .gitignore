@@ -12,3 +12,4 @@
 # Lokale Daten und Geheimnisse
 /data/
 .env
+/tmp/

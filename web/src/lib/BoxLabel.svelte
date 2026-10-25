@@ -6,7 +6,7 @@
 	let { box }: { box: BoxSummary } = $props();
 </script>
 
-<article class="box-label-sheet">
+<article class="label-sheet">
 	<p class="label-number">{box.number}</p>
 	{#if box.label}<p class="label-name">{box.label}</p>{/if}
 	<p class="label-target">→ {box.targetRoom?.name ?? '________'}</p>

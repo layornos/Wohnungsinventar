@@ -28,6 +28,7 @@
 	// From the packing mode new items go straight into the active box.
 	const box = page.url.searchParams.get('box');
 	let photoInput: PhotoInput;
+	let barCamera = $state<HTMLButtonElement>();
 	let nameInput: HTMLInputElement;
 	let places = $state<PlaceEntry[]>([]);
 	let place = $state<Place | null>(null);
@@ -94,7 +95,7 @@
 			description = '';
 			await tick();
 			window.scrollTo({ top: 0 });
-			photoInput.focusCamera();
+			if (!photoInput.focusCamera()) barCamera?.focus({ preventScroll: true });
 		} catch (e) {
 			error = errorText(e);
 		} finally {
@@ -107,7 +108,7 @@
 </script>
 
 {#snippet barContent()}
-	<button type="button" class="camera-button" disabled={busy} onclick={() => photoInput.openCamera()}>Foto aufnehmen</button>
+	<button type="button" class="camera-button" bind:this={barCamera} disabled={busy} onclick={() => photoInput.openCamera()}>Foto aufnehmen</button>
 {/snippet}
 
 <main class="page wide">
@@ -136,7 +137,7 @@
 					{/each}
 				</ul>
 			{/if}
-			<PhotoInput bind:this={photoInput} chosen={add} />
+			<PhotoInput bind:this={photoInput} chosen={add} cameraInBottomBar />
 			{#if edit.current}
 				<PhotoEditor source={edit.current.source} done={edit.done} />
 			{/if}

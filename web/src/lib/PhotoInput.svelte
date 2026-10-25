@@ -3,7 +3,13 @@
 	// Photos are shrunk before they are handed on (shrinkPhoto.ts), so uploads stay small.
 	import { shrinkPhotos } from './shrinkPhoto.ts';
 
-	let { chosen, disabled = false }: { chosen: (files: File[]) => void; disabled?: boolean } = $props();
+	// cameraInBottomBar: the page puts its own camera button into the bottom bar on narrow screens, so this one only
+	// shows on wide screens.
+	let {
+		chosen,
+		disabled = false,
+		cameraInBottomBar = false
+	}: { chosen: (files: File[]) => void; disabled?: boolean; cameraInBottomBar?: boolean } = $props();
 
 	let camera: HTMLInputElement;
 	let gallery: HTMLInputElement;
@@ -15,9 +21,11 @@
 		camera.click();
 	}
 
-	/** Focuses the camera button, so the next photo is one tap (or Enter) away. */
+	/** Focuses the camera button, so the next photo is one tap (or Enter) away; false if it is hidden. */
 	export function focusCamera() {
+		if (cameraButton.getClientRects().length === 0) return false;
 		cameraButton.focus({ preventScroll: true });
+		return true;
 	}
 
 	async function take(e: Event) {
@@ -35,7 +43,7 @@
 </script>
 
 <div class="button-row">
-	<button type="button" bind:this={cameraButton} onclick={openCamera} disabled={disabled || shrinking}>Foto aufnehmen</button>
+	<button type="button" class:on-wide={cameraInBottomBar} bind:this={cameraButton} onclick={openCamera} disabled={disabled || shrinking}>Foto aufnehmen</button>
 	<button type="button" class="secondary" onclick={() => gallery.click()} disabled={disabled || shrinking}>Aus Galerie</button>
 </div>
 {#if shrinking}<p class="muted" role="status">Foto wird verkleinert …</p>{/if}

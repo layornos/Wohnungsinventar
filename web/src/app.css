@@ -773,6 +773,12 @@ button.photo-choice.active {
 	margin: 0;
 }
 
+/* Rows that are tappable cards (packing, unpacking) are set apart by their own border; no line in between. */
+.rows li:has(> button.pack) {
+	padding: 4px 0;
+	border-bottom: none;
+}
+
 .filter .span-all {
 	grid-column: 1 / -1;
 }
@@ -1062,7 +1068,7 @@ button.unpack-all {
 	gap: 16px;
 }
 
-.box-label-sheet {
+.label-sheet {
 	display: grid;
 	justify-items: center;
 	gap: 3mm;
@@ -1078,31 +1084,31 @@ button.unpack-all {
 	text-align: center;
 }
 
-.box-label-sheet p {
+.label-sheet p {
 	margin: 0;
 	max-width: 100%;
 	overflow-wrap: anywhere;
 	line-height: 1.1;
 }
 
-.box-label-sheet .label-number {
+.label-sheet .label-number {
 	font-size: 38mm;
 	font-weight: 800;
 	letter-spacing: -0.04em;
 	line-height: 1;
 }
 
-.box-label-sheet .label-name {
+.label-sheet .label-name {
 	font-size: 9mm;
 	font-weight: 700;
 }
 
-.box-label-sheet .label-target {
+.label-sheet .label-target {
 	font-size: 8mm;
 	font-weight: 600;
 }
 
-.box-label-sheet .label-qr {
+.label-sheet .label-qr {
 	display: block;
 	width: 48mm;
 	height: 48mm;
@@ -1157,13 +1163,13 @@ button.unpack-all {
 		display: block;
 	}
 
-	.box-label-sheet {
+	.label-sheet {
 		margin: 0 auto;
 		border: none;
 		break-inside: avoid;
 	}
 
-	.box-label-sheet + .box-label-sheet {
+	.label-sheet + .label-sheet {
 		break-before: page;
 	}
 }
@@ -1452,7 +1458,7 @@ label.theme-card:has(input:checked) {
 
 /* ===== Storage location labels and "Hier einräumen" (feedback-2, ticket 06) ===== */
 
-/* The label reuses the box label sheet; instead of the large number it shows the path and the name large. */
+/* The label uses the same sheet as the box label; instead of the large number it shows the path and the name large. */
 .storage-location-label .label-path {
 	font-size: 6mm;
 	font-weight: 600;
